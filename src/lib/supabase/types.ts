@@ -67,3 +67,83 @@ export type OrderMaterial = {
   unit: string
   created_at: string
 }
+
+// ==================== Inventory ====================
+
+export type MaterialCategory = {
+  id: string
+  name: string
+  description: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type Material = {
+  id: string
+  sku: string
+  name: string
+  category_id: string | null
+  unit: string
+  current_stock: number
+  min_stock_level: number
+  cost_per_unit: number
+  supplier_name: string | null
+  supplier_contact: string | null
+  location: string | null
+  notes: string | null
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export type MaterialWithCategory = Material & {
+  category: MaterialCategory | null
+}
+
+export type StockTransaction = {
+  id: string
+  material_id: string
+  type: "purchase_in" | "production_out" | "adjustment" | "return"
+  quantity: number
+  reference_type: string | null
+  reference_id: string | null
+  notes: string | null
+  created_by: string | null
+  created_at: string
+}
+
+export type StockTransactionWithMaterial = StockTransaction & {
+  material: Pick<Material, "id" | "name" | "sku" | "unit"> | null
+}
+
+export type PurchaseOrder = {
+  id: string
+  po_number: string
+  supplier_name: string
+  supplier_contact: string | null
+  status: "draft" | "sent" | "partial" | "received" | "cancelled"
+  order_date: string
+  expected_date: string | null
+  total_amount: number
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type PurchaseOrderItem = {
+  id: string
+  purchase_order_id: string
+  material_id: string
+  quantity_ordered: number
+  quantity_received: number
+  unit_price: number
+  created_at: string
+}
+
+export type PurchaseOrderItemWithMaterial = PurchaseOrderItem & {
+  material: Pick<Material, "id" | "name" | "sku" | "unit"> | null
+}
+
+export type PurchaseOrderDetail = PurchaseOrder & {
+  items: PurchaseOrderItemWithMaterial[]
+}

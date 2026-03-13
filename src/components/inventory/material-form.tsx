@@ -1,0 +1,309 @@
+"use client"
+
+import { useState } from "react"
+import { useRouter } from "next/navigation"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+
+import { materialSchema, type MaterialFormData } from "@/lib/validators/inventory"
+import { createMaterial, updateMaterial } from "@/actions/inventory"
+import type { MaterialWithCategory, MaterialCategory } from "@/lib/supabase/types"
+
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+
+interface MaterialFormProps {
+  material?: MaterialWithCategory
+  categories: MaterialCategory[]
+}
+
+const UNITS = [
+  "meters",
+  "kg",
+  "pieces",
+  "rolls",
+  "cones",
+  "yards",
+  "sets",
+  "packs",
+  "liters",
+] as const
+
+export function MaterialForm({ material, categories }: MaterialFormProps) {
+  const router = useRouter()
+  const [error, setError] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const isEditing = !!material
+
+  const form = useForm<MaterialFormData>({
+    resolver: zodResolver(materialSchema),
+    defaultValues: {
+      sku: material?.sku ?? "",
+      name: material?.name ?? "",
+      category_id: material?.category_id ?? "",
+      unit: material?.unit ?? "meters",
+      min_stock_level: material?.min_stock_level ?? 0,
+      cost_per_unit: material?.cost_per_unit ?? 0,
+      supplier_name: material?.supplier_name ?? "",
+      supplier_contact: material?.supplier_contact ?? "",
+      location: material?.location ?? "",
+      notes: material?.notes ?? "",
+    },
+  })
+
+  async function onSubmit(data: MaterialFormData) {
+    setIsSubmitting(true)
+    setError(null)
+
+    try {
+      if (isEditing) {
+        const result = await updateMaterial(material.id, data)
+        if (result && "error" in result && result.error) {
+          setError(result.error)
+          return
+        }
+        router.push(`/inventory/${material.id}`)
+      } else {
+        const result = await createMaterial(data)
+        if (result && "error" in result && result.error) {
+          setError(result.error)
+          return
+        }
+        if (result && "data" in result && result.data) {
+          router.push(`/inventory/${result.data.id}`)
+        }
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong")
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  return (
+    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      {error && (
+        <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive">
+          {error}
+        </div>
+      )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Material Details</CardTitle>
+          <CardDescription>
+            Basic information about the material
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            {/* SKU */}
+            <div className="space-y-2">
+              <Label htmlFor="sku">SKU</Label>
+              <Input
+                id="sku"
+                placeholder="e.g., FAB-COT-WHT-001"
+                {...form.register("sku")}
+              />
+              {form.formState.errors.sku && (
+                <p className="text-sm text-destructive">
+                  {form.formState.errors.sku.message}
+                </p>
+              )}
+            </div>
+
+            {/* Name */}
+            <div className="space-y-2">
+              <Label htmlFor="name">Name</Label>
+              <Input
+                id="name"
+                placeholder="e.g., White Cotton Fabric 60 inch"
+                {...form.register("name")}
+              />
+              {form.formState.errors.name && (
+                <p className="text-sm text-destructive">
+                  {form.formState.errors.name.message}
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-3">
+            {/* Category */}
+            <div className="space-y-2">
+              <Label>Category</Label>
+              <Select
+                value={form.watch("category_id") || ""}
+                onValueChange={(value) =>
+                  form.setValue("category_id", value, { shouldValidate: true })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Unit */}
+            <div className="space-y-2">
+              <Label>Unit</Label>
+              <Select
+                value={form.watch("unit")}
+                onValueChange={(value) =>
+                  form.setValue("unit", value, { shouldValidate: true })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select unit" />
+                </SelectTrigger>
+                <SelectContent>
+                  {UNITS.map((u) => (
+                    <SelectItem key={u} value={u}>
+                      {u}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Cost per unit */}
+            <div className="space-y-2">
+              <Label htmlFor="cost_per_unit">Cost per Unit (₹)</Label>
+              <Input
+                id="cost_per_unit"
+                type="number"
+                min={0}
+                step="0.01"
+                {...form.register("cost_per_unit", { valueAsNumber: true })}
+              />
+              {form.formState.errors.cost_per_unit && (
+                <p className="text-sm text-destructive">
+                  {form.formState.errors.cost_per_unit.message}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Min stock level */}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="min_stock_level">Minimum Stock Level</Label>
+              <Input
+                id="min_stock_level"
+                type="number"
+                min={0}
+                step="0.01"
+                {...form.register("min_stock_level", { valueAsNumber: true })}
+              />
+              <p className="text-xs text-muted-foreground">
+                Alert will show when stock falls below this level
+              </p>
+              {form.formState.errors.min_stock_level && (
+                <p className="text-sm text-destructive">
+                  {form.formState.errors.min_stock_level.message}
+                </p>
+              )}
+            </div>
+
+            {/* Location */}
+            <div className="space-y-2">
+              <Label htmlFor="location">Storage Location</Label>
+              <Input
+                id="location"
+                placeholder="e.g., Rack A3, Shelf 2"
+                {...form.register("location")}
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Supplier Info */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Supplier Information</CardTitle>
+          <CardDescription>
+            Primary supplier details for this material
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="supplier_name">Supplier Name</Label>
+              <Input
+                id="supplier_name"
+                placeholder="Supplier name"
+                {...form.register("supplier_name")}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="supplier_contact">Supplier Contact</Label>
+              <Input
+                id="supplier_contact"
+                placeholder="Phone or email"
+                {...form.register("supplier_contact")}
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Notes */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Additional Notes</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <textarea
+            id="notes"
+            className="flex min-h-[80px] w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            placeholder="Any additional notes about this material..."
+            {...form.register("notes")}
+          />
+        </CardContent>
+      </Card>
+
+      {/* Actions */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => router.push("/inventory")}
+          disabled={isSubmitting}
+        >
+          Cancel
+        </Button>
+        <Button type="submit" disabled={isSubmitting}>
+          {isSubmitting
+            ? "Saving..."
+            : isEditing
+            ? "Update Material"
+            : "Create Material"}
+        </Button>
+      </div>
+    </form>
+  )
+}

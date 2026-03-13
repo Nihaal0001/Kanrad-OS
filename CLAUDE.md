@@ -74,11 +74,13 @@ Phase 9: Polish + Deploy
 
 ## Current Status
 - **Phase 1**: COMPLETE — layout shell, sidebar, topbar, mobile nav, 19 UI primitives, 6 shared components, warm theme, 14 placeholder pages
-- **Phase 2**: COMPLETE — buyers CRUD, orders CRUD with size/color breakdown, order detail/edit, status transitions, delete. Migration: `00001_core_tables.sql` (profiles, buyers, orders, order_items, order_materials + triggers)
-- **Phase 3**: NOT STARTED — next step: create `supabase/migrations/00002_inventory_tables.sql`
-- **Phases 4–9**: NOT STARTED
+- **Phase 2**: COMPLETE — buyers CRUD, orders CRUD with size/color breakdown, order detail/edit, status transitions, delete. Migration: `00001_core_tables.sql`
+- **Phase 3**: COMPLETE — materials CRUD with stock level bars, stock adjustment form (append-only ledger), purchase orders CRUD with item receiving workflow, low-stock filter. Migration: `00002_inventory_tables.sql`
+- **Phase 4**: NOT STARTED — next step: Production tracking (7-stage pipeline) + Quality checks
+- **Phases 5–9**: NOT STARTED
 
 ## Supabase
 - Project ref: `spwighzxkaeibutmijus`
 - Migration files must be run manually by the user in the Supabase SQL Editor
-- Tables created so far: profiles, buyers, orders, order_items, order_materials
+- Both migrations (`00001_core_tables.sql` and `00002_inventory_tables.sql`) have been run
+- Tables created so far: profiles, buyers, orders, order_items, order_materials, material_categories, materials, stock_transactions, purchase_orders, purchase_order_items

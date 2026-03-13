@@ -18,6 +18,11 @@ const statusConfig: Record<
   in_progress: { label: "In Progress", variant: "warning" },
   done: { label: "Done", variant: "success" },
 
+  // Purchase order statuses
+  sent: { label: "Sent", variant: "secondary" },
+  partial: { label: "Partial", variant: "warning" },
+  received: { label: "Received", variant: "success" },
+
   // General
   pending: { label: "Pending", variant: "outline" },
   blocked: { label: "Blocked", variant: "destructive" },
