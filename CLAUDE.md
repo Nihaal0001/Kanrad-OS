@@ -46,11 +46,20 @@ Admin/Owner, Production Manager, Inventory Manager, QC Head, Floor Supervisor, W
 ## Key Conventions
 - Auth is set up LAST (Phase 8), after all modules are built
 - Append-only ledger pattern for stock transactions
-- Auto-generated order numbers: JC-ORD-YYMMDD-NNN
+- Auto-generated order numbers: JC-ORD-YYMMDD-NNN (via DB trigger)
 - Database triggers for: order confirmation → production rows, stock changes → alerts, stage completion → order status
 - All list pages use shared `data-table.tsx` component
 - Forms use react-hook-form + zod validation
 - Mobile: sidebar collapses to Sheet overlay
+- Server Actions go in `src/actions/<module>.ts`
+- Zod validators go in `src/lib/validators/<module>.ts`
+- Supabase types go in `src/lib/supabase/types.ts`
+- Empty strings are cleaned to `null` before DB insert (in server actions)
+- Use `z.number()` with `valueAsNumber: true` in form register (NOT `z.coerce.number()` — broken in Zod v4)
+- shadcn components were manually created (CLI unreachable) — they live in `src/components/ui/`
+- Migrations are in `supabase/migrations/` — user runs them manually in Supabase SQL Editor
+- RLS is enabled with permissive "allow all" policies until Phase 8
+- Sidebar is collapsible: 260px expanded, 68px collapsed, with tooltips when collapsed
 
 ## Build Order
 Phase 1: Foundation (layout, shared components, theme)
@@ -62,3 +71,14 @@ Phase 6: Finance
 Phase 7: HR
 Phase 8: Auth + RLS + Roles
 Phase 9: Polish + Deploy
+
+## Current Status
+- **Phase 1**: COMPLETE — layout shell, sidebar, topbar, mobile nav, 19 UI primitives, 6 shared components, warm theme, 14 placeholder pages
+- **Phase 2**: COMPLETE — buyers CRUD, orders CRUD with size/color breakdown, order detail/edit, status transitions, delete. Migration: `00001_core_tables.sql` (profiles, buyers, orders, order_items, order_materials + triggers)
+- **Phase 3**: NOT STARTED — next step: create `supabase/migrations/00002_inventory_tables.sql`
+- **Phases 4–9**: NOT STARTED
+
+## Supabase
+- Project ref: `spwighzxkaeibutmijus`
+- Migration files must be run manually by the user in the Supabase SQL Editor
+- Tables created so far: profiles, buyers, orders, order_items, order_materials

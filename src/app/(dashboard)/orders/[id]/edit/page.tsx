@@ -1,0 +1,41 @@
+import { notFound } from "next/navigation"
+
+import { getOrder } from "@/actions/orders"
+import { getBuyers } from "@/actions/buyers"
+import { PageHeader } from "@/components/shared/page-header"
+import { OrderForm } from "@/components/orders/order-form"
+import type { OrderDetail } from "@/lib/supabase/types"
+
+interface EditOrderPageProps {
+  params: Promise<{ id: string }>
+}
+
+export default async function EditOrderPage({ params }: EditOrderPageProps) {
+  const { id } = await params
+  let order: OrderDetail
+
+  try {
+    order = await getOrder(id)
+  } catch {
+    notFound()
+  }
+
+  const buyers = await getBuyers()
+
+  return (
+    <>
+      <PageHeader
+        title={`Edit Order ${order.order_number}`}
+        description="Update order details and items"
+      />
+      <OrderForm
+        order={order}
+        buyers={buyers.map((b) => ({
+          id: b.id,
+          name: b.name,
+          company: b.company,
+        }))}
+      />
+    </>
+  )
+}
