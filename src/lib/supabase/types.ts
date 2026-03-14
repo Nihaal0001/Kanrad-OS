@@ -147,3 +147,62 @@ export type PurchaseOrderItemWithMaterial = PurchaseOrderItem & {
 export type PurchaseOrderDetail = PurchaseOrder & {
   items: PurchaseOrderItemWithMaterial[]
 }
+
+// ==================== Production & Quality ====================
+
+export type ProductionStage = {
+  id: string
+  name: string
+  sequence: number
+  description: string | null
+  created_at: string
+}
+
+export type ProductionTracking = {
+  id: string
+  order_id: string
+  stage_id: string
+  status: "pending" | "in_progress" | "completed" | "blocked"
+  quantity_completed: number
+  quantity_rejected: number
+  assigned_to: string | null
+  notes: string | null
+  started_at: string | null
+  completed_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type ProductionTrackingWithStage = ProductionTracking & {
+  stage: ProductionStage
+}
+
+export type ProductionTrackingWithOrder = ProductionTracking & {
+  stage: ProductionStage
+  order: Pick<Order, "id" | "order_number" | "style_name" | "total_quantity" | "status">
+}
+
+export type OrderWithProduction = Order & {
+  buyer: Pick<Buyer, "id" | "name" | "company"> | null
+  production_tracking: ProductionTrackingWithStage[]
+}
+
+export type QualityCheck = {
+  id: string
+  order_id: string
+  stage_id: string | null
+  inspected_by: string | null
+  quantity_inspected: number
+  quantity_passed: number
+  quantity_failed: number
+  defect_type: string | null
+  severity: "minor" | "major" | "critical" | null
+  notes: string | null
+  checked_at: string
+  created_at: string
+}
+
+export type QualityCheckWithDetails = QualityCheck & {
+  order: Pick<Order, "id" | "order_number" | "style_name"> | null
+  stage: Pick<ProductionStage, "id" | "name"> | null
+}
