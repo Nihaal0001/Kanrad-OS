@@ -80,12 +80,30 @@ Phase 9: Polish + Deploy
 - **Phase 5**: COMPLETE — task kanban board, notifications list + bell badge, live dashboard KPIs + recent orders/activity. Migration: `00004_tasks_notifications.sql`
 - **Phase 6**: COMPLETE — invoice creation from orders (auto-fills items/buyer), invoice detail with print layout, payment recording (auto-updates paid status), order costing with computed material cost. Migration: `00005_finance_tables.sql`
 - **Phase 7**: COMPLETE — attendance marking (with status/check-in/check-out/OT), leave requests + approve/reject workflow, shift CRUD, payroll generation (auto-fills from attendance summary), mark paid. Migration: `00006_hr_tables.sql`
-- **Phase 8**: NOT STARTED — next step: Auth + RLS + Roles
-- **Phase 9**: NOT STARTED
+- **Phase 8**: DEFERRED — Auth + RLS + Roles (skipped for now; focusing on UX polish + AI prep instead)
+- **Phase 9**: IN PROGRESS — UX/UI polish, then deploy
 
 ## Supabase
 - Project ref: `spwighzxkaeibutmijus`
 - Migration files must be run manually by the user in the Supabase SQL Editor
 - Migrations run: `00001` through `00005` (Phases 1–6)
 - Migration pending: `00006_hr_tables.sql` (Phase 7 — run before using HR module)
-- Tables created so far: profiles, buyers, orders, order_items, order_materials, material_categories, materials, stock_transactions, purchase_orders, purchase_order_items, production_stages, production_tracking, quality_checks, tasks, notifications
+- Tables created so far: profiles, buyers, orders, order_items, order_materials, material_categories, materials, stock_transactions, purchase_orders, purchase_order_items, production_stages, production_tracking, quality_checks, tasks, notifications, invoices, invoice_items, payments, order_costings, shifts, worker_shifts, attendance, leaves, payroll
+
+## Known Issues & Quirks
+- **Turbopack cache corruption**: If you get `ENOENT: build-manifest.json` errors, run `rm -rf .next && npm run dev`
+- **Radix Select**: Never use `value=""` on `<SelectItem>` — use `"none"` as sentinel and map it back
+- **Zod v4**: Don't use `required_error` on `z.number()` — it's not valid in Zod v4
+- **Supabase joins**: `leaves` table has two FKs to `profiles` (worker_id, approved_by) — must use `profiles!worker_id` hint
+- **No auth yet**: HR module uses `profiles` table directly. Insert test rows manually in Supabase SQL Editor
+
+## Next Steps (UX Polish — decided by Sanjeev)
+Instead of Phase 8 (Auth), the next work is UX/UI improvements:
+1. **Toast notifications** — feedback on form submissions (use sonner or shadcn toast)
+2. **Breadcrumbs** — add to all detail/nested pages
+3. **Command palette (⌘K)** — global search across orders, materials, workers
+4. **Dashboard quick actions** — shortcuts to common tasks (Create Order, Mark Attendance, etc.)
+5. **Clickable KPIs** — dashboard stat cards link to filtered views
+6. **Date filters** — on HR attendance/payroll pages
+7. **Settings page** — basic organization info instead of "coming soon"
+8. **AI integration** — future plan to add AI features (command palette → AI chat, dashboard → AI insights)
