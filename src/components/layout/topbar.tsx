@@ -1,6 +1,7 @@
 "use client"
 
-import { Bell, Menu, Search } from "lucide-react"
+import Link from "next/link"
+import { Bell, Menu } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -14,12 +15,12 @@ import {
 
 interface TopbarProps {
   onMenuClick: () => void
+  unreadCount?: number
 }
 
-export function Topbar({ onMenuClick }: TopbarProps) {
+export function Topbar({ onMenuClick, unreadCount = 0 }: TopbarProps) {
   return (
     <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-border bg-card px-4 lg:px-6">
-      {/* Left side */}
       <div className="flex items-center gap-3">
         <Button
           variant="ghost"
@@ -30,27 +31,25 @@ export function Topbar({ onMenuClick }: TopbarProps) {
         >
           <Menu className="h-5 w-5" />
         </Button>
-        <div className="hidden text-sm text-muted-foreground lg:block">
-          {/* Breadcrumb area placeholder */}
-        </div>
       </div>
 
-      {/* Right side */}
       <div className="flex items-center gap-1">
-        {/* Search */}
-        <Button variant="ghost" size="icon" aria-label="Search">
-          <Search className="h-4 w-4" />
-        </Button>
-
         {/* Notifications */}
         <Button
           variant="ghost"
           size="icon"
           className="relative"
           aria-label="Notifications"
+          asChild
         >
-          <Bell className="h-4 w-4" />
-          <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-sidebar-accent-foreground" />
+          <Link href="/notifications">
+            <Bell className="h-4 w-4" />
+            {unreadCount > 0 && (
+              <span className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+                {unreadCount > 9 ? "9+" : unreadCount}
+              </span>
+            )}
+          </Link>
         </Button>
 
         {/* User dropdown */}

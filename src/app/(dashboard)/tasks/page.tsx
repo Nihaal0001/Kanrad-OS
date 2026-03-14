@@ -1,19 +1,32 @@
 import { ListTodo } from "lucide-react"
-import { PageHeader } from "@/components/shared/page-header"
-import { EmptyState } from "@/components/shared/empty-state"
 
-export default function TasksPage() {
+import { getTasks } from "@/actions/tasks"
+import { PageHeader } from "@/components/shared/page-header"
+import { TaskBoard } from "@/components/tasks/task-board"
+import { TaskForm } from "@/components/tasks/task-form"
+import { Button } from "@/components/ui/button"
+import { Plus } from "lucide-react"
+
+export default async function TasksPage() {
+  const tasks = await getTasks()
+
   return (
     <>
       <PageHeader
         title="Tasks"
         description="Assign and track tasks across departments"
-      />
-      <EmptyState
-        icon={ListTodo}
-        title="No tasks yet"
-        description="Create your first task"
-      />
+      >
+        <TaskForm
+          trigger={
+            <Button>
+              <Plus className="h-4 w-4" />
+              New Task
+            </Button>
+          }
+        />
+      </PageHeader>
+
+      <TaskBoard tasks={tasks} />
     </>
   )
 }
