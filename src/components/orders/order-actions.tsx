@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 
+import { toast } from "sonner"
 import { updateOrderStatus, deleteOrder } from "@/actions/orders"
 import type { OrderDetail } from "@/lib/supabase/types"
 
@@ -51,7 +52,9 @@ export function OrderActions({ order }: OrderActionsProps) {
       const result = await updateOrderStatus(order.id, status)
       if (result && "error" in result && result.error) {
         setError(result.error)
+        toast.error(result.error)
       } else {
+        toast.success("Order status updated")
         router.refresh()
       }
     })
@@ -63,7 +66,9 @@ export function OrderActions({ order }: OrderActionsProps) {
       const result = await deleteOrder(order.id)
       if (result && "error" in result && result.error) {
         setError(result.error)
+        toast.error(result.error)
       } else {
+        toast.success("Order deleted")
         router.push("/orders")
       }
     })

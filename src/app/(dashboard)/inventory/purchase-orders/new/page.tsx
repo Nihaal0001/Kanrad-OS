@@ -10,6 +10,11 @@ export default async function NewPurchaseOrderPage() {
       <PageHeader
         title="New Purchase Order"
         description="Create a material purchase order for a supplier"
+        breadcrumbs={[
+          { label: "Inventory", href: "/inventory" },
+          { label: "Purchase Orders", href: "/inventory/purchase-orders" },
+          { label: "New" },
+        ]}
       />
       <PurchaseOrderForm
         materials={materials.map((m) => ({

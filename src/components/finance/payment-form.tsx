@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Loader2, Plus } from "lucide-react"
 
+import { toast } from "sonner"
 import { paymentSchema, type PaymentFormData } from "@/lib/validators/finance"
 import { createPayment } from "@/actions/finance"
 import { Button } from "@/components/ui/button"
@@ -79,9 +80,11 @@ export function PaymentForm({ invoiceId, invoiceNumber, outstanding, trigger }: 
 
     if (result.error) {
       setError(result.error)
+      toast.error(result.error)
       return
     }
 
+    toast.success("Payment recorded")
     reset()
     setOpen(false)
     router.refresh()

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 
+import { toast } from "sonner"
 import { materialSchema, type MaterialFormData } from "@/lib/validators/inventory"
 import { createMaterial, updateMaterial } from "@/actions/inventory"
 import type { MaterialWithCategory, MaterialCategory } from "@/lib/supabase/types"
@@ -76,21 +77,27 @@ export function MaterialForm({ material, categories }: MaterialFormProps) {
         const result = await updateMaterial(material.id, data)
         if (result && "error" in result && result.error) {
           setError(result.error)
+          toast.error(result.error)
           return
         }
+        toast.success("Material updated")
         router.push(`/inventory/${material.id}`)
       } else {
         const result = await createMaterial(data)
         if (result && "error" in result && result.error) {
           setError(result.error)
+          toast.error(result.error)
           return
         }
         if (result && "data" in result && result.data) {
+          toast.success("Material created")
           router.push(`/inventory/${result.data.id}`)
         }
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong")
+      const msg = err instanceof Error ? err.message : "Something went wrong"
+      setError(msg)
+      toast.error(msg)
     } finally {
       setIsSubmitting(false)
     }

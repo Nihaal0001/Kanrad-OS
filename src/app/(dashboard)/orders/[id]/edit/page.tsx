@@ -27,6 +27,11 @@ export default async function EditOrderPage({ params }: EditOrderPageProps) {
       <PageHeader
         title={`Edit Order ${order.order_number}`}
         description="Update order details and items"
+        breadcrumbs={[
+          { label: "Orders", href: "/orders" },
+          { label: order.order_number, href: `/orders/${order.id}` },
+          { label: "Edit" },
+        ]}
       />
       <OrderForm
         order={order}

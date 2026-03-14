@@ -4,6 +4,10 @@ import {
   AlertTriangle,
   Factory,
   ArrowRight,
+  Plus,
+  ClipboardCheck,
+  Package,
+  FileText,
 } from "lucide-react"
 import Link from "next/link"
 
@@ -16,6 +20,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { formatDate, formatDateRelative } from "@/lib/utils"
 import { cn } from "@/lib/utils"
+
+const QUICK_ACTIONS = [
+  { label: "New Order", href: "/orders/new", icon: Plus },
+  { label: "Mark Attendance", href: "/hr/attendance", icon: ClipboardCheck },
+  { label: "New Purchase Order", href: "/inventory/purchase-orders/new", icon: Package },
+  { label: "New Invoice", href: "/finance/invoices/new", icon: FileText },
+]
 
 const NOTIFICATION_DOT: Record<string, string> = {
   order_confirmed: "bg-emerald-500",
@@ -42,25 +53,51 @@ export default async function DashboardPage() {
           value={stats.activeOrdersCount}
           description={`${stats.confirmedCount} confirmed, ${stats.inProductionCount} in production`}
           icon={ShoppingBag}
+          href="/orders?status=confirmed"
         />
         <StatCard
           title="Due This Week"
           value={stats.dueThisWeekCount}
           description="Orders with deadline in next 7 days"
           icon={CalendarClock}
+          href="/orders"
         />
         <StatCard
           title="In Production"
           value={stats.inProductionCount}
           description="Orders actively being manufactured"
           icon={Factory}
+          href="/production"
         />
         <StatCard
           title="Low Stock Items"
           value={stats.lowStockCount}
           description="Materials below minimum stock level"
           icon={AlertTriangle}
+          href="/inventory?filter=low_stock"
         />
+      </div>
+
+      {/* Quick Actions */}
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {QUICK_ACTIONS.map((action) => {
+          const Icon = action.icon
+          return (
+            <Button
+              key={action.href}
+              variant="outline"
+              className="h-auto justify-start gap-3 px-4 py-3"
+              asChild
+            >
+              <Link href={action.href}>
+                <div className="rounded-md bg-accent p-1.5">
+                  <Icon className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <span className="font-medium">{action.label}</span>
+              </Link>
+            </Button>
+          )
+        })}
       </div>
 
       {/* Main Grid */}

@@ -64,6 +64,11 @@ export default async function InvoiceDetailPage({ params }: Props) {
       <PageHeader
         title={invoice.invoice_number}
         description={`Issued to ${invoice.buyer_name}`}
+        breadcrumbs={[
+          { label: "Finance", href: "/finance/invoices" },
+          { label: "Invoices", href: "/finance/invoices" },
+          { label: invoice.invoice_number },
+        ]}
       >
         <div className="flex items-center gap-2">
           <Badge className={cn("text-xs font-medium", STATUS_STYLES[invoice.status])}>

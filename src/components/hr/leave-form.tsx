@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Loader2, Plus } from "lucide-react"
 
+import { toast } from "sonner"
 import { leaveSchema, type LeaveFormData } from "@/lib/validators/hr"
 import { createLeave } from "@/actions/hr"
 import { Button } from "@/components/ui/button"
@@ -75,9 +76,11 @@ export function LeaveForm({ workers, trigger }: LeaveFormProps) {
 
     if (result.error) {
       setError(result.error)
+      toast.error(result.error)
       return
     }
 
+    toast.success("Leave request submitted")
     reset()
     setOpen(false)
     router.refresh()

@@ -18,6 +18,11 @@ export default async function NewInvoicePage({ searchParams }: Props) {
       <PageHeader
         title="New Invoice"
         description="Create an invoice for a completed order"
+        breadcrumbs={[
+          { label: "Finance", href: "/finance/invoices" },
+          { label: "Invoices", href: "/finance/invoices" },
+          { label: "New" },
+        ]}
       />
       <InvoiceForm
         orders={orders}

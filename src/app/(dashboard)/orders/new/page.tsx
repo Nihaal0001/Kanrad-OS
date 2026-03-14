@@ -10,6 +10,10 @@ export default async function NewOrderPage() {
       <PageHeader
         title="New Order"
         description="Create a new production order"
+        breadcrumbs={[
+          { label: "Orders", href: "/orders" },
+          { label: "New Order" },
+        ]}
       />
       <OrderForm
         buyers={buyers.map((b) => ({

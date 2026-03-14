@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Loader2, Plus, Pencil } from "lucide-react"
 
+import { toast } from "sonner"
 import { shiftSchema, type ShiftFormData } from "@/lib/validators/hr"
 import { createShift, updateShift } from "@/actions/hr"
 import type { Shift } from "@/lib/supabase/types"
@@ -57,9 +58,11 @@ export function ShiftForm({ existing, trigger }: ShiftFormProps) {
 
     if (result.error) {
       setError(result.error)
+      toast.error(result.error)
       return
     }
 
+    toast.success(existing ? "Shift updated" : "Shift created")
     reset()
     setOpen(false)
     router.refresh()

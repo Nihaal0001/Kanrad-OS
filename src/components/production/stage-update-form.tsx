@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 
+import { toast } from "sonner"
 import {
   stageUpdateSchema,
   type StageUpdateFormData,
@@ -80,12 +81,16 @@ export function StageUpdateForm({
       const result = await updateProductionStage(trackingId, orderId, data)
       if (result && "error" in result && result.error) {
         setError(result.error)
+        toast.error(result.error)
         return
       }
+      toast.success(`${stageName} updated`)
       setOpen(false)
       router.refresh()
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong")
+      const msg = err instanceof Error ? err.message : "Something went wrong"
+      setError(msg)
+      toast.error(msg)
     } finally {
       setIsSubmitting(false)
     }

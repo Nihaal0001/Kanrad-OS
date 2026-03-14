@@ -56,7 +56,13 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
 
   return (
     <>
-      <PageHeader title={order.order_number || "Order"}>
+      <PageHeader
+        title={order.order_number || "Order"}
+        breadcrumbs={[
+          { label: "Orders", href: "/orders" },
+          { label: order.order_number || "Order" },
+        ]}
+      >
         <Link href={`/orders/${order.id}/edit`}>
           <Button variant="outline" size="sm">
             <Pencil className="mr-2 h-4 w-4" />

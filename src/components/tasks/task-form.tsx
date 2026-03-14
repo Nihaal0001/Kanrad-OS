@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 
+import { toast } from "sonner"
 import { taskSchema, type TaskFormData } from "@/lib/validators/tasks"
 import { createTask, updateTask } from "@/actions/tasks"
 import type { Task } from "@/lib/supabase/types"
@@ -76,20 +77,26 @@ export function TaskForm({ task, defaultStatus = "todo", trigger }: TaskFormProp
         const result = await updateTask(task.id, data)
         if (result && "error" in result && result.error) {
           setError(result.error)
+          toast.error(result.error)
           return
         }
+        toast.success("Task updated")
       } else {
         const result = await createTask(data)
         if (result && "error" in result && result.error) {
           setError(result.error)
+          toast.error(result.error)
           return
         }
+        toast.success("Task created")
       }
       setOpen(false)
       form.reset()
       router.refresh()
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong")
+      const msg = err instanceof Error ? err.message : "Something went wrong"
+      setError(msg)
+      toast.error(msg)
     } finally {
       setIsSubmitting(false)
     }

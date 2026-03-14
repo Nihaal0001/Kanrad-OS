@@ -4,6 +4,7 @@ import { getAttendance, getWorkers } from "@/actions/hr"
 import { PageHeader } from "@/components/shared/page-header"
 import { EmptyState } from "@/components/shared/empty-state"
 import { AttendanceForm } from "@/components/hr/attendance-form"
+import { HRDateFilter } from "@/components/hr/date-filter"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
@@ -22,8 +23,16 @@ const STATUS_LABELS: Record<string, string> = {
   leave: "On Leave",
 }
 
-export default async function AttendancePage() {
-  const [records, workers] = await Promise.all([getAttendance(), getWorkers()])
+interface Props {
+  searchParams: Promise<{ date?: string }>
+}
+
+export default async function AttendancePage({ searchParams }: Props) {
+  const { date } = await searchParams
+  const [records, workers] = await Promise.all([
+    getAttendance(date ? { date } : undefined),
+    getWorkers(),
+  ])
 
   return (
     <>
@@ -31,6 +40,7 @@ export default async function AttendancePage() {
         title="Attendance"
         description="Daily attendance and overtime tracking"
       >
+        <HRDateFilter type="date" value={date ?? ""} />
         <AttendanceForm workers={workers} />
       </PageHeader>
 
@@ -38,7 +48,7 @@ export default async function AttendancePage() {
         <EmptyState
           icon={Clock}
           title="No attendance records"
-          description="Mark today's attendance to get started"
+          description={date ? `No records for ${date}` : "Mark today's attendance to get started"}
         />
       ) : (
         <div className="space-y-2">

@@ -6,6 +6,7 @@ import { useForm, useFieldArray } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Plus, X } from "lucide-react"
 
+import { toast } from "sonner"
 import {
   purchaseOrderSchema,
   type PurchaseOrderFormData,
@@ -77,13 +78,17 @@ export function PurchaseOrderForm({ materials }: PurchaseOrderFormProps) {
       const result = await createPurchaseOrder(data)
       if (result && "error" in result && result.error) {
         setError(result.error)
+        toast.error(result.error)
         return
       }
       if (result && "data" in result && result.data) {
+        toast.success("Purchase order created")
         router.push(`/inventory/purchase-orders/${result.data.id}`)
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong")
+      const msg = err instanceof Error ? err.message : "Something went wrong"
+      setError(msg)
+      toast.error(msg)
     } finally {
       setIsSubmitting(false)
     }

@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Loader2 } from "lucide-react"
 
+import { toast } from "sonner"
 import { buyerSchema, type BuyerFormData } from "@/lib/validators/buyer"
 import { createBuyer, updateBuyer } from "@/actions/buyers"
 import type { Buyer } from "@/lib/supabase/types"
@@ -65,9 +66,11 @@ export function BuyerForm({
 
     if ("error" in result && result.error) {
       setError(result.error)
+      toast.error(result.error)
       return
     }
 
+    toast.success(isEditing ? "Buyer updated" : "Buyer added")
     reset()
     onOpenChange(false)
     router.refresh()

@@ -25,6 +25,11 @@ export default async function EditMaterialPage({ params }: EditMaterialPageProps
       <PageHeader
         title="Edit Material"
         description={`Editing ${material.name}`}
+        breadcrumbs={[
+          { label: "Inventory", href: "/inventory" },
+          { label: material.name, href: `/inventory/${material.id}` },
+          { label: "Edit" },
+        ]}
       />
       <MaterialForm material={material} categories={categories} />
     </>

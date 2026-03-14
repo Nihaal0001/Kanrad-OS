@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Loader2, Plus } from "lucide-react"
 
+import { toast } from "sonner"
 import { payrollSchema, type PayrollFormData } from "@/lib/validators/hr"
 import { createPayroll, getAttendanceSummary } from "@/actions/hr"
 import { Button } from "@/components/ui/button"
@@ -107,9 +108,11 @@ export function PayrollForm({ workers, trigger }: PayrollFormProps) {
 
     if (result.error) {
       setError(result.error)
+      toast.error(result.error)
       return
     }
 
+    toast.success("Payroll generated")
     reset()
     setOpen(false)
     router.refresh()

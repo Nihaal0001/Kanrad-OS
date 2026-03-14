@@ -94,7 +94,7 @@ export async function deleteShift(id: string) {
 
 // ===== Attendance =====
 
-export async function getAttendance(filters?: { date?: string; worker_id?: string }) {
+export async function getAttendance(filters?: { date?: string; date_from?: string; date_to?: string; worker_id?: string }) {
   const supabase = await createClient()
   let query = supabase
     .from("attendance")
@@ -106,6 +106,8 @@ export async function getAttendance(filters?: { date?: string; worker_id?: strin
     .order("created_at", { ascending: false })
 
   if (filters?.date) query = query.eq("date", filters.date)
+  if (filters?.date_from) query = query.gte("date", filters.date_from)
+  if (filters?.date_to) query = query.lte("date", filters.date_to)
   if (filters?.worker_id) query = query.eq("worker_id", filters.worker_id)
 
   const { data, error } = await query
@@ -235,7 +237,7 @@ export async function deleteLeave(id: string) {
 
 // ===== Payroll =====
 
-export async function getPayrolls(filters?: { status?: string }) {
+export async function getPayrolls(filters?: { status?: string; month?: string }) {
   const supabase = await createClient()
   let query = supabase
     .from("payroll")
@@ -246,6 +248,10 @@ export async function getPayrolls(filters?: { status?: string }) {
     .order("period_start", { ascending: false })
 
   if (filters?.status) query = query.eq("status", filters.status)
+  // month is YYYY-MM, filter where period_start starts with that prefix
+  if (filters?.month) {
+    query = query.gte("period_start", `${filters.month}-01`).lte("period_start", `${filters.month}-31`)
+  }
 
   const { data, error } = await query
   if (error) throw new Error(error.message)

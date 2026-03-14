@@ -52,6 +52,10 @@ export default async function MaterialDetailPage({ params }: MaterialDetailPageP
       <PageHeader
         title={material.name}
         description={`SKU: ${material.sku}`}
+        breadcrumbs={[
+          { label: "Inventory", href: "/inventory" },
+          { label: material.name },
+        ]}
       >
         <Button variant="outline" asChild>
           <Link href="/inventory">

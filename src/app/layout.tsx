@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import { Inter, DM_Serif_Display } from "next/font/google"
+import { Toaster } from "sonner"
 import "./globals.css"
 
 const inter = Inter({
@@ -30,6 +31,14 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${inter.variable} ${dmSerif.variable} antialiased`}>
         {children}
+        <Toaster
+          position="bottom-right"
+          toastOptions={{
+            classNames: {
+              toast: "font-sans",
+            },
+          }}
+        />
       </body>
     </html>
   )

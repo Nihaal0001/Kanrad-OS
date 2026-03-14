@@ -1,19 +1,41 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Sidebar } from "@/components/layout/sidebar"
 import { Topbar } from "@/components/layout/topbar"
 import { MobileNav } from "@/components/layout/mobile-nav"
+import { CommandPalette } from "@/components/command-palette"
 import { cn } from "@/lib/utils"
+
+interface UserProfile {
+  id: string
+  full_name: string
+  role: string
+  avatar_url: string | null
+}
 
 interface DashboardShellProps {
   children: React.ReactNode
   unreadCount: number
+  userProfile: UserProfile
 }
 
-export function DashboardShell({ children, unreadCount }: DashboardShellProps) {
+export function DashboardShell({ children, unreadCount, userProfile }: DashboardShellProps) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [paletteOpen, setPaletteOpen] = useState(false)
+
+  // ⌘K / Ctrl+K shortcut
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault()
+        setPaletteOpen((prev) => !prev)
+      }
+    }
+    document.addEventListener("keydown", handleKeyDown)
+    return () => document.removeEventListener("keydown", handleKeyDown)
+  }, [])
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -31,12 +53,15 @@ export function DashboardShell({ children, unreadCount }: DashboardShellProps) {
       >
         <Topbar
           onMenuClick={() => setMobileNavOpen(true)}
+          onSearchClick={() => setPaletteOpen(true)}
           unreadCount={unreadCount}
+          userProfile={userProfile}
         />
         <main className="flex-1 overflow-y-auto p-6 lg:p-8">
           {children}
         </main>
       </div>
+      <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
     </div>
   )
 }

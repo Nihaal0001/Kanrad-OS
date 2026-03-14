@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 
+import { toast } from "sonner"
 import {
   qualityCheckSchema,
   type QualityCheckFormData,
@@ -85,11 +86,15 @@ export function QualityCheckForm({
       const result = await createQualityCheck(data)
       if (result && "error" in result && result.error) {
         setError(result.error)
+        toast.error(result.error)
         return
       }
+      toast.success("QC inspection saved")
       router.push(`/production/${orderId}`)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong")
+      const msg = err instanceof Error ? err.message : "Something went wrong"
+      setError(msg)
+      toast.error(msg)
     } finally {
       setIsSubmitting(false)
     }

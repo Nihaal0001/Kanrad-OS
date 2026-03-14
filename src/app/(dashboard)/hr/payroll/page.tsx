@@ -4,6 +4,7 @@ import { getPayrolls, getWorkers, updatePayrollStatus, deletePayroll } from "@/a
 import { PageHeader } from "@/components/shared/page-header"
 import { EmptyState } from "@/components/shared/empty-state"
 import { PayrollForm } from "@/components/hr/payroll-form"
+import { HRDateFilter } from "@/components/hr/date-filter"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
@@ -13,8 +14,16 @@ function formatCurrency(n: number) {
   return n.toLocaleString("en-IN", { minimumFractionDigits: 2 })
 }
 
-export default async function PayrollPage() {
-  const [payrolls, workers] = await Promise.all([getPayrolls(), getWorkers()])
+interface Props {
+  searchParams: Promise<{ month?: string }>
+}
+
+export default async function PayrollPage({ searchParams }: Props) {
+  const { month } = await searchParams
+  const [payrolls, workers] = await Promise.all([
+    getPayrolls(month ? { month } : undefined),
+    getWorkers(),
+  ])
 
   const totalWages = payrolls.reduce((sum, p) => sum + p.total_wage, 0)
 
@@ -28,6 +37,7 @@ export default async function PayrollPage() {
             : "Worker wages and payroll management"
         }
       >
+        <HRDateFilter type="month" value={month ?? ""} />
         <PayrollForm workers={workers} />
       </PageHeader>
 
@@ -35,7 +45,7 @@ export default async function PayrollPage() {
         <EmptyState
           icon={Wallet}
           title="No payroll records"
-          description="Generate payroll from attendance data"
+          description={month ? `No payroll for ${month}` : "Generate payroll from attendance data"}
         />
       ) : (
         <div className="space-y-2">

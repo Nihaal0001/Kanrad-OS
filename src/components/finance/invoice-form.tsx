@@ -6,6 +6,7 @@ import { useForm, useFieldArray } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Plus, Trash2, Loader2 } from "lucide-react"
 
+import { toast } from "sonner"
 import { invoiceSchema, type InvoiceFormData } from "@/lib/validators/finance"
 import { createInvoice, getOrderForInvoice } from "@/actions/finance"
 import { Button } from "@/components/ui/button"
@@ -127,9 +128,11 @@ export function InvoiceForm({ orders, preloadedOrder, preloadedOrderId }: Invoic
 
     if (result.error) {
       setError(result.error)
+      toast.error(result.error)
       return
     }
 
+    toast.success("Invoice created")
     router.push(`/finance/invoices/${result.data.id}`)
   }
 

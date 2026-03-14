@@ -25,7 +25,15 @@ export default async function PurchaseOrderDetailPage({
 
   return (
     <>
-      <PageHeader title={po.po_number} description={`Supplier: ${po.supplier_name}`}>
+      <PageHeader
+        title={po.po_number}
+        description={`Supplier: ${po.supplier_name}`}
+        breadcrumbs={[
+          { label: "Inventory", href: "/inventory" },
+          { label: "Purchase Orders", href: "/inventory/purchase-orders" },
+          { label: po.po_number },
+        ]}
+      >
         <Button variant="outline" asChild>
           <Link href="/inventory/purchase-orders">
             <ArrowLeft className="h-4 w-4" />

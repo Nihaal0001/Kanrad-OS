@@ -1,3 +1,4 @@
+import Link from "next/link"
 import { cn } from "@/lib/utils"
 import { Card, CardContent } from "@/components/ui/card"
 import { TrendingUp, TrendingDown, type LucideIcon } from "lucide-react"
@@ -9,6 +10,7 @@ interface StatCardProps {
   icon: LucideIcon
   trend?: { value: number; positive: boolean }
   className?: string
+  href?: string
 }
 
 export function StatCard({
@@ -18,11 +20,13 @@ export function StatCard({
   icon: Icon,
   trend,
   className,
+  href,
 }: StatCardProps) {
-  return (
+  const card = (
     <Card
       className={cn(
         "transition-shadow duration-200 hover:shadow-md",
+        href && "cursor-pointer hover:border-primary/30",
         className
       )}
     >
@@ -57,4 +61,9 @@ export function StatCard({
       </CardContent>
     </Card>
   )
+
+  if (href) {
+    return <Link href={href}>{card}</Link>
+  }
+  return card
 }

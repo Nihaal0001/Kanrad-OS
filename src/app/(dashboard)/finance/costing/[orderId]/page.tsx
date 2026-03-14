@@ -33,6 +33,11 @@ export default async function OrderCostingPage({ params }: Props) {
       <PageHeader
         title={`Costing — ${order.order_number}`}
         description={`${order.style_name} · ${order.total_quantity.toLocaleString("en-IN")} pcs`}
+        breadcrumbs={[
+          { label: "Finance", href: "/finance/costing" },
+          { label: "Costing", href: "/finance/costing" },
+          { label: order.order_number },
+        ]}
       />
 
       <Button variant="ghost" size="sm" asChild className="mb-6 -mt-4">

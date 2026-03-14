@@ -62,6 +62,10 @@ export default async function ProductionDetailPage({
       <PageHeader
         title={order.order_number}
         description={`${order.style_name} · ${order.total_quantity} pcs`}
+        breadcrumbs={[
+          { label: "Production", href: "/production" },
+          { label: order.order_number },
+        ]}
       >
         <Button variant="outline" asChild>
           <Link href="/production">

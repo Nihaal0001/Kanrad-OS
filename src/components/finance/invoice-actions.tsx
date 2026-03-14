@@ -4,6 +4,7 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { MoreHorizontal, Trash2 } from "lucide-react"
 
+import { toast } from "sonner"
 import { deleteInvoice } from "@/actions/finance"
 import { Button } from "@/components/ui/button"
 import {
@@ -27,6 +28,7 @@ export function InvoiceActions({ invoiceId, status, redirectAfterDelete }: Invoi
     if (!confirm("Delete this invoice? This cannot be undone.")) return
     setDeleting(true)
     await deleteInvoice(invoiceId)
+    toast.success("Invoice deleted")
     if (redirectAfterDelete) {
       router.push("/finance/invoices")
     } else {

@@ -10,6 +10,10 @@ export default async function NewMaterialPage() {
       <PageHeader
         title="Add Material"
         description="Add a new material to your inventory"
+        breadcrumbs={[
+          { label: "Inventory", href: "/inventory" },
+          { label: "Add Material" },
+        ]}
       />
       <MaterialForm categories={categories} />
     </>

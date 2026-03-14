@@ -6,6 +6,7 @@ import { useForm, useFieldArray } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Plus, X } from "lucide-react"
 
+import { toast } from "sonner"
 import { orderSchema, type OrderFormData } from "@/lib/validators/order"
 import { createOrder, updateOrder } from "@/actions/orders"
 import { formatCurrency } from "@/lib/utils"
@@ -95,21 +96,27 @@ export function OrderForm({ order, buyers }: OrderFormProps) {
         const result = await updateOrder(order.id, submitData)
         if (result && "error" in result && result.error) {
           setError(result.error)
+          toast.error(result.error)
           return
         }
+        toast.success("Order updated")
         router.push(`/orders/${order.id}`)
       } else {
         const result = await createOrder(submitData)
         if (result && "error" in result && result.error) {
           setError(result.error)
+          toast.error(result.error)
           return
         }
         if (result && "data" in result && result.data) {
+          toast.success("Order created")
           router.push(`/orders/${result.data.id}`)
         }
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong")
+      const msg = err instanceof Error ? err.message : "Something went wrong"
+      setError(msg)
+      toast.error(msg)
     } finally {
       setIsSubmitting(false)
     }

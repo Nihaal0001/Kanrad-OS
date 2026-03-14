@@ -23,6 +23,11 @@ export default async function AdjustStockPage({ params }: AdjustStockPageProps) 
       <PageHeader
         title="Adjust Stock"
         description={`Stock adjustment for ${material.name}`}
+        breadcrumbs={[
+          { label: "Inventory", href: "/inventory" },
+          { label: material.name, href: `/inventory/${material.id}` },
+          { label: "Adjust Stock" },
+        ]}
       />
       <StockAdjustmentForm material={material} />
     </>
