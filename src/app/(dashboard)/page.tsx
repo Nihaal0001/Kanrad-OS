@@ -18,6 +18,7 @@ import { StatusBadge } from "@/components/shared/status-badge"
 import { PriorityIndicator } from "@/components/shared/priority-indicator"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { AIInsightsPanel } from "@/components/shared/ai-insights-panel"
 import { formatDate, formatDateRelative } from "@/lib/utils"
 import { cn } from "@/lib/utils"
 
@@ -99,6 +100,9 @@ export default async function DashboardPage() {
           )
         })}
       </div>
+
+      {/* AI Insights */}
+      <AIInsightsPanel />
 
       {/* Main Grid */}
       <div className="grid gap-6 lg:grid-cols-5">

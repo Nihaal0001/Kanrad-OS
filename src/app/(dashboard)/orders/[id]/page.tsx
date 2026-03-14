@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/table"
 
 import { OrderActions } from "@/components/orders/order-actions"
+import { OrderAISummary } from "@/components/orders/order-ai-summary"
 
 interface OrderDetailPageProps {
   params: Promise<{ id: string }>
@@ -266,6 +267,9 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
               </div>
             </CardContent>
           </Card>
+
+          {/* AI Summary */}
+          <OrderAISummary orderId={order.id} />
 
           {/* Quick Actions Card */}
           <OrderActions order={order} />

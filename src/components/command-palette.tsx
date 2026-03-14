@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useTransition, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { Search, ShoppingBag, Package, Users, Zap, Loader2 } from "lucide-react"
+import { Search, ShoppingBag, Package, Users, Zap, Loader2, Sparkles } from "lucide-react"
 
 import { globalSearch, type SearchResult } from "@/actions/search"
+import { getSmartSuggestions, type Suggestion } from "@/actions/ai"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 
@@ -41,6 +42,11 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
   const [isPending, startTransition] = useTransition()
   const inputRef = useRef<HTMLInputElement>(null)
 
+  // Smart suggestions
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([])
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false)
+  const suggestionsLoaded = useRef(false)
+
   // Reset when closed
   useEffect(() => {
     if (!open) {
@@ -49,6 +55,14 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
       setActiveIndex(0)
     } else {
       setTimeout(() => inputRef.current?.focus(), 50)
+      if (!suggestionsLoaded.current) {
+        setSuggestionsLoading(true)
+        getSmartSuggestions().then((res) => {
+          if ("suggestions" in res) setSuggestions(res.suggestions)
+          setSuggestionsLoading(false)
+          suggestionsLoaded.current = true
+        })
+      }
     }
   }, [open])
 
@@ -111,12 +125,44 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
             className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
             autoComplete="off"
           />
-          {isPending && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+          {isPending && (
+            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+          )}
         </div>
 
-        {/* Quick links */}
+        {/* Quick links + AI suggestions */}
         {showQuickLinks && (
           <div className="max-h-80 overflow-y-auto py-2">
+            {suggestions.length > 0 && (
+              <>
+                <p className="px-4 pb-1 pt-2 text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                  <Sparkles className="h-3 w-3 text-amber-500" />
+                  AI Suggestions
+                </p>
+                {suggestions.map((s, i) => (
+                  <button
+                    key={`suggestion-${i}`}
+                    onClick={() => navigate(s.href)}
+                    className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors hover:bg-accent"
+                  >
+                    <Sparkles className="h-4 w-4 shrink-0 text-amber-500" />
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium">{s.label}</p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {s.description}
+                      </p>
+                    </div>
+                  </button>
+                ))}
+              </>
+            )}
+            {suggestionsLoading && (
+              <div className="flex items-center gap-2 px-4 py-2.5 text-xs text-muted-foreground">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                Loading AI suggestions…
+              </div>
+            )}
+
             <p className="px-4 pb-1 pt-2 text-xs font-medium text-muted-foreground">
               Quick actions
             </p>
@@ -191,11 +237,13 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
           </div>
         )}
 
-        {/* Footer hint */}
-        <div className="border-t border-border px-4 py-2 text-xs text-muted-foreground flex items-center gap-3">
-          <span><kbd className="font-mono">↑↓</kbd> navigate</span>
-          <span><kbd className="font-mono">↵</kbd> open</span>
-          <span><kbd className="font-mono">Esc</kbd> close</span>
+        {/* Footer */}
+        <div className="flex items-center justify-end border-t border-border px-4 py-2">
+          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+            <span><kbd className="font-mono">↑↓</kbd> navigate</span>
+            <span><kbd className="font-mono">↵</kbd> open</span>
+            <span><kbd className="font-mono">Esc</kbd> close</span>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

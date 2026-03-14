@@ -5,6 +5,7 @@ import { Sidebar } from "@/components/layout/sidebar"
 import { Topbar } from "@/components/layout/topbar"
 import { MobileNav } from "@/components/layout/mobile-nav"
 import { CommandPalette } from "@/components/command-palette"
+import { AIChatWidget } from "@/components/shared/ai-chat-widget"
 import { cn } from "@/lib/utils"
 
 interface UserProfile {
@@ -62,6 +63,7 @@ export function DashboardShell({ children, unreadCount, userProfile }: Dashboard
         </main>
       </div>
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
+      <AIChatWidget />
     </div>
   )
 }
