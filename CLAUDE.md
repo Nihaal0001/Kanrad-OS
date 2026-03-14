@@ -86,8 +86,7 @@ Phase 9: Polish + Deploy
 ## Supabase
 - Project ref: `spwighzxkaeibutmijus`
 - Migration files must be run manually by the user in the Supabase SQL Editor
-- Migrations run: `00001` through `00005` (Phases 1–6)
-- Migration pending: `00006_hr_tables.sql` (Phase 7 — run before using HR module)
+- Migrations run: `00001` through `00006` (Phases 1–7, all complete)
 - Tables created so far: profiles, buyers, orders, order_items, order_materials, material_categories, materials, stock_transactions, purchase_orders, purchase_order_items, production_stages, production_tracking, quality_checks, tasks, notifications, invoices, invoice_items, payments, order_costings, shifts, worker_shifts, attendance, leaves, payroll
 
 ## Known Issues & Quirks
