@@ -84,7 +84,7 @@ Phase 9: Polish + Deploy
 - **Phase 7**: COMPLETE — attendance marking (with status/check-in/check-out/OT), leave requests + approve/reject workflow, shift CRUD, payroll generation (auto-fills from attendance summary), mark paid. Migration: `00006_hr_tables.sql`
 - **Phase 8**: COMPLETE — Supabase Auth (email/password), middleware route protection, login page, auto-confirm on first login, user profile in topbar (name + role + initials), working logout. Migration: `00007_auth_rls.sql` (⚠️ must still be run in Supabase SQL Editor)
 - **Phase 9**: COMPLETE — Toast notifications (sonner, all 16 forms), breadcrumbs (all detail pages), command palette (⌘K, searches orders/materials/workers), dashboard clickable KPIs + Quick Actions, HR date filters (attendance by date, payroll by month), settings page (org info, DB details, module status)
-- **Phase 10**: NOT STARTED — AI integration (command palette → AI chat, dashboard → AI insights)
+- **Phase 10**: COMPLETE — AI integration (Sarvam voice chat widget, Gemini insights on dashboard, smart suggestions in command palette). AI keys: `GEMINI_API_KEY`, `SARVAM_API_KEY` in `.env.local`
 - **Phase 11**: NOT STARTED — Deploy to Vercel
 
 ## Supabase
@@ -104,5 +104,4 @@ Phase 9: Polish + Deploy
 ## Next Steps
 1. **Run migration `00007_auth_rls.sql`** in Supabase SQL Editor (adds auth_id, trigger, proper RLS)
 2. **Delete** `src/app/api/dev/auth-status/route.ts` before production deploy
-3. **Phase 10** — AI integration (command palette → AI chat, dashboard → AI insights)
-4. **Phase 11** — Deploy to Vercel
+3. **Phase 11** — Deploy to Vercel
