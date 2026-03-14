@@ -44,7 +44,6 @@ Full production cycle: Fabric Sourcing → Cutting → Stitching → Quality Che
 Admin/Owner, Production Manager, Inventory Manager, QC Head, Floor Supervisor, Worker
 
 ## Key Conventions
-- Auth is set up LAST (Phase 8), after all modules are built
 - Append-only ledger pattern for stock transactions
 - Auto-generated order numbers: JC-ORD-YYMMDD-NNN (via DB trigger)
 - Database triggers for: order confirmation → production rows, stock changes → alerts, stage completion → order status
@@ -58,8 +57,11 @@ Admin/Owner, Production Manager, Inventory Manager, QC Head, Floor Supervisor, W
 - Use `z.number()` with `valueAsNumber: true` in form register (NOT `z.coerce.number()` — broken in Zod v4)
 - shadcn components were manually created (CLI unreachable) — they live in `src/components/ui/`
 - Migrations are in `supabase/migrations/` — user runs them manually in Supabase SQL Editor
-- RLS is enabled with permissive "allow all" policies until Phase 8
+- RLS policies require authenticated users (`auth.uid() IS NOT NULL`) — updated in Phase 8
 - Sidebar is collapsible: 260px expanded, 68px collapsed, with tooltips when collapsed
+- Auth: `src/lib/supabase/admin.ts` exports `createAdminClient()` using service role key (server-side only)
+- Login auto-confirms unconfirmed users on first sign-in (via admin API in login action)
+- User profile is fetched in dashboard layout via `profiles.auth_id = auth.uid()` and passed as prop to shell/topbar
 
 ## Build Order
 Phase 1: Foundation (layout, shared components, theme)
@@ -80,29 +82,27 @@ Phase 9: Polish + Deploy
 - **Phase 5**: COMPLETE — task kanban board, notifications list + bell badge, live dashboard KPIs + recent orders/activity. Migration: `00004_tasks_notifications.sql`
 - **Phase 6**: COMPLETE — invoice creation from orders (auto-fills items/buyer), invoice detail with print layout, payment recording (auto-updates paid status), order costing with computed material cost. Migration: `00005_finance_tables.sql`
 - **Phase 7**: COMPLETE — attendance marking (with status/check-in/check-out/OT), leave requests + approve/reject workflow, shift CRUD, payroll generation (auto-fills from attendance summary), mark paid. Migration: `00006_hr_tables.sql`
-- **Phase 8**: DEFERRED — Auth + RLS + Roles (skipped for now; focusing on UX polish + AI prep instead)
-- **Phase 9**: IN PROGRESS — UX/UI polish, then deploy
+- **Phase 8**: COMPLETE — Supabase Auth (email/password), middleware route protection, login page, auto-confirm on first login, user profile in topbar (name + role + initials), working logout. Migration: `00007_auth_rls.sql` (⚠️ must still be run in Supabase SQL Editor)
+- **Phase 9**: COMPLETE — Toast notifications (sonner, all 16 forms), breadcrumbs (all detail pages), command palette (⌘K, searches orders/materials/workers), dashboard clickable KPIs + Quick Actions, HR date filters (attendance by date, payroll by month), settings page (org info, DB details, module status)
+- **Phase 10**: NOT STARTED — AI integration (command palette → AI chat, dashboard → AI insights)
+- **Phase 11**: NOT STARTED — Deploy to Vercel
 
 ## Supabase
 - Project ref: `spwighzxkaeibutmijus`
 - Migration files must be run manually by the user in the Supabase SQL Editor
-- Migrations run: `00001` through `00006` (Phases 1–7, all complete)
-- Tables created so far: profiles, buyers, orders, order_items, order_materials, material_categories, materials, stock_transactions, purchase_orders, purchase_order_items, production_stages, production_tracking, quality_checks, tasks, notifications, invoices, invoice_items, payments, order_costings, shifts, worker_shifts, attendance, leaves, payroll
+- Migrations run: `00001` through `00006` confirmed. `00007_auth_rls.sql` written but **not yet run**
+- Tables: profiles, buyers, orders, order_items, order_materials, material_categories, materials, stock_transactions, purchase_orders, purchase_order_items, production_stages, production_tracking, quality_checks, tasks, notifications, invoices, invoice_items, payments, order_costings, shifts, worker_shifts, attendance, leaves, payroll
 
 ## Known Issues & Quirks
 - **Turbopack cache corruption**: If you get `ENOENT: build-manifest.json` errors, run `rm -rf .next && npm run dev`
 - **Radix Select**: Never use `value=""` on `<SelectItem>` — use `"none"` as sentinel and map it back
 - **Zod v4**: Don't use `required_error` on `z.number()` — it's not valid in Zod v4
 - **Supabase joins**: `leaves` table has two FKs to `profiles` (worker_id, approved_by) — must use `profiles!worker_id` hint
-- **No auth yet**: HR module uses `profiles` table directly. Insert test rows manually in Supabase SQL Editor
+- **Migration 00007 not run**: `auth_id` column doesn't exist yet on profiles. Dashboard falls back gracefully (shows email as name) but run the migration to get proper profile data
+- **Dev diagnostic route**: `src/app/api/dev/auth-status/route.ts` exists for debugging — delete before deploying to production
 
-## Next Steps (UX Polish — decided by Sanjeev)
-Instead of Phase 8 (Auth), the next work is UX/UI improvements:
-1. **Toast notifications** — feedback on form submissions (use sonner or shadcn toast)
-2. **Breadcrumbs** — add to all detail/nested pages
-3. **Command palette (⌘K)** — global search across orders, materials, workers
-4. **Dashboard quick actions** — shortcuts to common tasks (Create Order, Mark Attendance, etc.)
-5. **Clickable KPIs** — dashboard stat cards link to filtered views
-6. **Date filters** — on HR attendance/payroll pages
-7. **Settings page** — basic organization info instead of "coming soon"
-8. **AI integration** — future plan to add AI features (command palette → AI chat, dashboard → AI insights)
+## Next Steps
+1. **Run migration `00007_auth_rls.sql`** in Supabase SQL Editor (adds auth_id, trigger, proper RLS)
+2. **Delete** `src/app/api/dev/auth-status/route.ts` before production deploy
+3. **Phase 10** — AI integration (command palette → AI chat, dashboard → AI insights)
+4. **Phase 11** — Deploy to Vercel
