@@ -41,7 +41,30 @@ export async function askSarvam(
   }
 
   const data = await response.json()
-  return data.choices?.[0]?.message?.content ?? "No response generated."
+  // Log full response in dev to diagnose format issues
+  if (process.env.NODE_ENV !== "production") {
+    console.log("[Sarvam raw response]", JSON.stringify(data?.choices?.[0], null, 2))
+  }
+
+  const raw: string = data.choices?.[0]?.message?.content ?? ""
+
+  if (!raw) return "I couldn't generate a response. Please try again."
+
+  // Strategy: if the response contains </think>, take everything after the LAST one
+  const lastCloseIdx = raw.lastIndexOf("</think>")
+  if (lastCloseIdx !== -1) {
+    return raw.slice(lastCloseIdx + "</think>".length).trim() || "I couldn't generate a response."
+  }
+
+  // No closing tag — if it starts with <think>, strip from start up to first double newline
+  if (raw.trimStart().toLowerCase().startsWith("<think>")) {
+    const doubleNewline = raw.indexOf("\n\n")
+    if (doubleNewline !== -1) return raw.slice(doubleNewline).trim()
+    // No paragraph break either — just strip the opening tag and return the rest
+    return raw.replace(/^<think>/i, "").trim()
+  }
+
+  return raw.trim()
 }
 
 // ===== Speech-to-Text =====

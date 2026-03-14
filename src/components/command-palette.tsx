@@ -6,7 +6,7 @@ import { Search, ShoppingBag, Package, Users, Zap, Loader2, Sparkles } from "luc
 
 import { globalSearch, type SearchResult } from "@/actions/search"
 import { getSmartSuggestions, type Suggestion } from "@/actions/ai"
-import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 
 const QUICK_LINKS = [
@@ -113,6 +113,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-xl gap-0 overflow-hidden p-0 shadow-2xl">
+        <DialogTitle className="sr-only">Search</DialogTitle>
         {/* Search input */}
         <div className="flex items-center gap-3 border-b border-border px-4 py-3">
           <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
