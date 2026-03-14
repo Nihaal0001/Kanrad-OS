@@ -76,11 +76,16 @@ Phase 9: Polish + Deploy
 - **Phase 1**: COMPLETE — layout shell, sidebar, topbar, mobile nav, 19 UI primitives, 6 shared components, warm theme, 14 placeholder pages
 - **Phase 2**: COMPLETE — buyers CRUD, orders CRUD with size/color breakdown, order detail/edit, status transitions, delete. Migration: `00001_core_tables.sql`
 - **Phase 3**: COMPLETE — materials CRUD with stock level bars, stock adjustment form (append-only ledger), purchase orders CRUD with item receiving workflow, low-stock filter. Migration: `00002_inventory_tables.sql`
-- **Phase 4**: NOT STARTED — next step: Production tracking (7-stage pipeline) + Quality checks
-- **Phases 5–9**: NOT STARTED
+- **Phase 4**: COMPLETE — 7-stage production pipeline, per-order stage updates, QC inspections with pass/fail tracking. Migration: `00003_production_tables.sql`
+- **Phase 5**: COMPLETE — task kanban board, notifications list + bell badge, live dashboard KPIs + recent orders/activity. Migration: `00004_tasks_notifications.sql`
+- **Phase 6**: COMPLETE — invoice creation from orders (auto-fills items/buyer), invoice detail with print layout, payment recording (auto-updates paid status), order costing with computed material cost. Migration: `00005_finance_tables.sql`
+- **Phase 7**: COMPLETE — attendance marking (with status/check-in/check-out/OT), leave requests + approve/reject workflow, shift CRUD, payroll generation (auto-fills from attendance summary), mark paid. Migration: `00006_hr_tables.sql`
+- **Phase 8**: NOT STARTED — next step: Auth + RLS + Roles
+- **Phase 9**: NOT STARTED
 
 ## Supabase
 - Project ref: `spwighzxkaeibutmijus`
 - Migration files must be run manually by the user in the Supabase SQL Editor
-- Both migrations (`00001_core_tables.sql` and `00002_inventory_tables.sql`) have been run
-- Tables created so far: profiles, buyers, orders, order_items, order_materials, material_categories, materials, stock_transactions, purchase_orders, purchase_order_items
+- Migrations run: `00001` through `00005` (Phases 1–6)
+- Migration pending: `00006_hr_tables.sql` (Phase 7 — run before using HR module)
+- Tables created so far: profiles, buyers, orders, order_items, order_materials, material_categories, materials, stock_transactions, purchase_orders, purchase_order_items, production_stages, production_tracking, quality_checks, tasks, notifications
