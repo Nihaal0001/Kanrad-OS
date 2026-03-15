@@ -233,7 +233,7 @@ export default async function InvoiceDetailPage({ params }: Props) {
       </Card>
 
       <div className="flex justify-end mb-6 print:hidden">
-        <PrintButton />
+        <PrintButton invoiceId={id} />
       </div>
     </>
   )

@@ -118,7 +118,32 @@ Phase 9: Polish + Deploy
 - **Production — Log Production button**: Pipeline list view now has a "Log Production" button per order row
 - **Sidebar**: Quality removed from nav; accessible at `/quality` directly
 
+## Post-Phase 10 Fixes (session 4)
+
+### QR Kiosk improvements
+- **Back button**: Kiosk page has a back button (top-left, `router.back()`)
+- **Pause when hidden**: `visibilitychange` event stops QR token polling + clears stale QR when tab is hidden; resumes immediately on visibility
+
+### KYRE — AI Agent Mode
+- **Agent Mode toggle**: Wand icon in chat widget header switches between KYRE chat (Sarvam) and KYRE Agent (Gemini function calling)
+- **New files**: `src/lib/ai/agent.ts` (Gemini tool declarations + multi-turn loop), `src/actions/ai-agent.ts` (`askAgent`, `executeAgentTool`)
+- **12 tools**: 6 read (attendance, orders, production, leaves, stock, workers) + 6 write (mark_attendance, approve/reject_leave, create_task, update_task_status, update_production_stage)
+- **Confirmation cards**: Write tools show a blue confirmation card before executing; read tools execute immediately and feed results back to Gemini in a loop
+- **Conversation history**: Agent passes last 6 messages as Gemini chat history for multi-turn context
+- **Naming**: Assistant renamed to **KYRE** throughout (chat header, system prompts, aria labels)
+- **Cost**: Runs on Gemini free tier (1,500 req/day) — $0 additional cost
+
+### Invoice PDF export
+- **Direct download**: "Save as PDF" button generates a real PDF server-side via `@react-pdf/renderer` and downloads it directly — no print dialog
+- **API route**: `GET /api/invoice/[id]/pdf` — auth-gated, streams PDF buffer
+- **Template**: `src/components/finance/invoice-pdf.tsx` — A4, professional layout with terracotta branding, org details from Settings, itemized table, GST breakdown, footer
+- **Dedicated print route**: `src/app/print/invoice/[id]/` also exists for browser-based print fallback
+
+### Auth fix (from friend's commit)
+- `getUserByEmail` doesn't exist in Supabase Admin API — replaced with `listUsers()` + `.find()` in `src/app/auth/login/actions.ts`
+
 ## Next Steps
 1. **Run migration `00007_auth_rls.sql`** in Supabase SQL Editor (adds auth_id, trigger, proper RLS)
-2. **Delete** `src/app/api/dev/auth-status/route.ts` before production deploy
-3. **Phase 11** — Deploy to Vercel
+2. **Run migration `00010_qr_attendance.sql`** in Supabase SQL Editor (QR attendance logs table)
+3. **Delete** `src/app/api/dev/auth-status/route.ts` before production deploy
+4. **Phase 11** — Deploy to Vercel

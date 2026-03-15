@@ -21,8 +21,8 @@ export async function login(formData: FormData) {
     // Auto-confirm unconfirmed users and retry (first-time sign-in flow)
     if (error.message.includes("Email not confirmed") || error.code === "email_not_confirmed") {
       const admin = createAdminClient()
-      // Finding #5 — use getUserByEmail instead of listUsers() to avoid fetching all users
-      const { data: { user: authUser } } = await admin.auth.admin.getUserByEmail(email)
+      const { data: { users } } = await admin.auth.admin.listUsers()
+      const authUser = users.find((u) => u.email === email)
       if (authUser) {
         await admin.auth.admin.updateUserById(authUser.id, { email_confirm: true })
         const { error: retryError } = await supabase.auth.signInWithPassword({ email, password })
