@@ -396,3 +396,21 @@ export type Payroll = {
 export type PayrollWithWorker = Payroll & {
   worker: Pick<Profile, "id" | "full_name" | "department"> | null
 }
+
+// ==================== QR Attendance ====================
+
+export type QrAttendanceLog = {
+  id: string
+  employee_id: string
+  timestamp: string
+  type: "IN" | "OUT"
+  status: "Verified" | "Flagged"
+  lat: number | null
+  long: number | null
+  flag_reason: string | null
+  created_at: string
+}
+
+export type QrAttendanceLogWithEmployee = QrAttendanceLog & {
+  employee: Pick<Profile, "id" | "full_name" | "department"> | null
+}

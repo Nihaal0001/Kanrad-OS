@@ -3,7 +3,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { OrgSettingsForm } from "./org-settings-form"
-import { getOrgSettings } from "./actions"
+import { KioskSettingsForm } from "./kiosk-settings-form"
+import { getOrgSettings, getOfficeLocation } from "./actions"
 
 const MODULES = [
   { name: "Orders & Buyers", status: "active" },
@@ -16,10 +17,14 @@ const MODULES = [
   { name: "HR & Payroll", status: "active" },
   { name: "Authentication & Roles", status: "active" },
   { name: "AI Assistant (Gemini + Sarvam)", status: "active" },
+  { name: "QR Attendance Kiosk", status: "active" },
 ]
 
 export default async function SettingsPage() {
-  const saved = await getOrgSettings()
+  const [saved, officeLoc] = await Promise.all([
+    getOrgSettings(),
+    getOfficeLocation(),
+  ])
 
   const defaults = {
     org_name: saved?.org_name ?? "JUST CLOTHING",
@@ -51,6 +56,19 @@ export default async function SettingsPage() {
           </CardHeader>
           <CardContent>
             <OrgSettingsForm defaults={defaults} />
+          </CardContent>
+        </Card>
+
+        {/* Kiosk & Attendance */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Kiosk & Attendance</CardTitle>
+            <CardDescription>
+              Office GPS coordinates for geofenced QR attendance. Workers scanning outside this radius will be flagged.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <KioskSettingsForm defaults={officeLoc} />
           </CardContent>
         </Card>
 

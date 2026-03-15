@@ -15,6 +15,8 @@ import {
   Bell,
   Settings,
   Users,
+  QrCode,
+  ScanLine,
   type LucideIcon,
 } from "lucide-react"
 
@@ -54,6 +56,8 @@ export const navigation: NavGroup[] = [
     label: "HR",
     items: [
       { title: "Attendance", href: "/hr/attendance", icon: Clock, permission: "hr" },
+      { title: "QR Kiosk", href: "/kiosk", icon: QrCode, permission: "hr" },
+      { title: "Scan QR", href: "/scan", icon: ScanLine },
       { title: "Leaves", href: "/hr/leaves", icon: CalendarDays, permission: "hr" },
       { title: "Payroll", href: "/hr/payroll", icon: Wallet, permission: "hr" },
       { title: "Shifts", href: "/hr/shifts", icon: RefreshCcw, permission: "hr" },
