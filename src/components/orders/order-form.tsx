@@ -110,7 +110,7 @@ export function OrderForm({ order, buyers }: OrderFormProps) {
         }
         if (result && "data" in result && result.data) {
           toast.success("Order created")
-          router.push(`/orders/${result.data.id}`)
+          router.push("/orders")
         }
       }
     } catch (err) {

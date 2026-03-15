@@ -39,7 +39,6 @@ export const navigation: NavGroup[] = [
       { title: "Orders", href: "/orders", icon: ShoppingBag, permission: "orders" },
       { title: "Inventory", href: "/inventory", icon: Package, permission: "inventory" },
       { title: "Production", href: "/production", icon: Factory, permission: "production" },
-      { title: "Quality", href: "/quality", icon: CheckCircle, permission: "quality" },
       { title: "Tasks", href: "/tasks", icon: ListTodo, permission: "tasks" },
     ],
   },

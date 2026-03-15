@@ -100,6 +100,23 @@ Phase 9: Polish + Deploy
 - **Supabase joins**: `leaves` table has two FKs to `profiles` (worker_id, approved_by) — must use `profiles!worker_id` hint
 - **Migration 00007 not run**: `auth_id` column doesn't exist yet on profiles. Dashboard falls back gracefully (shows email as name) but run the migration to get proper profile data
 - **Dev diagnostic route**: `src/app/api/dev/auth-status/route.ts` exists for debugging — delete before deploying to production
+- **Production trigger fires on UPDATE only**: The `on_order_confirmed` trigger only fires on status UPDATE, not INSERT. Orders created directly as "confirmed" won't auto-get tracking rows from the trigger. Fixed in code: `getOrderProduction` now auto-creates tracking rows on first load if none exist.
+
+## Post-Phase 10 Fixes (session 3)
+- **Security audit**: Auth guards (`getUser()`) added to all server actions — orders, buyers, production, tasks, finance, hr, notifications, inventory, ai, users
+- **Admin guard**: `requireAdmin()` helper in `users.ts` checks `profiles.role === "admin"` via `auth_id`
+- **Status allowlists**: `VALID_ORDER_STATUSES`, `VALID_TASK_STATUSES`, `VALID_INVOICE_STATUSES`, `VALID_PO_STATUSES` added
+- **CSP header**: Content-Security-Policy added to `next.config.ts` allowlisting Supabase, Gemini, Sarvam
+- **Hydration fix**: `suppressHydrationWarning` on `<html>` in `layout.tsx` fixes next-themes mismatch
+- **Order redirect**: After creating an order, redirects to `/orders` list (not detail page)
+- **Quick Actions UI**: "New Purchase Order" button label no longer overflows its grid cell
+- **Inventory seed**: `supabase/seeds/inventory_seed.sql` — 25 materials across 5 categories (Fabric, Trims, Thread, Labels, Packaging)
+- **AI insights visibility**: Card now has solid amber tint + border; insight rows on white with colour borders
+- **AI insights 404**: Links from AI insights validated against known routes before rendering — invalid hrefs hidden
+- **Production — auto-init**: `getOrderProduction` auto-creates 7 tracking rows on first load if order has none
+- **Production — inline forms**: Production detail page rebuilt with summary stats, progress bar, and inline per-stage update forms (no dialogs)
+- **Production — Log Production button**: Pipeline list view now has a "Log Production" button per order row
+- **Sidebar**: Quality removed from nav; accessible at `/quality` directly
 
 ## Next Steps
 1. **Run migration `00007_auth_rls.sql`** in Supabase SQL Editor (adds auth_id, trigger, proper RLS)

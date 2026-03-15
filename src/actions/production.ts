@@ -71,9 +71,45 @@ export async function getOrderProduction(orderId: string) {
 
   if (error) throw new Error(error.message)
 
-  // Normalize: Supabase returns joined 1:1 relations as arrays — flatten them
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const normalized = {
+  // Auto-init tracking rows if none exist (trigger only fires on UPDATE, not INSERT)
+  if (
+    (!data.production_tracking || data.production_tracking.length === 0) &&
+    ["confirmed", "in_production"].includes(data.status)
+  ) {
+    const { data: stages } = await supabase
+      .from("production_stages")
+      .select("id")
+      .order("sequence")
+
+    if (stages && stages.length > 0) {
+      await supabase.from("production_tracking").insert(
+        stages.map((s) => ({ order_id: orderId, stage_id: s.id, status: "pending" }))
+      )
+      // Re-fetch with tracking rows
+      const { data: refreshed, error: refreshErr } = await supabase
+        .from("orders")
+        .select(`
+          id, order_number, style_name, total_quantity, status, deadline, priority,
+          buyer:buyers(id, name, company),
+          production_tracking(
+            id, status, quantity_completed, quantity_rejected, notes, started_at, completed_at, stage_id, assigned_to,
+            stage:production_stages(id, name, sequence, description)
+          )
+        `)
+        .eq("id", orderId)
+        .single()
+      if (!refreshErr && refreshed) {
+        return normalizeOrder(refreshed)
+      }
+    }
+  }
+
+  return normalizeOrder(data)
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function normalizeOrder(data: any) {
+  return {
     ...data,
     buyer: Array.isArray(data.buyer) ? data.buyer[0] ?? null : data.buyer,
     production_tracking: (data.production_tracking ?? [])
@@ -85,8 +121,6 @@ export async function getOrderProduction(orderId: string) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .sort((a: any, b: any) => (a.stage?.sequence ?? 0) - (b.stage?.sequence ?? 0)),
   }
-
-  return normalized
 }
 
 export async function updateProductionStage(

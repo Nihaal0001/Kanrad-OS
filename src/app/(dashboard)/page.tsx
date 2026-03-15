@@ -102,14 +102,14 @@ export default async function DashboardPage() {
             <Button
               key={action.href}
               variant="outline"
-              className="h-auto justify-start gap-3 px-4 py-3"
+              className="h-auto justify-start gap-3 px-4 py-3 text-left"
               asChild
             >
               <Link href={action.href}>
-                <div className="rounded-md bg-accent p-1.5">
+                <div className="shrink-0 rounded-md bg-accent p-1.5">
                   <Icon className="h-4 w-4 text-muted-foreground" />
                 </div>
-                <span className="font-medium">{action.label}</span>
+                <span className="font-medium text-sm leading-tight">{action.label}</span>
               </Link>
             </Button>
           )

@@ -9,6 +9,23 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
+const VALID_HREFS = new Set([
+  "/orders", "/orders/new",
+  "/inventory", "/inventory/purchase-orders", "/inventory/purchase-orders/new",
+  "/production",
+  "/quality",
+  "/tasks",
+  "/finance/invoices", "/finance/invoices/new", "/finance/payments", "/finance/costing",
+  "/hr/attendance", "/hr/leaves", "/hr/payroll", "/hr/shifts",
+  "/notifications", "/users", "/settings",
+])
+
+function isSafeHref(href: string): boolean {
+  if (VALID_HREFS.has(href)) return true
+  // allow dynamic routes like /orders/123
+  return /^\/[a-z/-]+\/[a-zA-Z0-9-]+$/.test(href)
+}
+
 const INSIGHT_ICONS = {
   warning: AlertTriangle,
   suggestion: Lightbulb,
@@ -22,9 +39,9 @@ const INSIGHT_COLORS = {
 }
 
 const INSIGHT_BG = {
-  warning: "bg-amber-50",
-  suggestion: "bg-emerald-50",
-  alert: "bg-red-50",
+  warning: "bg-white border border-amber-200",
+  suggestion: "bg-white border border-emerald-200",
+  alert: "bg-white border border-red-200",
 }
 
 export function AIInsightsPanel() {
@@ -62,7 +79,7 @@ export function AIInsightsPanel() {
   }
 
   return (
-    <Card className="border-amber-200/50 bg-gradient-to-br from-amber-50/30 to-background">
+    <Card className="border-amber-300 bg-amber-50/60">
       <CardHeader className="flex flex-row items-center justify-between pb-3">
         <CardTitle className="flex items-center gap-2 text-lg">
           <Sparkles className="h-5 w-5 text-amber-500" />
@@ -122,11 +139,11 @@ export function AIInsightsPanel() {
                     <Icon className="h-4 w-4" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium">{insight.title}</p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
+                    <p className="text-sm font-semibold text-foreground">{insight.title}</p>
+                    <p className="mt-0.5 text-xs text-foreground/60">
                       {insight.description}
                     </p>
-                    {insight.action && (
+                    {insight.action && isSafeHref(insight.action.href) && (
                       <Button
                         variant="link"
                         size="sm"

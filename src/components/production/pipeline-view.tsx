@@ -1,9 +1,10 @@
 "use client"
 
 import Link from "next/link"
+import { ClipboardEdit } from "lucide-react"
 import { cn, formatDate } from "@/lib/utils"
-import { Badge } from "@/components/ui/badge"
 import { PriorityIndicator } from "@/components/shared/priority-indicator"
+import { Button } from "@/components/ui/button"
 
 const STAGE_STATUS_COLORS: Record<string, string> = {
   pending: "bg-secondary text-muted-foreground",
@@ -93,9 +94,15 @@ export function PipelineView({ orders, stageNames }: PipelineViewProps) {
                   </span>
                 )}
                 <PriorityIndicator priority={order.priority} />
-                <span className="text-xs text-muted-foreground ml-auto">
+                <span className="text-xs text-muted-foreground">
                   Due {formatDate(order.deadline)}
                 </span>
+                <Button asChild size="sm" variant="outline" className="ml-auto h-7 text-xs gap-1.5">
+                  <Link href={`/production/${order.id}`}>
+                    <ClipboardEdit className="h-3.5 w-3.5" />
+                    Log Production
+                  </Link>
+                </Button>
               </div>
 
               {/* Stage pills */}
