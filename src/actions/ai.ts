@@ -108,6 +108,10 @@ const INSIGHTS_TTL = 60 * 60 * 1000 // 1 hour
 export async function generateInsights(): Promise<
   { insights: Insight[] } | { error: string }
 > {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
   // Return cached if fresh
   if (insightsCache && Date.now() - insightsCache.timestamp < INSIGHTS_TTL) {
     return { insights: insightsCache.data }
@@ -135,6 +139,10 @@ export async function generateInsights(): Promise<
 export async function refreshInsights(): Promise<
   { insights: Insight[] } | { error: string }
 > {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
   insightsCache = null
   return generateInsights()
 }
@@ -165,6 +173,10 @@ const SUGGESTIONS_TTL = 30 * 60 * 1000 // 30 minutes
 export async function getSmartSuggestions(): Promise<
   { suggestions: Suggestion[] } | { error: string }
 > {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
   if (
     suggestionsCache &&
     Date.now() - suggestionsCache.timestamp < SUGGESTIONS_TTL
@@ -208,6 +220,9 @@ export async function generateOrderSummary(
 ): Promise<{ summary: { risk_level: string; summary: string; recommendations: string[] } } | { error: string }> {
   try {
     const supabase = await createClient()
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: "Not authenticated" }
 
     const [orderRes, trackingRes, qcRes, costingRes] = await Promise.all([
       supabase
@@ -312,6 +327,10 @@ export async function synthesizeSpeech(
   languageCode: string = "en-IN"
 ): Promise<{ audioBase64: string } | { error: string }> {
   try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: "Not authenticated" }
+
     const lang = toTTSLang(languageCode)
     const result = await textToSpeech(text, lang)
     return { audioBase64: result.audioBase64 }

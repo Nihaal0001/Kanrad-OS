@@ -97,6 +97,9 @@ export async function updateProductionStage(
   const validated = stageUpdateSchema.parse(formData)
   const supabase = await createClient()
 
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
   const { error } = await supabase
     .from("production_tracking")
     .update({
@@ -155,6 +158,9 @@ export async function createQualityCheck(formData: QualityCheckFormData) {
   const validated = qualityCheckSchema.parse(formData)
   const supabase = await createClient()
 
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
   const { data, error } = await supabase
     .from("quality_checks")
     .insert({
@@ -180,6 +186,10 @@ export async function createQualityCheck(formData: QualityCheckFormData) {
 
 export async function deleteQualityCheck(id: string) {
   const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
   const { error } = await supabase.from("quality_checks").delete().eq("id", id)
 
   if (error) return { error: error.message }

@@ -71,6 +71,9 @@ export async function createMaterial(formData: MaterialFormData) {
   const validated = materialSchema.parse(formData)
   const supabase = await createClient()
 
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
   const cleaned = Object.fromEntries(
     Object.entries(validated).map(([k, v]) => [k, v === "" ? null : v])
   )
@@ -90,6 +93,9 @@ export async function createMaterial(formData: MaterialFormData) {
 export async function updateMaterial(id: string, formData: MaterialFormData) {
   const validated = materialSchema.parse(formData)
   const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
 
   const cleaned = Object.fromEntries(
     Object.entries(validated).map(([k, v]) => [k, v === "" ? null : v])
@@ -111,6 +117,10 @@ export async function updateMaterial(id: string, formData: MaterialFormData) {
 
 export async function deleteMaterial(id: string) {
   const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
   const { error } = await supabase
     .from("materials")
     .update({ is_active: false })
@@ -139,6 +149,9 @@ export async function getStockTransactions(materialId: string) {
 export async function createStockTransaction(formData: StockAdjustmentFormData) {
   const validated = stockAdjustmentSchema.parse(formData)
   const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
 
   // For production_out, quantity should be negative
   const quantity =
@@ -202,6 +215,9 @@ export async function createPurchaseOrder(formData: PurchaseOrderFormData) {
   const validated = purchaseOrderSchema.parse(formData)
   const supabase = await createClient()
 
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
   const { items, ...poData } = validated
   const cleaned = Object.fromEntries(
     Object.entries(poData).map(([k, v]) => [k, v === "" ? null : v])
@@ -238,8 +254,18 @@ export async function createPurchaseOrder(formData: PurchaseOrderFormData) {
   return { data: po }
 }
 
+const VALID_PO_STATUSES = ["draft", "ordered", "partial", "received", "cancelled"] as const
+
 export async function updatePurchaseOrderStatus(id: string, status: string) {
+  if (!VALID_PO_STATUSES.includes(status as typeof VALID_PO_STATUSES[number])) {
+    return { error: "Invalid status" }
+  }
+
   const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
   const { error } = await supabase
     .from("purchase_orders")
     .update({ status })
@@ -258,6 +284,9 @@ export async function receivePurchaseOrderItem(
   poId: string
 ) {
   const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
 
   // Update the received quantity
   const { data: item, error: itemError } = await supabase
@@ -318,6 +347,10 @@ export async function receivePurchaseOrderItem(
 
 export async function deletePurchaseOrder(id: string) {
   const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
   const { error } = await supabase.from("purchase_orders").delete().eq("id", id)
 
   if (error) return { error: error.message }

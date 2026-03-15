@@ -6,6 +6,10 @@ import { createClient } from "@/lib/supabase/server"
 export async function saveOrgSettings(formData: FormData) {
   const supabase = await createClient()
 
+  // Finding #15 — require authentication
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
   const settings = {
     org_name: (formData.get("org_name") as string) || "JUST CLOTHING",
     org_type: (formData.get("org_type") as string) || "",

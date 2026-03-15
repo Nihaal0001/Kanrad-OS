@@ -12,7 +12,8 @@ export async function getBuyers(search?: string) {
     .order("created_at", { ascending: false })
 
   if (search) {
-    query = query.or(`name.ilike.%${search}%,company.ilike.%${search}%,email.ilike.%${search}%`)
+    const escaped = search.replace(/%/g, "\\%").replace(/_/g, "\\_")
+    query = query.or(`name.ilike.%${escaped}%,company.ilike.%${escaped}%,email.ilike.%${escaped}%`)
   }
 
   const { data, error } = await query
@@ -36,6 +37,9 @@ export async function createBuyer(formData: BuyerFormData) {
   const validated = buyerSchema.parse(formData)
   const supabase = await createClient()
 
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
   // Clean empty strings to null
   const cleaned = Object.fromEntries(
     Object.entries(validated).map(([k, v]) => [k, v === "" ? null : v])
@@ -57,6 +61,9 @@ export async function updateBuyer(id: string, formData: BuyerFormData) {
   const validated = buyerSchema.parse(formData)
   const supabase = await createClient()
 
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
   const cleaned = Object.fromEntries(
     Object.entries(validated).map(([k, v]) => [k, v === "" ? null : v])
   )
@@ -76,6 +83,10 @@ export async function updateBuyer(id: string, formData: BuyerFormData) {
 
 export async function deleteBuyer(id: string) {
   const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
   const { error } = await supabase.from("buyers").delete().eq("id", id)
 
   if (error) return { error: error.message }

@@ -31,9 +31,14 @@ export async function getTasks(filters?: { status?: string }) {
   }))
 }
 
+const VALID_TASK_STATUSES = ["todo", "in_progress", "done", "cancelled"] as const
+
 export async function createTask(formData: TaskFormData) {
   const validated = taskSchema.parse(formData)
   const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
 
   const { data, error } = await supabase
     .from("tasks")
@@ -59,6 +64,9 @@ export async function updateTask(id: string, formData: TaskFormData) {
   const validated = taskSchema.parse(formData)
   const supabase = await createClient()
 
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
   const { data, error } = await supabase
     .from("tasks")
     .update({
@@ -81,7 +89,15 @@ export async function updateTask(id: string, formData: TaskFormData) {
 }
 
 export async function updateTaskStatus(id: string, status: string) {
+  if (!VALID_TASK_STATUSES.includes(status as typeof VALID_TASK_STATUSES[number])) {
+    return { error: "Invalid status" }
+  }
+
   const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
   const { error } = await supabase
     .from("tasks")
     .update({ status })
@@ -95,6 +111,10 @@ export async function updateTaskStatus(id: string, status: string) {
 
 export async function deleteTask(id: string) {
   const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
   const { error } = await supabase.from("tasks").delete().eq("id", id)
 
   if (error) return { error: error.message }

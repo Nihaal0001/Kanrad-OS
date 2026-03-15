@@ -57,6 +57,9 @@ export async function createInvoice(formData: InvoiceFormData) {
   const validated = invoiceSchema.parse(formData)
   const supabase = await createClient()
 
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
   // Insert invoice
   const { data: invoice, error: invErr } = await supabase
     .from("invoices")
@@ -91,8 +94,18 @@ export async function createInvoice(formData: InvoiceFormData) {
   return { data: invoice }
 }
 
+const VALID_INVOICE_STATUSES = ["draft", "sent", "paid", "overdue", "cancelled"] as const
+
 export async function updateInvoiceStatus(id: string, status: string) {
+  if (!VALID_INVOICE_STATUSES.includes(status as typeof VALID_INVOICE_STATUSES[number])) {
+    return { error: "Invalid status" }
+  }
+
   const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
   const { error } = await supabase
     .from("invoices")
     .update({ status, updated_at: new Date().toISOString() })
@@ -107,6 +120,10 @@ export async function updateInvoiceStatus(id: string, status: string) {
 
 export async function deleteInvoice(id: string) {
   const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
   const { error } = await supabase.from("invoices").delete().eq("id", id)
   if (error) return { error: error.message }
 
@@ -179,6 +196,9 @@ export async function createPayment(formData: PaymentFormData) {
   const validated = paymentSchema.parse(formData)
   const supabase = await createClient()
 
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
   const { data, error } = await supabase
     .from("payments")
     .insert({
@@ -201,6 +221,10 @@ export async function createPayment(formData: PaymentFormData) {
 
 export async function deletePayment(id: string) {
   const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
   const { error } = await supabase.from("payments").delete().eq("id", id)
   if (error) return { error: error.message }
 
@@ -282,6 +306,9 @@ export async function getOrderCosting(orderId: string) {
 export async function upsertOrderCosting(orderId: string, formData: CostingFormData) {
   const validated = costingSchema.parse(formData)
   const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
 
   const { data, error } = await supabase
     .from("order_costings")

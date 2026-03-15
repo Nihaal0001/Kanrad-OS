@@ -41,11 +41,6 @@ export async function askSarvam(
   }
 
   const data = await response.json()
-  // Log full response in dev to diagnose format issues
-  if (process.env.NODE_ENV !== "production") {
-    console.log("[Sarvam raw response]", JSON.stringify(data?.choices?.[0], null, 2))
-  }
-
   const raw: string = data.choices?.[0]?.message?.content ?? ""
 
   if (!raw) return "I couldn't generate a response. Please try again."

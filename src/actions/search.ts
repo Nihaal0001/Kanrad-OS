@@ -13,7 +13,8 @@ export type SearchResult = {
 export async function globalSearch(query: string): Promise<SearchResult[]> {
   if (!query || query.trim().length < 2) return []
 
-  const q = query.trim()
+  // Finding #9 — escape LIKE wildcards to prevent performance attacks
+  const q = query.trim().replace(/%/g, "\\%").replace(/_/g, "\\_")
   const supabase = await createClient()
 
   const [ordersRes, materialsRes, workersRes] = await Promise.all([

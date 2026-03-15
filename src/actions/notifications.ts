@@ -28,6 +28,10 @@ export async function getUnreadCount() {
 
 export async function markAsRead(id: string) {
   const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
   const { error } = await supabase
     .from("notifications")
     .update({ is_read: true })
@@ -41,6 +45,10 @@ export async function markAsRead(id: string) {
 
 export async function markAllAsRead() {
   const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
   const { error } = await supabase
     .from("notifications")
     .update({ is_read: true })

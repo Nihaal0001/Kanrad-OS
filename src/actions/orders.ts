@@ -43,9 +43,15 @@ export async function getOrder(id: string) {
   return data
 }
 
+const VALID_ORDER_STATUSES = ["draft", "confirmed", "in_production", "completed", "dispatched", "cancelled"] as const
+
 export async function createOrder(formData: OrderFormData) {
   const validated = orderSchema.parse(formData)
   const supabase = await createClient()
+
+  // Finding #2 — require authentication on all mutations
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
 
   const { items, ...orderData } = validated
 
@@ -94,6 +100,9 @@ export async function updateOrder(id: string, formData: OrderFormData) {
   const validated = orderSchema.parse(formData)
   const supabase = await createClient()
 
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
   const { items, ...orderData } = validated
 
   const cleaned = Object.fromEntries(
@@ -137,7 +146,15 @@ export async function updateOrder(id: string, formData: OrderFormData) {
 }
 
 export async function updateOrderStatus(id: string, status: string) {
+  // Finding #11 — validate status against allowlist to prevent arbitrary writes
+  if (!VALID_ORDER_STATUSES.includes(status as typeof VALID_ORDER_STATUSES[number])) {
+    return { error: "Invalid status" }
+  }
+
   const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
 
   const { error } = await supabase
     .from("orders")
@@ -154,6 +171,10 @@ export async function updateOrderStatus(id: string, status: string) {
 
 export async function deleteOrder(id: string) {
   const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
   const { error } = await supabase.from("orders").delete().eq("id", id)
 
   if (error) return { error: error.message }

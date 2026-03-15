@@ -15,6 +15,22 @@ export type UserRow = {
   created_at: string
 }
 
+// Finding #3 — admin-only helper; checks role via profiles table
+async function requireAdmin(): Promise<{ supabase: Awaited<ReturnType<typeof createClient>>; userId: string } | { error: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("auth_id", user.id)
+    .maybeSingle()
+
+  if (profile?.role !== "admin") return { error: "Forbidden: admin only" }
+  return { supabase, userId: user.id }
+}
+
 export async function getUsers(): Promise<UserRow[]> {
   const supabase = await createClient()
   const { data, error } = await supabase
@@ -32,7 +48,10 @@ export async function updateUserRole(
 ): Promise<{ error?: string } | { success: boolean }> {
   if (!userRoles.includes(role as UserRole)) return { error: "Invalid role" }
 
-  const supabase = await createClient()
+  const auth = await requireAdmin()
+  if ("error" in auth) return auth
+  const { supabase } = auth
+
   const { error } = await supabase.from("profiles").update({ role }).eq("id", id)
   if (error) return { error: error.message }
 
@@ -44,7 +63,10 @@ export async function toggleUserActive(
   id: string,
   is_active: boolean
 ): Promise<{ error?: string } | { success: boolean }> {
-  const supabase = await createClient()
+  const auth = await requireAdmin()
+  if ("error" in auth) return auth
+  const { supabase } = auth
+
   const { error } = await supabase.from("profiles").update({ is_active }).eq("id", id)
   if (error) return { error: error.message }
 
@@ -98,7 +120,9 @@ export async function toggleRolePermission(
     return { error: "Cannot remove User Management from Admin — this would lock everyone out." }
   }
 
-  const supabase = await createClient()
+  const auth = await requireAdmin()
+  if ("error" in auth) return auth
+  const { supabase } = auth
 
   if (enabled) {
     const { error } = await supabase

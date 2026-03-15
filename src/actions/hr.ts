@@ -44,6 +44,9 @@ export async function createShift(formData: ShiftFormData) {
   const validated = shiftSchema.parse(formData)
   const supabase = await createClient()
 
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
   const { data, error } = await supabase
     .from("shifts")
     .insert({
@@ -65,6 +68,9 @@ export async function updateShift(id: string, formData: ShiftFormData) {
   const validated = shiftSchema.parse(formData)
   const supabase = await createClient()
 
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
   const { data, error } = await supabase
     .from("shifts")
     .update({
@@ -85,6 +91,10 @@ export async function updateShift(id: string, formData: ShiftFormData) {
 
 export async function deleteShift(id: string) {
   const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
   const { error } = await supabase.from("shifts").delete().eq("id", id)
   if (error) return { error: error.message }
 
@@ -124,6 +134,9 @@ export async function upsertAttendance(formData: AttendanceFormData) {
   const validated = attendanceSchema.parse(formData)
   const supabase = await createClient()
 
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
   const { data, error } = await supabase
     .from("attendance")
     .upsert(
@@ -149,6 +162,10 @@ export async function upsertAttendance(formData: AttendanceFormData) {
 
 export async function deleteAttendance(id: string) {
   const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
   const { error } = await supabase.from("attendance").delete().eq("id", id)
   if (error) return { error: error.message }
 
@@ -185,6 +202,9 @@ export async function createLeave(formData: LeaveFormData) {
   const validated = leaveSchema.parse(formData)
   const supabase = await createClient()
 
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
   const { data, error } = await supabase
     .from("leaves")
     .insert({
@@ -210,6 +230,9 @@ export async function updateLeaveStatus(
 ) {
   const supabase = await createClient()
 
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
   const { data, error } = await supabase
     .from("leaves")
     .update({
@@ -228,6 +251,10 @@ export async function updateLeaveStatus(
 
 export async function deleteLeave(id: string) {
   const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
   const { error } = await supabase.from("leaves").delete().eq("id", id)
   if (error) return { error: error.message }
 
@@ -267,6 +294,9 @@ export async function createPayroll(formData: PayrollFormData) {
   const validated = payrollSchema.parse(formData)
   const supabase = await createClient()
 
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
   const { data, error } = await supabase
     .from("payroll")
     .insert({
@@ -293,6 +323,10 @@ export async function createPayroll(formData: PayrollFormData) {
 
 export async function updatePayrollStatus(id: string, status: "draft" | "paid") {
   const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
   const { error } = await supabase
     .from("payroll")
     .update({ status })
@@ -306,6 +340,10 @@ export async function updatePayrollStatus(id: string, status: "draft" | "paid") 
 
 export async function deletePayroll(id: string) {
   const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
   const { error } = await supabase.from("payroll").delete().eq("id", id)
   if (error) return { error: error.message }
 
