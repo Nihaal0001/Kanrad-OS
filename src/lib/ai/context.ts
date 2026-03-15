@@ -20,7 +20,8 @@ export async function buildERPContext(): Promise<string> {
       .from("orders")
       .select("id, order_number, style_name, status, priority, deadline, total_quantity")
       .in("status", ["confirmed", "in_production"])
-      .order("deadline"),
+      .order("deadline")
+      .limit(30),
 
     // Orders due this week
     supabase
@@ -68,7 +69,8 @@ export async function buildERPContext(): Promise<string> {
     supabase
       .from("profiles")
       .select("id")
-      .eq("is_active", true),
+      .eq("is_active", true)
+      .limit(200),
   ])
 
   // Handle low stock with raw SQL-like filter workaround
@@ -78,6 +80,7 @@ export async function buildERPContext(): Promise<string> {
     .from("materials")
     .select("name, sku, current_stock, min_stock_level, unit")
     .order("name")
+    .limit(100)
 
   const lowStockItems = (allMaterialsRes.data ?? []).filter(
     (m) => m.current_stock < m.min_stock_level

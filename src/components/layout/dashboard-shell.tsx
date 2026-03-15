@@ -65,7 +65,9 @@ export function DashboardShell({ children, unreadCount, userProfile, allowedPerm
           userProfile={userProfile}
         />
         <main className="flex-1 overflow-y-auto p-6 lg:p-8">
-          {children}
+          <div className="animate-page-in">
+            {children}
+          </div>
         </main>
       </div>
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />

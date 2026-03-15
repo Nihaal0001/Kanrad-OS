@@ -12,8 +12,8 @@ import {
 import Link from "next/link"
 
 import { getDashboardStats } from "@/actions/notifications"
+import { createClient } from "@/lib/supabase/server"
 import { StatCard } from "@/components/shared/stat-card"
-import { PageHeader } from "@/components/shared/page-header"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { PriorityIndicator } from "@/components/shared/priority-indicator"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -37,15 +37,30 @@ const NOTIFICATION_DOT: Record<string, string> = {
   task_assigned: "bg-purple-500",
 }
 
+function getGreeting() {
+  const hour = new Date().getHours()
+  if (hour < 12) return "Good morning"
+  if (hour < 17) return "Good afternoon"
+  return "Good evening"
+}
+
 export default async function DashboardPage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const { data: profile } = user
+    ? await supabase.from("profiles").select("full_name").eq("auth_id", user.id).maybeSingle()
+    : { data: null }
+
+  const firstName = profile?.full_name?.split(" ")[0] ?? "there"
   const stats = await getDashboardStats()
 
   return (
     <div className="space-y-8">
-      <PageHeader
-        title="Dashboard"
-        description="Overview of your manufacturing operations"
-      />
+      {/* Greeting header */}
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">{getGreeting()}, {firstName}</h1>
+        <p className="mt-1 text-muted-foreground text-sm">Here&apos;s what&apos;s happening at JUST CLOTHING today.</p>
+      </div>
 
       {/* KPI Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

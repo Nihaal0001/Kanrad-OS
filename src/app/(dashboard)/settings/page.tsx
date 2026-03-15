@@ -1,22 +1,9 @@
 import { PageHeader } from "@/components/shared/page-header"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
-
-// These are static for now — will move to DB/env after Phase 8 (Auth)
-const ORG_INFO = {
-  name: "JUST CLOTHING",
-  type: "Garment Manufacturing Unit",
-  gstin: "",
-  address: "",
-  city: "",
-  state: "",
-  pincode: "",
-  phone: "",
-  email: "",
-}
+import { OrgSettingsForm } from "./org-settings-form"
+import { getOrgSettings } from "./actions"
 
 const MODULES = [
   { name: "Orders & Buyers", status: "active" },
@@ -31,7 +18,21 @@ const MODULES = [
   { name: "AI Assistant (Gemini + Sarvam)", status: "active" },
 ]
 
-export default function SettingsPage() {
+export default async function SettingsPage() {
+  const saved = await getOrgSettings()
+
+  const defaults = {
+    org_name: saved?.org_name ?? "JUST CLOTHING",
+    org_type: saved?.org_type ?? "Garment Manufacturing Unit",
+    gstin: saved?.gstin ?? "",
+    address: saved?.address ?? "",
+    city: saved?.city ?? "",
+    state: saved?.state ?? "",
+    pincode: saved?.pincode ?? "",
+    phone: saved?.phone ?? "",
+    email: saved?.email ?? "",
+  }
+
   return (
     <>
       <PageHeader
@@ -45,80 +46,11 @@ export default function SettingsPage() {
           <CardHeader>
             <CardTitle>Organisation</CardTitle>
             <CardDescription>
-              Basic details about your manufacturing unit. These will be used on invoices and reports.
+              Basic details about your manufacturing unit — used on invoices and reports.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="org_name">Organisation Name</Label>
-                <Input
-                  id="org_name"
-                  defaultValue={ORG_INFO.name}
-                  placeholder="Your company name"
-                  disabled
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="org_type">Business Type</Label>
-                <Input
-                  id="org_type"
-                  defaultValue={ORG_INFO.type}
-                  placeholder="e.g., Garment Manufacturing"
-                  disabled
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="gstin">GSTIN</Label>
-              <Input
-                id="gstin"
-                defaultValue={ORG_INFO.gstin}
-                placeholder="22AAAAA0000A1Z5"
-                disabled
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="address">Address</Label>
-              <Input
-                id="address"
-                defaultValue={ORG_INFO.address}
-                placeholder="Street address"
-                disabled
-              />
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div className="space-y-2">
-                <Label htmlFor="city">City</Label>
-                <Input id="city" defaultValue={ORG_INFO.city} placeholder="City" disabled />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="state">State</Label>
-                <Input id="state" defaultValue={ORG_INFO.state} placeholder="State" disabled />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="pincode">Pincode</Label>
-                <Input id="pincode" defaultValue={ORG_INFO.pincode} placeholder="000000" disabled />
-              </div>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone</Label>
-                <Input id="phone" defaultValue={ORG_INFO.phone} placeholder="+91 98765 43210" disabled />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" defaultValue={ORG_INFO.email} placeholder="info@yourcompany.com" disabled />
-              </div>
-            </div>
-
-            <p className="text-xs text-muted-foreground">
-              Editing will be enabled after authentication is set up (Phase 8).
-            </p>
+          <CardContent>
+            <OrgSettingsForm defaults={defaults} />
           </CardContent>
         </Card>
 
@@ -135,7 +67,7 @@ export default function SettingsPage() {
             </div>
             <div className="flex items-center justify-between rounded-lg border border-border p-3 text-sm">
               <span className="text-muted-foreground">Migrations Applied</span>
-              <span className="font-medium">00001 — 00007</span>
+              <span className="font-medium">00001 — 00008</span>
             </div>
             <div className="flex items-center justify-between rounded-lg border border-border p-3 text-sm">
               <span className="text-muted-foreground">RLS</span>
@@ -157,16 +89,9 @@ export default function SettingsPage() {
               {MODULES.map((mod, i) => (
                 <div key={mod.name}>
                   <div className="flex items-center justify-between py-2.5 text-sm">
-                    <span className={mod.status === "planned" ? "text-muted-foreground" : ""}>{mod.name}</span>
-                    <Badge
-                      variant="outline"
-                      className={
-                        mod.status === "active"
-                          ? "text-emerald-600 border-emerald-600/30"
-                          : "text-muted-foreground"
-                      }
-                    >
-                      {mod.status === "active" ? "Active" : "Planned"}
+                    <span>{mod.name}</span>
+                    <Badge variant="outline" className="text-emerald-600 border-emerald-600/30">
+                      Active
                     </Badge>
                   </div>
                   {i < MODULES.length - 1 && <Separator />}

@@ -16,7 +16,7 @@ export default async function DashboardLayout({
     redirect("/auth/login")
   }
 
-  const [{ data: profile }, unreadCount] = await Promise.all([
+  const [{ data: profileByAuthId }, unreadCount] = await Promise.all([
     supabase
       .from("profiles")
       .select("id, full_name, role, avatar_url")
@@ -24,6 +24,25 @@ export default async function DashboardLayout({
       .maybeSingle(),
     getUnreadCount(),
   ])
+
+  // Fallback: if auth_id not yet linked, find by email and link it automatically
+  let profile = profileByAuthId
+  if (!profile && user.email) {
+    const { data: profileByEmail } = await supabase
+      .from("profiles")
+      .select("id, full_name, role, avatar_url")
+      .eq("email", user.email)
+      .maybeSingle()
+
+    if (profileByEmail) {
+      profile = profileByEmail
+      // Link auth_id so future lookups work instantly
+      await supabase
+        .from("profiles")
+        .update({ auth_id: user.id })
+        .eq("id", profileByEmail.id)
+    }
+  }
 
   const role = profile?.role ?? "worker"
   const allowedPermissions = await getRolePermissions(role)

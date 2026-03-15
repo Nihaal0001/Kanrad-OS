@@ -1,7 +1,9 @@
 "use client"
 
 import Link from "next/link"
-import { Bell, Menu, Search } from "lucide-react"
+import { useTransition } from "react"
+import { Bell, Menu, Moon, Search, Sun } from "lucide-react"
+import { useTheme } from "next-themes"
 
 import { logout } from "@/actions/auth"
 import { Button } from "@/components/ui/button"
@@ -47,6 +49,9 @@ function getInitials(name: string) {
 }
 
 export function Topbar({ onMenuClick, onSearchClick, unreadCount = 0, userProfile }: TopbarProps) {
+  const { theme, setTheme } = useTheme()
+  const [, startTransition] = useTransition()
+
   return (
     <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-border bg-card px-4 lg:px-6">
       <div className="flex items-center gap-3">
@@ -86,6 +91,17 @@ export function Topbar({ onMenuClick, onSearchClick, unreadCount = 0, userProfil
         >
           <Search className="h-4 w-4" />
         </Button>
+        {/* Dark mode toggle */}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+          aria-label="Toggle dark mode"
+        >
+          <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+          <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+        </Button>
+
         {/* Notifications */}
         <Button
           variant="ghost"
@@ -130,12 +146,11 @@ export function Topbar({ onMenuClick, onSearchClick, unreadCount = 0, userProfil
               <Link href="/settings">Settings</Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <form action={logout}>
-                <button type="submit" className="w-full text-left text-destructive">
-                  Log out
-                </button>
-              </form>
+            <DropdownMenuItem
+              className="text-destructive focus:text-destructive cursor-pointer"
+              onSelect={() => startTransition(() => { logout() })}
+            >
+              Log out
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

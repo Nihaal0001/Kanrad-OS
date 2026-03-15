@@ -116,10 +116,11 @@ export function OrderAISummary({ orderId }: OrderAISummaryProps) {
               variant="ghost"
               size="sm"
               onClick={handleGenerate}
+              disabled={loading}
               className="w-full text-xs text-muted-foreground"
             >
               <Sparkles className="h-3 w-3" />
-              Regenerate
+              Refresh Analysis
             </Button>
           </>
         )}

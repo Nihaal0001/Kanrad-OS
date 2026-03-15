@@ -16,7 +16,7 @@ export const qualityCheckSchema = z.object({
   quantity_passed: z.number().min(0),
   quantity_failed: z.number().min(0),
   defect_type: z.string().max(200).optional().or(z.literal("")),
-  severity: z.enum(["minor", "major", "critical"]).optional().or(z.literal("")),
+  severity: z.enum(["minor", "major", "critical"]).optional(),
   notes: z.string().max(1000).optional().or(z.literal("")),
   checked_at: z.string().min(1, "Date is required"),
 })

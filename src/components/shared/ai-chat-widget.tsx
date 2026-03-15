@@ -13,11 +13,10 @@ import {
   RotateCcw,
 } from "lucide-react"
 
+import { toast } from "sonner"
 import { askAI, transcribeAudio, synthesizeSpeech, type ChatMessage } from "@/actions/ai"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-
-const FAB_SIZE = 60
 
 export function AIChatWidget() {
   const [open, setOpen] = useState(false)
@@ -29,63 +28,18 @@ export function AIChatWidget() {
   const [speaking, setSpeaking] = useState(false)
   const [detectedLang, setDetectedLang] = useState("en-IN")
 
-  // Draggable state
-  const [pos, setPos] = useState<{ x: number; y: number } | null>(null)
-  const isDragging = useRef(false)
-  const didDrag = useRef(false)
-  const dragStart = useRef({ x: 0, y: 0, posX: 0, posY: 0 })
-
   const chatEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
   const currentAudioRef = useRef<HTMLAudioElement | null>(null)
 
-  // Set default position on mount (bottom-right)
-  useEffect(() => {
-    setPos({
-      x: window.innerWidth - FAB_SIZE - 24,
-      y: window.innerHeight - FAB_SIZE - 24,
-    })
-  }, [])
-
-  // --- Drag handlers ---
-  const onPointerDown = useCallback(
-    (e: React.PointerEvent) => {
-      if (!pos) return
-      isDragging.current = true
-      didDrag.current = false
-      dragStart.current = { x: e.clientX, y: e.clientY, posX: pos.x, posY: pos.y }
-      ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
-    },
-    [pos]
-  )
-
-  const onPointerMove = useCallback((e: React.PointerEvent) => {
-    if (!isDragging.current) return
-    const dx = e.clientX - dragStart.current.x
-    const dy = e.clientY - dragStart.current.y
-    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) didDrag.current = true
-    setPos({
-      x: Math.max(8, Math.min(dragStart.current.posX + dx, window.innerWidth - FAB_SIZE - 8)),
-      y: Math.max(8, Math.min(dragStart.current.posY + dy, window.innerHeight - FAB_SIZE - 8)),
-    })
-  }, [])
-
-  const onPointerUp = useCallback(() => {
-    isDragging.current = false
-  }, [])
-
-  const onFabClick = useCallback(() => {
-    if (!didDrag.current) setOpen(true)
-  }, [])
-
   // Scroll to bottom
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [chatHistory, loading])
 
-  // Focus input
+  // Focus input when opened
   useEffect(() => {
     if (open) setTimeout(() => inputRef.current?.focus(), 100)
   }, [open])
@@ -165,7 +119,7 @@ export function AIChatWidget() {
       mediaRecorder.start()
       setRecording(true)
     } catch {
-      // Mic denied
+      toast.error("Microphone access denied. Please allow microphone permission in your browser.")
     }
   }
 
@@ -178,81 +132,19 @@ export function AIChatWidget() {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend() }
   }
 
-  // Don't render until position is set (avoids flash at 0,0)
-  if (!pos) return null
-
   return (
-    <>
-      {/* ====== Premium draggable FAB ====== */}
-      {!open && (
-        <div
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onClick={onFabClick}
-          style={{ left: pos.x, top: pos.y, width: FAB_SIZE, height: FAB_SIZE }}
-          className="fixed z-50 select-none touch-none cursor-grab active:cursor-grabbing"
-        >
-          {/* Slow breathing glow */}
-          <span
-            className="absolute inset-[-6px] rounded-full opacity-40"
-            style={{
-              background: "radial-gradient(circle, hsl(16 65% 55% / .45) 0%, transparent 70%)",
-              animation: "fab-breathe 3.5s ease-in-out infinite",
-            }}
-          />
-
-          {/* Outer ring gradient */}
-          <span className="absolute inset-0 rounded-full bg-gradient-to-br from-[hsl(16,65%,60%)] via-primary to-[hsl(16,65%,42%)] p-[2px]">
-            <span className="flex h-full w-full items-center justify-center rounded-full bg-gradient-to-br from-[hsl(16,65%,52%)] to-[hsl(16,65%,45%)]" />
-          </span>
-
-          {/* Icon layer */}
-          <span className="absolute inset-0 flex items-center justify-center">
-            {/* Chat bubble SVG */}
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path
-                d="M12 2C6.477 2 2 5.804 2 10.5c0 2.447 1.17 4.652 3.05 6.207L4 21l4.14-2.07A11.27 11.27 0 0 0 12 19.5c5.523 0 10-3.804 10-8.5S17.523 2 12 2Z"
-                fill="white"
-                fillOpacity="0.95"
-              />
-              {/* Three dots */}
-              <circle cx="8.5" cy="10.5" r="1.15" fill="hsl(16,65%,50%)" />
-              <circle cx="12" cy="10.5" r="1.15" fill="hsl(16,65%,50%)" />
-              <circle cx="15.5" cy="10.5" r="1.15" fill="hsl(16,65%,50%)" />
-              {/* Tiny sparkle */}
-              <path
-                d="M18.5 4l.35 1.15L20 5.5l-1.15.35L18.5 7l-.35-1.15L17 5.5l1.15-.35L18.5 4Z"
-                fill="white"
-                fillOpacity="0.85"
-              />
-            </svg>
-          </span>
-
-          {/* Top-left highlight reflection */}
-          <span className="absolute left-2.5 top-1.5 h-3 w-7 rounded-full bg-white/25 blur-[3px]" />
-
-          {/* Keyframe for breathing glow */}
-          <style jsx>{`
-            @keyframes fab-breathe {
-              0%, 100% { transform: scale(1); opacity: 0.35; }
-              50% { transform: scale(1.18); opacity: 0.55; }
-            }
-          `}</style>
-        </div>
-      )}
-
-      {/* ====== Chat panel ====== */}
+    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
+      {/* Chat panel */}
       {open && (
         <div
           className={cn(
-            "fixed bottom-6 right-6 z-50 flex flex-col",
+            "flex flex-col",
             "w-[380px] max-h-[600px] rounded-2xl",
             "border border-border bg-background shadow-2xl",
-            "animate-in slide-in-from-bottom-5 fade-in duration-200"
+            "animate-in slide-in-from-bottom-4 fade-in duration-200"
           )}
         >
-          {/* Header with gradient */}
+          {/* Header */}
           <div className="flex items-center justify-between rounded-t-2xl bg-gradient-to-r from-primary/8 via-primary/4 to-transparent border-b border-border px-4 py-3">
             <div className="flex items-center gap-2.5">
               <div className="relative flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary/80 shadow-sm">
@@ -281,7 +173,12 @@ export function AIChatWidget() {
                   <RotateCcw className="h-3.5 w-3.5" />
                 </Button>
               )}
-              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => setOpen(false)}>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                onClick={() => setOpen(false)}
+              >
                 <X className="h-4 w-4" />
               </Button>
             </div>
@@ -339,8 +236,8 @@ export function AIChatWidget() {
 
               {speaking && (
                 <div className="flex justify-start">
-                  <div className="flex items-center gap-2 rounded-2xl rounded-bl-md bg-primary/5 px-3.5 py-2 text-xs text-muted-foreground">
-                    <Volume2 className="h-3.5 w-3.5 text-primary animate-pulse" />
+                  <div className="flex items-center gap-2 rounded-2xl rounded-bl-md bg-primary/10 px-3.5 py-2 text-xs text-primary">
+                    <Volume2 className="h-3.5 w-3.5 animate-pulse" />
                     Speaking…
                   </div>
                 </div>
@@ -358,11 +255,10 @@ export function AIChatWidget() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Type or tap mic to speak…"
+                placeholder="Ask anything about your factory…"
                 disabled={loading || transcribing || recording}
                 className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground disabled:opacity-50"
               />
-
               <Button
                 variant={recording ? "destructive" : "ghost"}
                 size="icon"
@@ -372,7 +268,6 @@ export function AIChatWidget() {
               >
                 {recording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
               </Button>
-
               <Button
                 variant="default"
                 size="icon"
@@ -386,6 +281,58 @@ export function AIChatWidget() {
           </div>
         </div>
       )}
-    </>
+
+      {/* Fixed FAB — always visible */}
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="relative flex h-14 w-14 shrink-0 select-none items-center justify-center rounded-full shadow-lg transition-transform hover:scale-105 active:scale-95 focus-visible:outline-none"
+        aria-label={open ? "Close AI assistant" : "Open AI assistant"}
+      >
+        {/* Breathing glow */}
+        {!open && (
+          <span
+            className="absolute inset-[-6px] rounded-full opacity-40"
+            style={{
+              background: "radial-gradient(circle, hsl(16 65% 55% / .45) 0%, transparent 70%)",
+              animation: "fab-breathe 3.5s ease-in-out infinite",
+            }}
+          />
+        )}
+
+        {/* Gradient background */}
+        <span className="absolute inset-0 rounded-full bg-gradient-to-br from-[hsl(16,65%,60%)] via-primary to-[hsl(16,65%,42%)] p-[2px]">
+          <span className="flex h-full w-full items-center justify-center rounded-full bg-gradient-to-br from-[hsl(16,65%,52%)] to-[hsl(16,65%,45%)]" />
+        </span>
+
+        {/* Highlight */}
+        <span className="absolute left-2.5 top-1.5 h-2.5 w-6 rounded-full bg-white/25 blur-[3px]" />
+
+        {/* Icon */}
+        <span className="relative z-10">
+          {open ? (
+            <X className="h-6 w-6 text-white" />
+          ) : (
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+              <path
+                d="M12 2C6.477 2 2 5.804 2 10.5c0 2.447 1.17 4.652 3.05 6.207L4 21l4.14-2.07A11.27 11.27 0 0 0 12 19.5c5.523 0 10-3.804 10-8.5S17.523 2 12 2Z"
+                fill="white"
+                fillOpacity="0.95"
+              />
+              <circle cx="8.5" cy="10.5" r="1.15" fill="hsl(16,65%,50%)" />
+              <circle cx="12" cy="10.5" r="1.15" fill="hsl(16,65%,50%)" />
+              <circle cx="15.5" cy="10.5" r="1.15" fill="hsl(16,65%,50%)" />
+              <path d="M18.5 4l.35 1.15L20 5.5l-1.15.35L18.5 7l-.35-1.15L17 5.5l1.15-.35L18.5 4Z" fill="white" fillOpacity="0.85" />
+            </svg>
+          )}
+        </span>
+
+        <style jsx>{`
+          @keyframes fab-breathe {
+            0%, 100% { transform: scale(1); opacity: 0.35; }
+            50% { transform: scale(1.18); opacity: 0.55; }
+          }
+        `}</style>
+      </button>
+    </div>
   )
 }

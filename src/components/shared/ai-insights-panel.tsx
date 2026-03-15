@@ -93,13 +93,13 @@ export function AIInsightsPanel() {
 
         {error && !loading && (
           <p className="py-4 text-center text-sm text-muted-foreground">
-            {error}
+            AI service temporarily unavailable. Try refreshing in a moment.
           </p>
         )}
 
         {!loading && !error && insights.length === 0 && (
           <p className="py-4 text-center text-sm text-muted-foreground">
-            No insights available. Try refreshing.
+            No patterns detected yet. Add more orders and production data to get insights.
           </p>
         )}
 

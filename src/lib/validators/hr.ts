@@ -6,9 +6,12 @@ export const attendanceSchema = z.object({
   status: z.enum(["present", "absent", "half_day", "leave"]),
   check_in: z.string().optional().or(z.literal("")),
   check_out: z.string().optional().or(z.literal("")),
-  overtime_hours: z.number().min(0).max(24),
+  overtime_hours: z.number().min(0).max(16),
   notes: z.string().optional().or(z.literal("")),
-})
+}).refine(
+  (d) => !d.check_in || !d.check_out || d.check_in <= d.check_out,
+  { message: "Check-out must be after check-in", path: ["check_out"] }
+)
 
 export type AttendanceFormData = z.infer<typeof attendanceSchema>
 
@@ -18,6 +21,9 @@ export const leaveSchema = z.object({
   from_date: z.string().min(1, "From date is required"),
   to_date: z.string().min(1, "To date is required"),
   reason: z.string().optional().or(z.literal("")),
+}).refine((d) => d.from_date <= d.to_date, {
+  message: "End date must be on or after start date",
+  path: ["to_date"],
 })
 
 export type LeaveFormData = z.infer<typeof leaveSchema>

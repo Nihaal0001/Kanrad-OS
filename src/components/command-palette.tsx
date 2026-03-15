@@ -10,11 +10,11 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 
 const QUICK_LINKS = [
-  { label: "New Order", href: "/orders/new", shortcut: "N O" },
-  { label: "Mark Attendance", href: "/hr/attendance", shortcut: null },
-  { label: "New Purchase Order", href: "/inventory/purchase-orders/new", shortcut: null },
-  { label: "New Invoice", href: "/finance/invoices/new", shortcut: null },
-  { label: "Production Overview", href: "/production", shortcut: null },
+  { label: "New Order", href: "/orders/new" },
+  { label: "Mark Attendance", href: "/hr/attendance" },
+  { label: "New Purchase Order", href: "/inventory/purchase-orders/new" },
+  { label: "New Invoice", href: "/finance/invoices/new" },
+  { label: "Production Overview", href: "/production" },
 ]
 
 const TYPE_ICONS = {
@@ -45,7 +45,6 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
   // Smart suggestions
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
   const [suggestionsLoading, setSuggestionsLoading] = useState(false)
-  const suggestionsLoaded = useRef(false)
 
   // Reset when closed
   useEffect(() => {
@@ -55,14 +54,12 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
       setActiveIndex(0)
     } else {
       setTimeout(() => inputRef.current?.focus(), 50)
-      if (!suggestionsLoaded.current) {
-        setSuggestionsLoading(true)
-        getSmartSuggestions().then((res) => {
-          if ("suggestions" in res) setSuggestions(res.suggestions)
-          setSuggestionsLoading(false)
-          suggestionsLoaded.current = true
-        })
-      }
+      setSuggestionsLoading(true)
+      setSuggestions([])
+      getSmartSuggestions().then((res) => {
+        if ("suggestions" in res) setSuggestions(res.suggestions)
+        setSuggestionsLoading(false)
+      })
     }
   }, [open])
 
@@ -179,9 +176,6 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
               >
                 <Zap className="h-4 w-4 shrink-0 text-muted-foreground" />
                 <span>{link.label}</span>
-                {link.shortcut && (
-                  <span className="ml-auto text-xs text-muted-foreground">{link.shortcut}</span>
-                )}
               </button>
             ))}
           </div>
