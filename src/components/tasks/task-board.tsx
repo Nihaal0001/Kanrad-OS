@@ -7,7 +7,9 @@ import { MoreHorizontal, Pencil, Trash2 } from "lucide-react"
 import type { TaskWithDetails } from "@/lib/supabase/types"
 import { cn, formatDate } from "@/lib/utils"
 import { updateTaskStatus, deleteTask } from "@/actions/tasks"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
+import { ConfirmDialog } from "@/components/shared/confirm-dialog"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,6 +35,7 @@ export function TaskBoard({ tasks }: TaskBoardProps) {
   const router = useRouter()
   const [movingId, setMovingId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [confirmId, setConfirmId] = useState<string | null>(null)
 
   const handleMove = useCallback(
     async (taskId: string, status: string) => {
@@ -46,10 +49,11 @@ export function TaskBoard({ tasks }: TaskBoardProps) {
 
   const handleDelete = useCallback(
     async (id: string) => {
-      if (!window.confirm("Delete this task?")) return
       setDeletingId(id)
       await deleteTask(id)
       setDeletingId(null)
+      setConfirmId(null)
+      toast.success("Task deleted")
       router.refresh()
     },
     [router]
@@ -145,7 +149,7 @@ export function TaskBoard({ tasks }: TaskBoardProps) {
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
                           className="text-destructive focus:text-destructive"
-                          onClick={() => handleDelete(task.id)}
+                          onClick={() => setConfirmId(task.id)}
                         >
                           <Trash2 className="h-4 w-4" />
                           Delete
@@ -181,6 +185,15 @@ export function TaskBoard({ tasks }: TaskBoardProps) {
           </div>
         )
       })}
+      <ConfirmDialog
+        open={confirmId !== null}
+        onOpenChange={(open) => { if (!open) setConfirmId(null) }}
+        title="Delete Task"
+        description="Are you sure you want to delete this task? This action cannot be undone."
+        confirmLabel="Delete"
+        onConfirm={() => confirmId && handleDelete(confirmId)}
+        loading={deletingId !== null}
+      />
     </div>
   )
 }

@@ -28,8 +28,12 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl
 
-  // Not logged in → redirect to login (except for auth routes and API routes)
-  if (!user && !pathname.startsWith("/auth") && !pathname.startsWith("/api")) {
+  // Public API routes that don't require authentication (add new ones here explicitly)
+  const PUBLIC_API_ROUTES: string[] = []
+  const isPublicApi = PUBLIC_API_ROUTES.some((r) => pathname.startsWith(r))
+
+  // Not logged in → redirect to login (except for auth routes and explicitly public API routes)
+  if (!user && !pathname.startsWith("/auth") && !isPublicApi) {
     return NextResponse.redirect(new URL("/auth/login", request.url))
   }
 

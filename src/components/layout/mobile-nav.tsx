@@ -16,6 +16,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 interface MobileNavProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  allowedPermissions?: string[]
 }
 
 function MobileNavItem({
@@ -82,8 +83,18 @@ function MobileNavGroup({
   )
 }
 
-export function MobileNav({ open, onOpenChange }: MobileNavProps) {
+export function MobileNav({ open, onOpenChange, allowedPermissions }: MobileNavProps) {
   const pathname = usePathname()
+
+  const allowed = new Set(allowedPermissions ?? [])
+  const filteredNavigation: NavGroup[] = navigation
+    .map((group) => ({
+      ...group,
+      items: group.items.filter(
+        (item) => !item.permission || allowed.has(item.permission)
+      ),
+    }))
+    .filter((group) => group.items.length > 0)
 
   function handleClose() {
     onOpenChange(false)
@@ -100,7 +111,7 @@ export function MobileNav({ open, onOpenChange }: MobileNavProps) {
 
         <ScrollArea className="h-[calc(100vh-5rem)]">
           <nav className="flex flex-col gap-0.5 px-3 py-2">
-            {navigation.map((group, index) => (
+            {filteredNavigation.map((group, index) => (
               <MobileNavGroup
                 key={group.label || `group-${index}`}
                 group={group}

@@ -106,6 +106,7 @@ export function OrderActions({ order }: OrderActionsProps) {
           </Button>
         )}
 
+        {(order.status === "draft" || order.status === "cancelled") && (
         <Dialog>
           <DialogTrigger asChild>
             <Button
@@ -140,6 +141,7 @@ export function OrderActions({ order }: OrderActionsProps) {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        )}
       </CardContent>
     </Card>
   )

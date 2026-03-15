@@ -6,10 +6,12 @@ import { useRouter } from "next/navigation"
 import { MoreHorizontal, Search, Eye, Pencil, Trash2 } from "lucide-react"
 
 import type { OrderWithBuyer } from "@/lib/supabase/types"
-import { cn, formatDate } from "@/lib/utils"
+import { cn, formatDate, friendlyError } from "@/lib/utils"
 import { deleteOrder } from "@/actions/orders"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { ConfirmDialog } from "@/components/shared/confirm-dialog"
 import {
   Table,
   TableBody,
@@ -46,6 +48,7 @@ export function OrdersTable({ orders }: OrdersTableProps) {
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [confirmId, setConfirmId] = useState<string | null>(null)
 
   const filteredOrders = useMemo(() => {
     let result = orders
@@ -71,21 +74,17 @@ export function OrdersTable({ orders }: OrdersTableProps) {
 
   const handleDelete = useCallback(
     async (id: string) => {
-      const confirmed = window.confirm(
-        "Are you sure you want to delete this order? This action cannot be undone."
-      )
-      if (!confirmed) return
-
       setDeletingId(id)
       const result = await deleteOrder(id)
+      setDeletingId(null)
+      setConfirmId(null)
 
       if ("error" in result && result.error) {
-        alert(`Failed to delete order: ${result.error}`)
-        setDeletingId(null)
+        toast.error(friendlyError(result.error))
         return
       }
 
-      setDeletingId(null)
+      toast.success("Order deleted")
       router.refresh()
     },
     [router]
@@ -220,15 +219,19 @@ export function OrdersTable({ orders }: OrdersTableProps) {
                             Edit
                           </Link>
                         </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          className="text-destructive focus:text-destructive"
-                          onClick={() => handleDelete(order.id)}
-                          disabled={deletingId === order.id}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                          Delete
-                        </DropdownMenuItem>
+                        {(order.status === "draft" || order.status === "cancelled") && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="text-destructive focus:text-destructive"
+                              onClick={() => setConfirmId(order.id)}
+                              disabled={deletingId === order.id}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              Delete
+                            </DropdownMenuItem>
+                          </>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -238,6 +241,16 @@ export function OrdersTable({ orders }: OrdersTableProps) {
           </Table>
         </div>
       )}
+
+      <ConfirmDialog
+        open={confirmId !== null}
+        onOpenChange={(open) => { if (!open) setConfirmId(null) }}
+        title="Delete Order"
+        description="Delete this order permanently? Only draft and cancelled orders can be deleted."
+        confirmLabel="Delete"
+        onConfirm={() => confirmId && handleDelete(confirmId)}
+        loading={deletingId !== null}
+      />
     </div>
   )
 }

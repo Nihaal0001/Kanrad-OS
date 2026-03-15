@@ -65,7 +65,7 @@ export function QualityCheckForm({
       quantity_passed: 0,
       quantity_failed: 0,
       defect_type: "",
-      severity: "",
+      severity: undefined,
       notes: "",
       checked_at: new Date().toISOString().split("T")[0],
     },

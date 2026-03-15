@@ -14,6 +14,7 @@ import {
   RefreshCcw,
   Bell,
   Settings,
+  Users,
   type LucideIcon,
 } from "lucide-react"
 
@@ -22,6 +23,7 @@ export type NavItem = {
   href: string
   icon: LucideIcon
   badge?: number
+  permission?: string
 }
 
 export type NavGroup = {
@@ -33,36 +35,37 @@ export const navigation: NavGroup[] = [
   {
     label: "",
     items: [
-      { title: "Dashboard", href: "/", icon: LayoutDashboard },
-      { title: "Orders", href: "/orders", icon: ShoppingBag },
-      { title: "Inventory", href: "/inventory", icon: Package },
-      { title: "Production", href: "/production", icon: Factory },
-      { title: "Quality", href: "/quality", icon: CheckCircle },
-      { title: "Tasks", href: "/tasks", icon: ListTodo },
+      { title: "Dashboard", href: "/", icon: LayoutDashboard, permission: "dashboard" },
+      { title: "Orders", href: "/orders", icon: ShoppingBag, permission: "orders" },
+      { title: "Inventory", href: "/inventory", icon: Package, permission: "inventory" },
+      { title: "Production", href: "/production", icon: Factory, permission: "production" },
+      { title: "Quality", href: "/quality", icon: CheckCircle, permission: "quality" },
+      { title: "Tasks", href: "/tasks", icon: ListTodo, permission: "tasks" },
     ],
   },
   {
     label: "Finance",
     items: [
-      { title: "Invoices", href: "/finance/invoices", icon: FileText },
-      { title: "Costing", href: "/finance/costing", icon: Calculator },
-      { title: "Payments", href: "/finance/payments", icon: CreditCard },
+      { title: "Invoices", href: "/finance/invoices", icon: FileText, permission: "finance" },
+      { title: "Costing", href: "/finance/costing", icon: Calculator, permission: "finance" },
+      { title: "Payments", href: "/finance/payments", icon: CreditCard, permission: "finance" },
     ],
   },
   {
     label: "HR",
     items: [
-      { title: "Attendance", href: "/hr/attendance", icon: Clock },
-      { title: "Leaves", href: "/hr/leaves", icon: CalendarDays },
-      { title: "Payroll", href: "/hr/payroll", icon: Wallet },
-      { title: "Shifts", href: "/hr/shifts", icon: RefreshCcw },
+      { title: "Attendance", href: "/hr/attendance", icon: Clock, permission: "hr" },
+      { title: "Leaves", href: "/hr/leaves", icon: CalendarDays, permission: "hr" },
+      { title: "Payroll", href: "/hr/payroll", icon: Wallet, permission: "hr" },
+      { title: "Shifts", href: "/hr/shifts", icon: RefreshCcw, permission: "hr" },
     ],
   },
   {
     label: "",
     items: [
-      { title: "Notifications", href: "/notifications", icon: Bell },
-      { title: "Settings", href: "/settings", icon: Settings },
+      { title: "Notifications", href: "/notifications", icon: Bell, permission: "notifications" },
+      { title: "Users", href: "/users", icon: Users, permission: "users" },
+      { title: "Settings", href: "/settings", icon: Settings, permission: "settings" },
     ],
   },
 ]

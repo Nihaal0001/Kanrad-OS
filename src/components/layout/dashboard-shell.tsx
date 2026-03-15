@@ -19,9 +19,10 @@ interface DashboardShellProps {
   children: React.ReactNode
   unreadCount: number
   userProfile: UserProfile
+  allowedPermissions: string[]
 }
 
-export function DashboardShell({ children, unreadCount, userProfile }: DashboardShellProps) {
+export function DashboardShell({ children, unreadCount, userProfile, allowedPermissions }: DashboardShellProps) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [paletteOpen, setPaletteOpen] = useState(false)
@@ -44,8 +45,13 @@ export function DashboardShell({ children, unreadCount, userProfile }: Dashboard
         collapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
         className="hidden lg:flex"
+        allowedPermissions={allowedPermissions}
       />
-      <MobileNav open={mobileNavOpen} onOpenChange={setMobileNavOpen} />
+      <MobileNav
+        open={mobileNavOpen}
+        onOpenChange={setMobileNavOpen}
+        allowedPermissions={allowedPermissions}
+      />
       <div
         className={cn(
           "flex flex-1 flex-col overflow-hidden transition-[margin] duration-300",

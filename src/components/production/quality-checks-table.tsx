@@ -5,9 +5,11 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Trash2, Search } from "lucide-react"
 
-import { cn, formatDate } from "@/lib/utils"
+import { cn, formatDate, friendlyError } from "@/lib/utils"
 import { deleteQualityCheck } from "@/actions/production"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
+import { ConfirmDialog } from "@/components/shared/confirm-dialog"
 import { Input } from "@/components/ui/input"
 import {
   Table,
@@ -55,6 +57,7 @@ export function QualityChecksTable({ checks }: QualityChecksTableProps) {
   const [search, setSearch] = useState("")
   const [severityFilter, setSeverityFilter] = useState("all")
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [confirmId, setConfirmId] = useState<string | null>(null)
 
   const filtered = useMemo(() => {
     let result = checks
@@ -74,13 +77,17 @@ export function QualityChecksTable({ checks }: QualityChecksTableProps) {
 
   const handleDelete = useCallback(
     async (id: string) => {
-      if (!window.confirm("Delete this QC record?")) return
       setDeletingId(id)
       const result = await deleteQualityCheck(id)
-      if ("error" in result && result.error) {
-        alert(result.error)
-      }
       setDeletingId(null)
+      setConfirmId(null)
+
+      if ("error" in result && result.error) {
+        toast.error(friendlyError(result.error))
+        return
+      }
+
+      toast.success("QC record deleted")
       router.refresh()
     },
     [router]
@@ -214,7 +221,7 @@ export function QualityChecksTable({ checks }: QualityChecksTableProps) {
                         size="icon"
                         className="h-8 w-8 text-muted-foreground hover:text-destructive"
                         disabled={deletingId === check.id}
-                        onClick={() => handleDelete(check.id)}
+                        onClick={() => setConfirmId(check.id)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -226,6 +233,16 @@ export function QualityChecksTable({ checks }: QualityChecksTableProps) {
           </Table>
         </div>
       )}
+
+      <ConfirmDialog
+        open={confirmId !== null}
+        onOpenChange={(open) => { if (!open) setConfirmId(null) }}
+        title="Delete QC Record"
+        description="Are you sure you want to delete this quality check record?"
+        confirmLabel="Delete"
+        onConfirm={() => confirmId && handleDelete(confirmId)}
+        loading={deletingId !== null}
+      />
     </div>
   )
 }

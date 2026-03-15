@@ -19,6 +19,7 @@ interface SidebarProps {
   className?: string
   collapsed?: boolean
   onToggleCollapse?: () => void
+  allowedPermissions?: string[]
 }
 
 function NavItemLink({
@@ -105,8 +106,19 @@ export function Sidebar({
   className,
   collapsed = false,
   onToggleCollapse,
+  allowedPermissions,
 }: SidebarProps) {
   const pathname = usePathname()
+
+  const allowed = new Set(allowedPermissions ?? [])
+  const filteredNavigation: NavGroup[] = navigation
+    .map((group) => ({
+      ...group,
+      items: group.items.filter(
+        (item) => !item.permission || allowed.has(item.permission)
+      ),
+    }))
+    .filter((group) => group.items.length > 0)
 
   return (
     <TooltipProvider delayDuration={0}>
@@ -153,7 +165,7 @@ export function Sidebar({
         {/* Navigation */}
         <ScrollArea className={cn("flex-1", collapsed ? "px-2" : "px-3")}>
           <nav className="flex flex-col gap-0.5 pb-4">
-            {navigation.map((group, index) => (
+            {filteredNavigation.map((group, index) => (
               <NavGroupSection
                 key={group.label || `group-${index}`}
                 group={group}

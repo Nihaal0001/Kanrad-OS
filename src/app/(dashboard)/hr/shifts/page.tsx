@@ -1,9 +1,10 @@
-import { RefreshCcw, Trash2 } from "lucide-react"
+import { RefreshCcw } from "lucide-react"
 
 import { getShifts, deleteShift } from "@/actions/hr"
 import { PageHeader } from "@/components/shared/page-header"
 import { EmptyState } from "@/components/shared/empty-state"
 import { ShiftForm } from "@/components/hr/shift-form"
+import { DeleteButton } from "@/components/hr/delete-button"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 
@@ -49,21 +50,12 @@ export default async function ShiftsPage() {
                       </Button>
                     }
                   />
-                  <form
-                    action={async () => {
-                      "use server"
-                      await deleteShift(shift.id)
-                    }}
-                  >
-                    <Button
-                      type="submit"
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </form>
+                  <DeleteButton
+                    title="Delete Shift"
+                    description={`Delete the "${shift.name}" shift? This cannot be undone.`}
+                    onDelete={() => deleteShift(shift.id)}
+                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                  />
                 </div>
               </CardContent>
             </Card>

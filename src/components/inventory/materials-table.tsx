@@ -6,10 +6,12 @@ import { useRouter } from "next/navigation"
 import { MoreHorizontal, Search, Eye, Pencil, Trash2, AlertTriangle } from "lucide-react"
 
 import type { MaterialWithCategory } from "@/lib/supabase/types"
-import { cn, formatCurrency } from "@/lib/utils"
+import { cn, formatCurrency, friendlyError } from "@/lib/utils"
 import { deleteMaterial } from "@/actions/inventory"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { ConfirmDialog } from "@/components/shared/confirm-dialog"
 import {
   Table,
   TableBody,
@@ -38,6 +40,7 @@ export function MaterialsTable({ materials, categories }: MaterialsTableProps) {
   const [categoryFilter, setCategoryFilter] = useState<string>("all")
   const [showLowStock, setShowLowStock] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [confirmId, setConfirmId] = useState<string | null>(null)
 
   const filteredMaterials = useMemo(() => {
     let result = materials
@@ -75,21 +78,17 @@ export function MaterialsTable({ materials, categories }: MaterialsTableProps) {
 
   const handleDelete = useCallback(
     async (id: string) => {
-      const confirmed = window.confirm(
-        "Are you sure you want to deactivate this material?"
-      )
-      if (!confirmed) return
-
       setDeletingId(id)
       const result = await deleteMaterial(id)
+      setDeletingId(null)
+      setConfirmId(null)
 
       if ("error" in result && result.error) {
-        alert(`Failed to delete material: ${result.error}`)
-        setDeletingId(null)
+        toast.error(friendlyError(result.error))
         return
       }
 
-      setDeletingId(null)
+      toast.success("Material deactivated")
       router.refresh()
     },
     [router]
@@ -247,11 +246,11 @@ export function MaterialsTable({ materials, categories }: MaterialsTableProps) {
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
                           className="text-destructive focus:text-destructive"
-                          onClick={() => handleDelete(material.id)}
+                          onClick={() => setConfirmId(material.id)}
                           disabled={deletingId === material.id}
                         >
                           <Trash2 className="h-4 w-4" />
-                          Delete
+                          Deactivate
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -262,6 +261,16 @@ export function MaterialsTable({ materials, categories }: MaterialsTableProps) {
           </Table>
         </div>
       )}
+
+      <ConfirmDialog
+        open={confirmId !== null}
+        onOpenChange={(open) => { if (!open) setConfirmId(null) }}
+        title="Deactivate Material"
+        description="This material will be hidden from active lists but not permanently deleted. Continue?"
+        confirmLabel="Deactivate"
+        onConfirm={() => confirmId && handleDelete(confirmId)}
+        loading={deletingId !== null}
+      />
     </div>
   )
 }

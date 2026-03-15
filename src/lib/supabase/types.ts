@@ -1,6 +1,8 @@
 export type Profile = {
   id: string
+  auth_id: string | null
   full_name: string
+  email: string | null
   role: "admin" | "production_manager" | "inventory_manager" | "qc_head" | "floor_supervisor" | "worker"
   department: string | null
   phone: string | null

@@ -27,7 +27,8 @@ const MODULES = [
   { name: "Notifications", status: "active" },
   { name: "Finance", status: "active" },
   { name: "HR & Payroll", status: "active" },
-  { name: "Authentication & Roles", status: "planned" },
+  { name: "Authentication & Roles", status: "active" },
+  { name: "AI Assistant (Gemini + Sarvam)", status: "active" },
 ]
 
 export default function SettingsPage() {
@@ -134,12 +135,12 @@ export default function SettingsPage() {
             </div>
             <div className="flex items-center justify-between rounded-lg border border-border p-3 text-sm">
               <span className="text-muted-foreground">Migrations Applied</span>
-              <span className="font-medium">00001 — 00006</span>
+              <span className="font-medium">00001 — 00007</span>
             </div>
             <div className="flex items-center justify-between rounded-lg border border-border p-3 text-sm">
               <span className="text-muted-foreground">RLS</span>
-              <Badge variant="outline" className="text-amber-600 border-amber-600/30">
-                Permissive (Phase 8)
+              <Badge variant="outline" className="text-emerald-600 border-emerald-600/30">
+                Authenticated users only
               </Badge>
             </div>
           </CardContent>

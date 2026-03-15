@@ -4,6 +4,7 @@ import { askSarvam, speechToText, textToSpeech } from "@/lib/ai/sarvam"
 import { askGemini } from "@/lib/ai/gemini"
 import { buildERPContext } from "@/lib/ai/context"
 import { createClient } from "@/lib/supabase/server"
+import { rateLimit } from "@/lib/rate-limit"
 
 // ===== Types =====
 
@@ -49,6 +50,13 @@ export async function askAI(
   history: ChatMessage[] = []
 ): Promise<{ reply: string } | { error: string }> {
   try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: "Not authenticated" }
+    if (!rateLimit(`ai_chat:${user.id}`, 20, 60_000)) {
+      return { error: "Too many requests — please wait a minute and try again." }
+    }
+
     const context = await buildERPContext()
     const systemPrompt = CHAT_SYSTEM_PROMPT + context
 
@@ -280,6 +288,13 @@ export async function transcribeAudio(
   base64Audio: string
 ): Promise<{ transcript: string; languageCode: string } | { error: string }> {
   try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: "Not authenticated" }
+    if (!rateLimit(`ai_voice:${user.id}`, 10, 60_000)) {
+      return { error: "Too many requests — please wait a minute and try again." }
+    }
+
     const buffer = Buffer.from(base64Audio, "base64")
     const result = await speechToText(buffer, "recording.webm")
     return {

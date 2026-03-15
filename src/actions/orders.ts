@@ -22,9 +22,8 @@ export async function getOrders(filters?: {
     query = query.eq("priority", filters.priority)
   }
   if (filters?.search) {
-    query = query.or(
-      `order_number.ilike.%${filters.search}%,style_name.ilike.%${filters.search}%`
-    )
+    const escaped = filters.search.replace(/%/g, "\\%").replace(/_/g, "\\_")
+    query = query.or(`order_number.ilike.%${escaped}%,style_name.ilike.%${escaped}%`)
   }
 
   const { data, error } = await query

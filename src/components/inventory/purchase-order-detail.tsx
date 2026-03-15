@@ -7,7 +7,8 @@ import {
   updatePurchaseOrderStatus,
   receivePurchaseOrderItem,
 } from "@/actions/inventory"
-import { formatCurrency, formatDate } from "@/lib/utils"
+import { formatCurrency, formatDate, friendlyError } from "@/lib/utils"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -69,9 +70,10 @@ export function PurchaseOrderDetail({ po: initialPo }: PurchaseOrderDetailProps)
     async (status: string) => {
       const result = await updatePurchaseOrderStatus(po.id, status)
       if ("error" in result && result.error) {
-        alert(result.error)
+        toast.error(friendlyError(result.error))
         return
       }
+      toast.success("Status updated")
       setPo((prev) => ({ ...prev, status }))
       router.refresh()
     },
@@ -85,7 +87,7 @@ export function PurchaseOrderDetail({ po: initialPo }: PurchaseOrderDetailProps)
 
       const result = await receivePurchaseOrderItem(itemId, qty, po.id)
       if ("error" in result && result.error) {
-        alert(result.error)
+        toast.error(friendlyError(result.error))
         setReceivingItemId(null)
         return
       }

@@ -42,9 +42,9 @@ export async function getMaterials(filters?: {
     query = query.eq("category_id", filters.category_id)
   }
   if (filters?.search) {
-    query = query.or(
-      `name.ilike.%${filters.search}%,sku.ilike.%${filters.search}%`
-    )
+    // Escape LIKE wildcards so user input is treated as a literal string
+    const escaped = filters.search.replace(/%/g, "\\%").replace(/_/g, "\\_")
+    query = query.or(`name.ilike.%${escaped}%,sku.ilike.%${escaped}%`)
   }
   if (filters?.low_stock) {
     query = query.lte("current_stock", "min_stock_level" as unknown as number)
@@ -177,9 +177,8 @@ export async function getPurchaseOrders(filters?: {
     query = query.eq("status", filters.status)
   }
   if (filters?.search) {
-    query = query.or(
-      `po_number.ilike.%${filters.search}%,supplier_name.ilike.%${filters.search}%`
-    )
+    const escaped = filters.search.replace(/%/g, "\\%").replace(/_/g, "\\_")
+    query = query.or(`po_number.ilike.%${escaped}%,supplier_name.ilike.%${escaped}%`)
   }
 
   const { data, error } = await query

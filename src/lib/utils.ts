@@ -21,6 +21,24 @@ export function formatDate(date: string | Date): string {
   }).format(new Date(date))
 }
 
+export function friendlyError(message: string): string {
+  if (!message) return "Something went wrong. Please try again."
+  const m = message.toLowerCase()
+  if (m.includes("duplicate key") || m.includes("unique constraint") || m.includes("already exists"))
+    return "A record with these details already exists."
+  if (m.includes("foreign key") || m.includes("violates foreign key") || m.includes("still referenced"))
+    return "Cannot delete — this record is used by other data."
+  if (m.includes("not null") || m.includes("null value in column"))
+    return "A required field is missing or empty."
+  if (m.includes("permission denied") || m.includes("insufficient privilege") || m.includes("rls"))
+    return "You don't have permission to perform this action."
+  if (m.includes("check constraint") || m.includes("violates check"))
+    return "The data entered is outside the allowed range."
+  if (m.includes("network") || m.includes("fetch failed") || m.includes("econnrefused"))
+    return "Network error — check your connection and try again."
+  return message
+}
+
 export function formatDateRelative(date: string | Date): string {
   const now = new Date()
   const d = new Date(date)
