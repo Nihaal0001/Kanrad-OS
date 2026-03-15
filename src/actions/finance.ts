@@ -264,21 +264,34 @@ export async function getOrderCosting(orderId: string) {
     .eq("order_id", orderId)
     .single()
 
-  // Fetch order details
+  // Fetch order + buyer
   const { data: order, error: orderErr } = await supabase
     .from("orders")
     .select(`
       id, order_number, style_name, total_quantity, status,
       buyer:buyers(id, name),
-      order_materials(
-        id, quantity_required, quantity_allocated,
-        material:materials(id, name, cost_per_unit, unit)
-      )
+      order_materials(id, quantity_required, quantity_allocated, material_id)
     `)
     .eq("id", orderId)
     .single()
 
   if (orderErr) throw new Error(orderErr.message)
+
+  // Fetch materials separately (order_materials.material_id has no FK constraint)
+  const materialIds = (order.order_materials ?? [])
+    .map((om: { material_id: string | null }) => om.material_id)
+    .filter(Boolean) as string[]
+
+  const materialsMap: Record<string, { id: string; name: string; cost_per_unit: number; unit: string }> = {}
+  if (materialIds.length > 0) {
+    const { data: materials } = await supabase
+      .from("materials")
+      .select("id, name, cost_per_unit, unit")
+      .in("id", materialIds)
+    for (const m of materials ?? []) {
+      materialsMap[m.id] = m
+    }
+  }
 
   const normalizedOrder = {
     ...order,
@@ -286,7 +299,7 @@ export async function getOrderCosting(orderId: string) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     order_materials: (order.order_materials ?? []).map((om: any) => ({
       ...om,
-      material: Array.isArray(om.material) ? om.material[0] ?? null : om.material,
+      material: om.material_id ? (materialsMap[om.material_id] ?? null) : null,
     })),
   }
 

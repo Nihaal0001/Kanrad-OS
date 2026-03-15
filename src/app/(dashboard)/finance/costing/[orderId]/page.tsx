@@ -26,7 +26,7 @@ export default async function OrderCostingPage({ params }: Props) {
     notFound()
   }
 
-  const { order, costing, computedMaterialCost } = result
+  const { order, costing, computedMaterialCost } = result!
 
   return (
     <>
