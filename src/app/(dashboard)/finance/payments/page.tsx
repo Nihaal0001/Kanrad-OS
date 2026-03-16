@@ -5,6 +5,7 @@ import { getPayments } from "@/actions/finance"
 import { PageHeader } from "@/components/shared/page-header"
 import { EmptyState } from "@/components/shared/empty-state"
 import { PaymentActions } from "@/components/finance/payment-actions"
+import { ExportButton } from "@/components/finance/export-button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 
@@ -20,10 +21,28 @@ function formatCurrency(n: number) {
   return n.toLocaleString("en-IN", { minimumFractionDigits: 2 })
 }
 
+const EXPORT_COLS = [
+  { key: "payment_date", label: "Date" },
+  { key: "invoice_number", label: "Invoice #" },
+  { key: "buyer_name", label: "Buyer" },
+  { key: "amount", label: "Amount (₹)" },
+  { key: "method", label: "Method" },
+  { key: "reference", label: "Reference" },
+]
+
 export default async function PaymentsPage() {
   const payments = await getPayments()
 
   const totalReceived = payments.reduce((sum, p) => sum + p.amount, 0)
+
+  const exportData = payments.map((p) => ({
+    payment_date: p.payment_date,
+    invoice_number: p.invoice?.invoice_number ?? "",
+    buyer_name: p.invoice?.buyer_name ?? "",
+    amount: p.amount,
+    method: METHOD_LABELS[p.method] ?? p.method,
+    reference: p.reference ?? "",
+  }))
 
   return (
     <>
@@ -34,7 +53,9 @@ export default async function PaymentsPage() {
             ? `${payments.length} payments · ₹${formatCurrency(totalReceived)} total received`
             : "Track payments received"
         }
-      />
+      >
+        <ExportButton data={exportData} columns={EXPORT_COLS} filename="payments" />
+      </PageHeader>
 
       {payments.length === 0 ? (
         <EmptyState

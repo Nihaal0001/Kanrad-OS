@@ -19,6 +19,10 @@
     {
       "path": "/api/cron/production-bottleneck",
       "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/purchase-invoice-overdue",
+      "schedule": "0 18 * * *"
     }
   ]
 }

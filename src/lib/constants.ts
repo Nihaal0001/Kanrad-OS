@@ -19,6 +19,9 @@ import {
   ScanLine,
   ClipboardCheck,
   ShoppingCart,
+  Receipt,
+  BarChart3,
+  IndianRupee,
   type LucideIcon,
 } from "lucide-react"
 
@@ -51,9 +54,13 @@ export const navigation: NavGroup[] = [
   {
     label: "Finance",
     items: [
+      { title: "Overview", href: "/finance", icon: IndianRupee, permission: "finance" },
       { title: "Invoices", href: "/finance/invoices", icon: FileText, permission: "finance" },
-      { title: "Costing", href: "/finance/costing", icon: Calculator, permission: "finance" },
+      { title: "Purchases", href: "/finance/purchases", icon: Receipt, permission: "finance" },
+      { title: "Expenses", href: "/finance/expenses", icon: Wallet, permission: "finance" },
       { title: "Payments", href: "/finance/payments", icon: CreditCard, permission: "finance" },
+      { title: "Costing", href: "/finance/costing", icon: Calculator, permission: "finance" },
+      { title: "Reports", href: "/finance/reports", icon: BarChart3, permission: "finance" },
     ],
   },
   {
@@ -63,7 +70,7 @@ export const navigation: NavGroup[] = [
       { title: "QR Kiosk", href: "/kiosk", icon: QrCode, permission: "hr" },
       { title: "Scan QR", href: "/scan", icon: ScanLine },
       { title: "Leaves", href: "/hr/leaves", icon: CalendarDays, permission: "hr" },
-      { title: "Payroll", href: "/hr/payroll", icon: Wallet, permission: "hr" },
+      { title: "Payroll", href: "/hr/payroll", icon: CheckCircle, permission: "hr" },
       { title: "Shifts", href: "/hr/shifts", icon: RefreshCcw, permission: "hr" },
     ],
   },

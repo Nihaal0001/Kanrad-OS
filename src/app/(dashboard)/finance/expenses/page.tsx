@@ -5,6 +5,7 @@ import { getExpenses, getExpenseCategories } from "@/actions/expenses"
 import { PageHeader } from "@/components/shared/page-header"
 import { EmptyState } from "@/components/shared/empty-state"
 import { ExpenseActions } from "@/components/finance/expense-actions"
+import { ExportButton } from "@/components/finance/export-button"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -12,6 +13,14 @@ import { Badge } from "@/components/ui/badge"
 function formatCurrency(n: number) {
   return n.toLocaleString("en-IN", { minimumFractionDigits: 2 })
 }
+
+const EXPORT_COLS = [
+  { key: "expense_date", label: "Date" },
+  { key: "category", label: "Category" },
+  { key: "description", label: "Description" },
+  { key: "order_number", label: "Order #" },
+  { key: "amount", label: "Amount (₹)" },
+]
 
 export default async function ExpensesPage({
   searchParams,
@@ -30,6 +39,14 @@ export default async function ExpensesPage({
 
   const totalAmount = expenses.reduce((sum, e) => sum + e.amount, 0)
 
+  const exportData = expenses.map((e) => ({
+    expense_date: e.expense_date,
+    category: e.category?.name ?? "",
+    description: e.description ?? "",
+    order_number: e.order?.order_number ?? "",
+    amount: e.amount,
+  }))
+
   return (
     <>
       <PageHeader
@@ -44,6 +61,7 @@ export default async function ExpensesPage({
           { label: "Expenses" },
         ]}
       >
+        <ExportButton data={exportData} columns={EXPORT_COLS} filename="expenses" />
         <Link href="/finance/expenses/new">
           <Button>
             <Plus className="h-4 w-4" />

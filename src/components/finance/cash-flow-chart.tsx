@@ -37,8 +37,8 @@ export function CashFlowChart({ data }: CashFlowChartProps) {
         <XAxis dataKey="month" tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
         <YAxis tickFormatter={formatCurrency} tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
         <Tooltip
-          formatter={(value: number) =>
-            `₹${value.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`
+          formatter={(value) =>
+            `₹${Number(value).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`
           }
           contentStyle={{
             backgroundColor: "hsl(var(--background))",

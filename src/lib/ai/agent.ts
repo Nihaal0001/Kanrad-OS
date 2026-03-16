@@ -42,6 +42,12 @@ export const TOOL_PERMISSIONS: Record<string, string> = {
   // Notifications
   get_notifications: "notifications",
   mark_notifications_read: "notifications",
+  // Finance
+  get_invoices: "finance",
+  get_receivables_summary: "finance",
+  get_expenses_summary: "finance",
+  get_gst_summary: "finance",
+  get_profit_loss: "finance",
 }
 
 export const WRITE_TOOL_NAMES = [
@@ -156,6 +162,36 @@ const toolDeclarations: FunctionDeclaration[] = [
   {
     name: "get_notifications",
     description: "Get recent unread notifications.",
+    parameters: { type: SchemaType.OBJECT, properties: {} },
+  },
+  {
+    name: "get_invoices",
+    description: "List sales invoices. Optionally filter by status.",
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        status: { type: SchemaType.STRING, description: "Filter by status: draft, sent, paid, partially_paid, cancelled (optional)" },
+      },
+    },
+  },
+  {
+    name: "get_receivables_summary",
+    description: "Get outstanding receivables grouped into aging buckets (current, 1-30, 31-60, 90+ days overdue) with totals.",
+    parameters: { type: SchemaType.OBJECT, properties: {} },
+  },
+  {
+    name: "get_expenses_summary",
+    description: "Get this month's expenses grouped by category with totals.",
+    parameters: { type: SchemaType.OBJECT, properties: {} },
+  },
+  {
+    name: "get_gst_summary",
+    description: "Get GST summary for the current month — output tax (from sales), input tax (from purchases), and net liability.",
+    parameters: { type: SchemaType.OBJECT, properties: {} },
+  },
+  {
+    name: "get_profit_loss",
+    description: "Get P&L for the current month — revenue, COGS, gross profit, expenses by category, and net profit.",
     parameters: { type: SchemaType.OBJECT, properties: {} },
   },
 
@@ -592,6 +628,127 @@ async function executeReadTool(
         .order("created_at", { ascending: false })
         .limit(15)
       return { count: (data ?? []).length, notifications: data ?? [] }
+    }
+
+    case "get_invoices": {
+      let query = admin
+        .from("invoices")
+        .select("invoice_number, buyer_name, total_amount, amount_paid, status, due_date, issue_date")
+        .order("created_at", { ascending: false })
+        .limit(20)
+      if (args.status) query = query.eq("status", String(args.status))
+      const { data } = await query
+      return {
+        count: (data ?? []).length,
+        invoices: (data ?? []).map((inv) => ({
+          invoice_number: inv.invoice_number,
+          buyer: inv.buyer_name,
+          total: inv.total_amount,
+          paid: inv.amount_paid,
+          outstanding: (inv.total_amount ?? 0) - (inv.amount_paid ?? 0),
+          status: inv.status,
+          due_date: inv.due_date,
+        })),
+      }
+    }
+
+    case "get_receivables_summary": {
+      const { data } = await admin
+        .from("invoices")
+        .select("total_amount, amount_paid, due_date, status, buyer_name")
+        .neq("status", "cancelled")
+        .neq("status", "paid")
+        .not("due_date", "is", null)
+      const today = new Date()
+      const buckets = { current: 0, thirtyDays: 0, sixtyDays: 0, ninetyPlus: 0 }
+      let totalOutstanding = 0
+      for (const inv of data ?? []) {
+        const outstanding = (inv.total_amount ?? 0) - (inv.amount_paid ?? 0)
+        if (outstanding <= 0) continue
+        totalOutstanding += outstanding
+        const days = Math.floor((today.getTime() - new Date(inv.due_date!).getTime()) / 86400000)
+        if (days <= 0) buckets.current += outstanding
+        else if (days <= 30) buckets.thirtyDays += outstanding
+        else if (days <= 60) buckets.sixtyDays += outstanding
+        else buckets.ninetyPlus += outstanding
+      }
+      return {
+        total_outstanding: totalOutstanding,
+        current: buckets.current,
+        overdue_1_30_days: buckets.thirtyDays,
+        overdue_31_60_days: buckets.sixtyDays,
+        overdue_90_plus_days: buckets.ninetyPlus,
+      }
+    }
+
+    case "get_expenses_summary": {
+      const now = new Date()
+      const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`
+      const { data } = await admin
+        .from("expenses")
+        .select("amount, category:expense_categories(name)")
+        .gte("expense_date", monthStart) as { data: { amount: number; category: { name: string } | { name: string }[] | null }[] | null }
+      const byCategory: Record<string, number> = {}
+      let total = 0
+      for (const exp of data ?? []) {
+        const cat = Array.isArray(exp.category) ? exp.category[0]?.name : exp.category?.name ?? "Uncategorized"
+        byCategory[cat] = (byCategory[cat] ?? 0) + (exp.amount ?? 0)
+        total += exp.amount ?? 0
+      }
+      return { month: monthStart.slice(0, 7), total_expenses: total, by_category: byCategory }
+    }
+
+    case "get_gst_summary": {
+      const now = new Date()
+      const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
+      const start = `${month}-01`
+      const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1)
+      const end = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, "0")}-01`
+      const [salesRes, purchasesRes] = await Promise.all([
+        admin.from("invoices").select("cgst_amount, sgst_amount, igst_amount").gte("issue_date", start).lt("issue_date", end).neq("status", "cancelled"),
+        admin.from("purchase_invoices").select("cgst_amount, sgst_amount, igst_amount").gte("invoice_date", start).lt("invoice_date", end).neq("status", "cancelled"),
+      ])
+      const sales = salesRes.data ?? []
+      const purchases = purchasesRes.data ?? []
+      const outputTotal = sales.reduce((s, i) => s + (i.cgst_amount ?? 0) + (i.sgst_amount ?? 0) + (i.igst_amount ?? 0), 0)
+      const inputTotal = purchases.reduce((s, i) => s + (i.cgst_amount ?? 0) + (i.sgst_amount ?? 0) + (i.igst_amount ?? 0), 0)
+      return {
+        month,
+        output_gst: outputTotal,
+        input_gst: inputTotal,
+        net_liability: outputTotal - inputTotal,
+      }
+    }
+
+    case "get_profit_loss": {
+      const now = new Date()
+      const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
+      const start = `${month}-01`
+      const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1)
+      const end = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, "0")}-01`
+      const [revenueRes, expensesRes, cogsRes] = await Promise.all([
+        admin.from("invoices").select("total_amount").gte("issue_date", start).lt("issue_date", end).neq("status", "cancelled"),
+        admin.from("expenses").select("amount, category:expense_categories(name)").gte("expense_date", start).lt("expense_date", end),
+        admin.from("order_costings").select("total_cost"),
+      ])
+      const revenue = (revenueRes.data ?? []).reduce((s, i) => s + (i.total_amount ?? 0), 0)
+      const cogs = (cogsRes.data ?? []).reduce((s, c) => s + (c.total_cost ?? 0), 0)
+      const byCategory: Record<string, number> = {}
+      let totalExpenses = 0
+      for (const exp of expensesRes.data ?? [] as { amount: number; category: { name: string } | { name: string }[] | null }[]) {
+        const cat = Array.isArray(exp.category) ? exp.category[0]?.name : exp.category?.name ?? "Uncategorized"
+        byCategory[cat] = (byCategory[cat] ?? 0) + (exp.amount ?? 0)
+        totalExpenses += exp.amount ?? 0
+      }
+      return {
+        month,
+        revenue,
+        cogs,
+        gross_profit: revenue - cogs,
+        expenses_by_category: byCategory,
+        total_expenses: totalExpenses,
+        net_profit: revenue - cogs - totalExpenses,
+      }
     }
 
     default:

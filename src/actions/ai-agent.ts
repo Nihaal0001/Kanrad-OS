@@ -111,6 +111,11 @@ export async function executeAgentTool(
       case "get_tasks":
       case "get_quality_checks":
       case "get_notifications":
+      case "get_invoices":
+      case "get_receivables_summary":
+      case "get_expenses_summary":
+      case "get_gst_summary":
+      case "get_profit_loss":
         return { success: true, message: "Query completed." }
 
       // ── HR write tools ──

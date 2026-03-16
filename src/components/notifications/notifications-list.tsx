@@ -29,6 +29,7 @@ const TYPE_COLORS: Record<string, string> = {
   bottleneck_overdue: "bg-red-600",
   leave_request: "bg-purple-500",
   attendance_anomaly: "bg-red-500",
+  purchase_invoice_overdue: "bg-red-500",
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -50,6 +51,7 @@ const TYPE_LABELS: Record<string, string> = {
   bottleneck_overdue: "Production",
   leave_request: "HR",
   attendance_anomaly: "HR",
+  purchase_invoice_overdue: "Finance",
 }
 
 interface NotificationsListProps {

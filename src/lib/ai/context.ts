@@ -5,6 +5,10 @@ export async function buildERPContext(): Promise<string> {
 
   const today = new Date().toISOString().split("T")[0]
   const weekFromNow = new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0]
+  const now = new Date()
+  const thisMonthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`
+  const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+  const lastMonthStart = `${lastMonthDate.getFullYear()}-${String(lastMonthDate.getMonth() + 1).padStart(2, "0")}-01`
 
   const [
     ordersRes,
@@ -14,6 +18,8 @@ export async function buildERPContext(): Promise<string> {
     pendingLeavesRes,
     recentQCRes,
     workersRes,
+    expensesThisMonthRes,
+    expensesLastMonthRes,
   ] = await Promise.all([
     // Active orders
     supabase
@@ -71,6 +77,19 @@ export async function buildERPContext(): Promise<string> {
       .select("id")
       .eq("is_active", true)
       .limit(200),
+
+    // Expenses this month by category
+    supabase
+      .from("expenses")
+      .select("amount, category:expense_categories(name)")
+      .gte("expense_date", thisMonthStart),
+
+    // Expenses last month by category
+    supabase
+      .from("expenses")
+      .select("amount, category:expense_categories(name)")
+      .gte("expense_date", lastMonthStart)
+      .lt("expense_date", thisMonthStart),
   ])
 
   // Handle low stock with raw SQL-like filter workaround
@@ -94,6 +113,27 @@ export async function buildERPContext(): Promise<string> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recentQC = (recentQCRes.data ?? []) as any[]
   const workers = workersRes.data ?? []
+
+  // Build expense anomaly data
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function groupExpensesByCategory(data: any[]) {
+    const map: Record<string, number> = {}
+    for (const exp of data) {
+      const cat = Array.isArray(exp.category) ? exp.category[0]?.name : exp.category?.name ?? "Uncategorized"
+      map[cat] = (map[cat] ?? 0) + (exp.amount ?? 0)
+    }
+    return map
+  }
+  const thisMonthExpenses = groupExpensesByCategory(expensesThisMonthRes.data ?? [])
+  const lastMonthExpenses = groupExpensesByCategory(expensesLastMonthRes.data ?? [])
+  const expenseAnomalies: string[] = []
+  for (const [cat, thisAmt] of Object.entries(thisMonthExpenses)) {
+    const lastAmt = lastMonthExpenses[cat] ?? 0
+    if (lastAmt > 0 && thisAmt > lastAmt * 1.15) {
+      const pct = Math.round(((thisAmt - lastAmt) / lastAmt) * 100)
+      expenseAnomalies.push(`${cat}: ₹${thisAmt.toFixed(0)} this month vs ₹${lastAmt.toFixed(0)} last month (+${pct}%)`)
+    }
+  }
 
   const lines: string[] = [
     `== JUST CLOTHING ERP — Factory Status (${today}) ==`,
@@ -140,6 +180,23 @@ export async function buildERPContext(): Promise<string> {
 
   if (pendingLeaves.length > 0) {
     lines.push(`Pending leave requests: ${pendingLeaves.length}`)
+    lines.push("")
+  }
+
+  const totalThisMonth = Object.values(thisMonthExpenses).reduce((s, v) => s + v, 0)
+  if (totalThisMonth > 0) {
+    lines.push(`Expenses this month: ₹${totalThisMonth.toFixed(0)}`)
+    for (const [cat, amt] of Object.entries(thisMonthExpenses)) {
+      lines.push(`  - ${cat}: ₹${amt.toFixed(0)}`)
+    }
+    lines.push("")
+  }
+
+  if (expenseAnomalies.length > 0) {
+    lines.push("⚠ Expense anomalies (>15% increase vs last month):")
+    for (const a of expenseAnomalies) {
+      lines.push(`  - ${a}`)
+    }
     lines.push("")
   }
 
