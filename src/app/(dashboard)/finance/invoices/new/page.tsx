@@ -1,4 +1,5 @@
 import { getOrdersForInvoice, getOrderForInvoice } from "@/actions/finance"
+import { getOrgSettings } from "@/app/(dashboard)/settings/actions"
 import { PageHeader } from "@/components/shared/page-header"
 import { InvoiceForm } from "@/components/finance/invoice-form"
 
@@ -8,9 +9,10 @@ interface Props {
 
 export default async function NewInvoicePage({ searchParams }: Props) {
   const { orderId } = await searchParams
-  const [orders, preloadedOrder] = await Promise.all([
+  const [orders, preloadedOrder, org] = await Promise.all([
     getOrdersForInvoice(),
     orderId ? getOrderForInvoice(orderId) : Promise.resolve(null),
+    getOrgSettings(),
   ])
 
   return (
@@ -28,6 +30,7 @@ export default async function NewInvoicePage({ searchParams }: Props) {
         orders={orders}
         preloadedOrder={preloadedOrder}
         preloadedOrderId={orderId}
+        orgGstin={org?.gstin ?? ""}
       />
     </>
   )

@@ -23,6 +23,60 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 
+const INDIAN_STATES = [
+  "Andaman and Nicobar Islands",
+  "Andhra Pradesh",
+  "Arunachal Pradesh",
+  "Assam",
+  "Bihar",
+  "Chandigarh",
+  "Chhattisgarh",
+  "Dadra and Nagar Haveli and Daman and Diu",
+  "Delhi",
+  "Goa",
+  "Gujarat",
+  "Haryana",
+  "Himachal Pradesh",
+  "Jammu and Kashmir",
+  "Jharkhand",
+  "Karnataka",
+  "Kerala",
+  "Ladakh",
+  "Lakshadweep",
+  "Madhya Pradesh",
+  "Maharashtra",
+  "Manipur",
+  "Meghalaya",
+  "Mizoram",
+  "Nagaland",
+  "Odisha",
+  "Puducherry",
+  "Punjab",
+  "Rajasthan",
+  "Sikkim",
+  "Tamil Nadu",
+  "Telangana",
+  "Tripura",
+  "Uttar Pradesh",
+  "Uttarakhand",
+  "West Bengal",
+]
+
+// Map GSTIN prefix (2 chars) to state name
+const GSTIN_STATE: Record<string, string> = {
+  "01": "Jammu and Kashmir", "02": "Himachal Pradesh", "03": "Punjab",
+  "04": "Chandigarh", "05": "Uttarakhand", "06": "Haryana", "07": "Delhi",
+  "08": "Rajasthan", "09": "Uttar Pradesh", "10": "Bihar", "11": "Sikkim",
+  "12": "Arunachal Pradesh", "13": "Nagaland", "14": "Manipur", "15": "Mizoram",
+  "16": "Tripura", "17": "Meghalaya", "18": "Assam", "19": "West Bengal",
+  "20": "Jharkhand", "21": "Odisha", "22": "Chhattisgarh", "23": "Madhya Pradesh",
+  "24": "Gujarat", "26": "Dadra and Nagar Haveli and Daman and Diu",
+  "27": "Maharashtra", "29": "Karnataka", "30": "Goa", "31": "Lakshadweep",
+  "32": "Kerala", "33": "Tamil Nadu", "34": "Puducherry",
+  "35": "Andaman and Nicobar Islands", "36": "Telangana", "37": "Andhra Pradesh",
+  "38": "Ladakh",
+}
+
 interface SelectableOrder {
   id: string
   order_number: string
@@ -34,13 +88,14 @@ interface InvoiceFormProps {
   orders: SelectableOrder[]
   preloadedOrder?: Awaited<ReturnType<typeof getOrderForInvoice>>
   preloadedOrderId?: string
+  orgGstin?: string
 }
 
 function formatCurrency(n: number) {
   return n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-export function InvoiceForm({ orders, preloadedOrder, preloadedOrderId }: InvoiceFormProps) {
+export function InvoiceForm({ orders, preloadedOrder, preloadedOrderId, orgGstin }: InvoiceFormProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -64,6 +119,9 @@ export function InvoiceForm({ orders, preloadedOrder, preloadedOrderId }: Invoic
       buyer_address: "",
       buyer_gst: "",
       tax_rate: 0,
+      place_of_supply: "",
+      reverse_charge: false,
+      is_igst: false,
       issue_date: today,
       due_date: "",
       notes: "",
@@ -71,7 +129,8 @@ export function InvoiceForm({ orders, preloadedOrder, preloadedOrderId }: Invoic
         description: `${oi.size} / ${oi.color} — ${preloadedOrder.style_name}`,
         quantity: oi.quantity,
         unit_price: oi.unit_price,
-      })) ?? [{ description: "", quantity: 1, unit_price: 0 }],
+        hsn_code: "",
+      })) ?? [{ description: "", quantity: 1, unit_price: 0, hsn_code: "" }],
     },
   })
 
@@ -79,12 +138,30 @@ export function InvoiceForm({ orders, preloadedOrder, preloadedOrderId }: Invoic
 
   const watchedItems = watch("items")
   const taxRate = watch("tax_rate") ?? 0
+  const isIgst = watch("is_igst") ?? false
+  const buyerGst = watch("buyer_gst") ?? ""
+  const reverseCharge = watch("reverse_charge") ?? false
+
   const subtotal = watchedItems.reduce(
     (sum, item) => sum + (Number(item.quantity) || 0) * (Number(item.unit_price) || 0),
     0
   )
   const taxAmount = (subtotal * (Number(taxRate) || 0)) / 100
+  const halfTax = taxAmount / 2
+  const halfRate = (Number(taxRate) || 0) / 2
   const total = subtotal + taxAmount
+
+  // Auto-detect IGST vs CGST+SGST from GSTIN state codes
+  useEffect(() => {
+    if (orgGstin && buyerGst && buyerGst.length >= 2 && orgGstin.length >= 2) {
+      const orgState = orgGstin.slice(0, 2)
+      const buyerState = buyerGst.slice(0, 2)
+      setValue("is_igst", orgState !== buyerState)
+      // Auto-set Place of Supply from buyer GSTIN
+      const pos = GSTIN_STATE[buyerState]
+      if (pos) setValue("place_of_supply", pos)
+    }
+  }, [buyerGst, orgGstin, setValue])
 
   const handleOrderChange = useCallback(
     async (orderId: string) => {
@@ -100,12 +177,12 @@ export function InvoiceForm({ orders, preloadedOrder, preloadedOrderId }: Invoic
       setValue("buyer_id", order.buyer?.id ?? "")
       setValue("buyer_name", order.buyer?.name ?? "")
 
-      // Pre-fill items from order_items
       if (order.order_items.length > 0) {
         const items = order.order_items.map((oi) => ({
           description: `${oi.size} / ${oi.color} — ${order.style_name}`,
           quantity: oi.quantity,
           unit_price: oi.unit_price,
+          hsn_code: "",
         }))
         setValue("items", items)
       }
@@ -113,7 +190,6 @@ export function InvoiceForm({ orders, preloadedOrder, preloadedOrderId }: Invoic
     [setValue]
   )
 
-  // If a preloaded order ID was provided via URL, trigger a load only if no preloaded data
   useEffect(() => {
     if (preloadedOrderId && !preloadedOrder) {
       handleOrderChange(preloadedOrderId)
@@ -202,8 +278,11 @@ export function InvoiceForm({ orders, preloadedOrder, preloadedOrderId }: Invoic
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="buyer_gst">GST Number</Label>
+              <Label htmlFor="buyer_gst">GSTIN</Label>
               <Input id="buyer_gst" {...register("buyer_gst")} placeholder="22AAAAA0000A1Z5" />
+              <p className="text-xs text-muted-foreground">
+                IGST/CGST+SGST is auto-detected from state code when GSTIN is entered.
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -214,29 +293,77 @@ export function InvoiceForm({ orders, preloadedOrder, preloadedOrderId }: Invoic
         <CardHeader>
           <CardTitle className="text-base">Invoice Details</CardTitle>
         </CardHeader>
-        <CardContent className="grid gap-4 sm:grid-cols-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="issue_date">Issue Date *</Label>
-            <Input id="issue_date" type="date" {...register("issue_date")} />
-            {errors.issue_date && (
-              <p className="text-xs text-destructive">{errors.issue_date.message}</p>
-            )}
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="issue_date">Issue Date *</Label>
+              <Input id="issue_date" type="date" {...register("issue_date")} />
+              {errors.issue_date && (
+                <p className="text-xs text-destructive">{errors.issue_date.message}</p>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="due_date">Due Date</Label>
+              <Input id="due_date" type="date" {...register("due_date")} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="tax_rate">GST Rate (%)</Label>
+              <Input
+                id="tax_rate"
+                type="number"
+                step="0.01"
+                min="0"
+                max="100"
+                {...register("tax_rate", { valueAsNumber: true })}
+                placeholder="0"
+              />
+            </div>
           </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="due_date">Due Date</Label>
-            <Input id="due_date" type="date" {...register("due_date")} />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="tax_rate">GST / Tax Rate (%)</Label>
-            <Input
-              id="tax_rate"
-              type="number"
-              step="0.01"
-              min="0"
-              max="100"
-              {...register("tax_rate", { valueAsNumber: true })}
-              placeholder="0"
-            />
+
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label htmlFor="place_of_supply">Place of Supply</Label>
+              <Select
+                defaultValue="none"
+                onValueChange={(v) => setValue("place_of_supply", v === "none" ? "" : v)}
+              >
+                <SelectTrigger id="place_of_supply">
+                  <SelectValue placeholder="Select state…" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">— Select state —</SelectItem>
+                  {INDIAN_STATES.map((s) => (
+                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">Required on all GST invoices (Rule 46)</p>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 pt-6">
+                <input
+                  type="checkbox"
+                  id="is_igst"
+                  className="h-4 w-4 rounded"
+                  {...register("is_igst")}
+                />
+                <Label htmlFor="is_igst" className="font-normal cursor-pointer">
+                  Interstate supply (IGST)
+                </Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="reverse_charge"
+                  className="h-4 w-4 rounded"
+                  {...register("reverse_charge")}
+                />
+                <Label htmlFor="reverse_charge" className="font-normal cursor-pointer">
+                  Reverse charge applicable
+                </Label>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -249,7 +376,7 @@ export function InvoiceForm({ orders, preloadedOrder, preloadedOrderId }: Invoic
             type="button"
             variant="outline"
             size="sm"
-            onClick={() => append({ description: "", quantity: 1, unit_price: 0 })}
+            onClick={() => append({ description: "", quantity: 1, unit_price: 0, hsn_code: "" })}
           >
             <Plus className="h-4 w-4" />
             Add Item
@@ -260,15 +387,20 @@ export function InvoiceForm({ orders, preloadedOrder, preloadedOrderId }: Invoic
             <p className="text-xs text-destructive">{errors.items.message}</p>
           )}
 
-          <div className="hidden grid-cols-[1fr_80px_120px_40px] gap-2 text-xs font-medium text-muted-foreground sm:grid">
+          <div className="hidden grid-cols-[90px_1fr_70px_110px_40px] gap-2 text-xs font-medium text-muted-foreground sm:grid">
+            <span>HSN/SAC</span>
             <span>Description</span>
             <span>Qty</span>
-            <span>Unit Price (₹)</span>
+            <span>Unit Price (Rs.)</span>
             <span />
           </div>
 
           {fields.map((field, idx) => (
-            <div key={field.id} className="grid grid-cols-[1fr_80px_120px_40px] items-start gap-2">
+            <div key={field.id} className="grid grid-cols-[90px_1fr_70px_110px_40px] items-start gap-2">
+              <Input
+                {...register(`items.${idx}.hsn_code`)}
+                placeholder="e.g. 6109"
+              />
               <div>
                 <Input
                   {...register(`items.${idx}.description`)}
@@ -309,19 +441,37 @@ export function InvoiceForm({ orders, preloadedOrder, preloadedOrderId }: Invoic
 
           <Separator />
 
-          {/* Totals */}
+          {/* Totals preview */}
           <div className="space-y-1 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Subtotal</span>
-              <span>₹{formatCurrency(subtotal)}</span>
+              <span>Rs. {formatCurrency(subtotal)}</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Tax ({Number(taxRate) || 0}%)</span>
-              <span>₹{formatCurrency(taxAmount)}</span>
-            </div>
+            {isIgst ? (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">IGST ({Number(taxRate) || 0}%)</span>
+                <span>Rs. {formatCurrency(taxAmount)}</span>
+              </div>
+            ) : (
+              <>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">CGST ({halfRate}%)</span>
+                  <span>Rs. {formatCurrency(halfTax)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">SGST ({halfRate}%)</span>
+                  <span>Rs. {formatCurrency(halfTax)}</span>
+                </div>
+              </>
+            )}
+            {reverseCharge && (
+              <div className="flex justify-between text-amber-600 text-xs">
+                <span>* Tax payable on reverse charge basis</span>
+              </div>
+            )}
             <div className="flex justify-between font-semibold text-base pt-1 border-t border-border">
               <span>Total</span>
-              <span>₹{formatCurrency(total)}</span>
+              <span>Rs. {formatCurrency(total)}</span>
             </div>
           </div>
         </CardContent>

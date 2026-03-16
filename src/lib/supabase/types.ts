@@ -263,6 +263,12 @@ export type Invoice = {
   tax_amount: number
   total_amount: number
   amount_paid: number
+  place_of_supply: string | null
+  reverse_charge: boolean
+  is_igst: boolean
+  cgst_amount: number
+  sgst_amount: number
+  igst_amount: number
   status: "draft" | "sent" | "paid" | "partially_paid" | "cancelled"
   issue_date: string
   due_date: string | null
@@ -278,6 +284,7 @@ export type InvoiceItem = {
   quantity: number
   unit_price: number
   amount: number
+  hsn_code: string | null
   created_at: string
 }
 

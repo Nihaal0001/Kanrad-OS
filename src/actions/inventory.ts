@@ -258,7 +258,7 @@ export async function createPurchaseOrder(formData: PurchaseOrderFormData) {
   return { data: po }
 }
 
-const VALID_PO_STATUSES = ["draft", "ordered", "partial", "received", "cancelled"] as const
+const VALID_PO_STATUSES = ["draft", "sent", "ordered", "partial", "received", "cancelled"] as const
 
 export async function updatePurchaseOrderStatus(id: string, status: string) {
   if (!VALID_PO_STATUSES.includes(status as typeof VALID_PO_STATUSES[number])) {

@@ -9,7 +9,6 @@ import type { InvoiceDetail } from "@/lib/supabase/types"
 
 const TERRACOTTA = "#c2622a"
 const GRAY = "#6b7280"
-const LIGHT_GRAY = "#f3f4f6"
 const DARK = "#1a1a1a"
 
 const s = StyleSheet.create({
@@ -43,25 +42,26 @@ const s = StyleSheet.create({
   buyerMeta: { fontSize: 9, color: GRAY, lineHeight: 1.5 },
   metaTable: { alignItems: "flex-end" },
   metaRow2: { flexDirection: "row", marginBottom: 5 },
-  metaLabel: { fontSize: 9, color: GRAY, marginRight: 12, width: 60, textAlign: "right" },
+  metaLabel: { fontSize: 9, color: GRAY, marginRight: 12, width: 72, textAlign: "right" },
   metaValue: { fontSize: 9, fontFamily: "Helvetica-Bold", textAlign: "right" },
 
   // Items Table
-  tableHeader: { flexDirection: "row", backgroundColor: "#f9f5f2", paddingVertical: 8, paddingHorizontal: 10, marginBottom: 0 },
+  tableHeader: { flexDirection: "row", backgroundColor: "#f9f5f2", paddingVertical: 8, paddingHorizontal: 10 },
   tableHeaderText: { fontSize: 8, fontFamily: "Helvetica-Bold", color: "#9ca3af", letterSpacing: 0.5 },
   tableRow: { flexDirection: "row", paddingVertical: 9, paddingHorizontal: 10, borderBottomWidth: 1, borderBottomColor: "#f3f4f6" },
   tableRowAlt: { backgroundColor: "#fafafa" },
+  colHsn: { width: 56 },
   colDesc: { flex: 1 },
-  colQty: { width: 50, textAlign: "center" },
-  colPrice: { width: 80, textAlign: "right" },
-  colAmount: { width: 80, textAlign: "right" },
+  colQty: { width: 40, textAlign: "center" },
+  colPrice: { width: 76, textAlign: "right" },
+  colAmount: { width: 76, textAlign: "right" },
   cellText: { fontSize: 10 },
   cellMuted: { fontSize: 10, color: GRAY },
   cellBold: { fontSize: 10, fontFamily: "Helvetica-Bold" },
 
   // Totals
   totalsContainer: { flexDirection: "row", justifyContent: "flex-end", marginBottom: 28 },
-  totalsBox: { width: 200 },
+  totalsBox: { width: 210 },
   totalRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 4 },
   totalLabel: { fontSize: 10, color: GRAY },
   totalValue: { fontSize: 10 },
@@ -70,6 +70,7 @@ const s = StyleSheet.create({
   paidRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 4 },
   paidLabel: { fontSize: 10, color: "#16a34a" },
   paidValue: { fontSize: 10, color: "#16a34a" },
+  reverseChargeText: { fontSize: 8, color: GRAY, marginTop: 6, textAlign: "right" },
 
   // Notes
   notesBox: { backgroundColor: "#f9f5f2", borderRadius: 6, padding: 12, marginBottom: 28 },
@@ -100,7 +101,7 @@ const STATUS_COLOR: Record<string, string> = {
 }
 
 function fmt(n: number) {
-  return "₹" + n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return "Rs. " + n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 interface Props {
@@ -118,6 +119,15 @@ export function InvoicePDFDocument({ invoice, org }: Props) {
   const outstanding = invoice.total_amount - invoice.amount_paid
   const statusColor = STATUS_COLOR[invoice.status] ?? "#9ca3af"
   const statusLabel = STATUS_LABEL[invoice.status] ?? invoice.status.toUpperCase()
+
+  // Use stored is_igst flag; fall back to GSTIN state-code comparison for older invoices
+  const isIgst = invoice.is_igst ?? (() => {
+    if (!orgGstin || !invoice.buyer_gst) return false
+    return orgGstin.slice(0, 2) !== invoice.buyer_gst.slice(0, 2)
+  })()
+
+  const halfRate = invoice.tax_rate / 2
+  const halfTax = invoice.tax_amount / 2
 
   return (
     <Document>
@@ -171,22 +181,32 @@ export function InvoicePDFDocument({ invoice, org }: Props) {
                 <Text style={s.metaValue}>{invoice.order.order_number}</Text>
               </View>
             ) : null}
+            {invoice.place_of_supply ? (
+              <View style={s.metaRow2}>
+                <Text style={s.metaLabel}>Place of Supply</Text>
+                <Text style={s.metaValue}>{invoice.place_of_supply}</Text>
+              </View>
+            ) : null}
+            <View style={s.metaRow2}>
+              <Text style={s.metaLabel}>Reverse Charge</Text>
+              <Text style={s.metaValue}>{invoice.reverse_charge ? "Yes" : "No"}</Text>
+            </View>
           </View>
         </View>
 
         {/* Items Table */}
         <View style={{ marginBottom: 20 }}>
-          {/* Table Header */}
           <View style={s.tableHeader}>
+            <View style={s.colHsn}><Text style={s.tableHeaderText}>HSN/SAC</Text></View>
             <View style={s.colDesc}><Text style={s.tableHeaderText}>DESCRIPTION</Text></View>
             <View style={s.colQty}><Text style={[s.tableHeaderText, { textAlign: "center" }]}>QTY</Text></View>
             <View style={s.colPrice}><Text style={[s.tableHeaderText, { textAlign: "right" }]}>UNIT PRICE</Text></View>
             <View style={s.colAmount}><Text style={[s.tableHeaderText, { textAlign: "right" }]}>AMOUNT</Text></View>
           </View>
 
-          {/* Rows */}
           {invoice.invoice_items.map((item, idx) => (
             <View key={item.id} style={[s.tableRow, idx % 2 === 1 ? s.tableRowAlt : {}]}>
+              <View style={s.colHsn}><Text style={s.cellMuted}>{item.hsn_code ?? ""}</Text></View>
               <View style={s.colDesc}><Text style={s.cellText}>{item.description}</Text></View>
               <View style={s.colQty}><Text style={[s.cellMuted, { textAlign: "center" }]}>{item.quantity}</Text></View>
               <View style={s.colPrice}><Text style={[s.cellMuted, { textAlign: "right" }]}>{fmt(item.unit_price)}</Text></View>
@@ -202,10 +222,23 @@ export function InvoicePDFDocument({ invoice, org }: Props) {
               <Text style={s.totalLabel}>Subtotal</Text>
               <Text style={s.totalValue}>{fmt(invoice.subtotal)}</Text>
             </View>
-            <View style={s.totalRow}>
-              <Text style={s.totalLabel}>GST ({invoice.tax_rate}%)</Text>
-              <Text style={s.totalValue}>{fmt(invoice.tax_amount)}</Text>
-            </View>
+            {isIgst ? (
+              <View style={s.totalRow}>
+                <Text style={s.totalLabel}>IGST ({invoice.tax_rate}%)</Text>
+                <Text style={s.totalValue}>{fmt(invoice.tax_amount)}</Text>
+              </View>
+            ) : (
+              <>
+                <View style={s.totalRow}>
+                  <Text style={s.totalLabel}>CGST ({halfRate}%)</Text>
+                  <Text style={s.totalValue}>{fmt(halfTax)}</Text>
+                </View>
+                <View style={s.totalRow}>
+                  <Text style={s.totalLabel}>SGST ({halfRate}%)</Text>
+                  <Text style={s.totalValue}>{fmt(halfTax)}</Text>
+                </View>
+              </>
+            )}
             <View style={s.thinDivider} />
             <View style={s.grandTotalRow}>
               <Text style={s.grandTotalText}>TOTAL</Text>
@@ -226,6 +259,9 @@ export function InvoicePDFDocument({ invoice, org }: Props) {
                   </Text>
                 </View>
               </>
+            )}
+            {invoice.reverse_charge && (
+              <Text style={s.reverseChargeText}>* Tax payable on reverse charge basis</Text>
             )}
           </View>
         </View>

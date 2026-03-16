@@ -70,6 +70,9 @@ export async function createInvoice(formData: InvoiceFormData) {
       buyer_address: validated.buyer_address || null,
       buyer_gst: validated.buyer_gst || null,
       tax_rate: validated.tax_rate,
+      place_of_supply: validated.place_of_supply || null,
+      reverse_charge: validated.reverse_charge ?? false,
+      is_igst: validated.is_igst ?? false,
       issue_date: validated.issue_date,
       due_date: validated.due_date || null,
       notes: validated.notes || null,
@@ -85,6 +88,7 @@ export async function createInvoice(formData: InvoiceFormData) {
     description: item.description,
     quantity: item.quantity,
     unit_price: item.unit_price,
+    hsn_code: item.hsn_code || null,
   }))
 
   const { error: itemsErr } = await supabase.from("invoice_items").insert(items)

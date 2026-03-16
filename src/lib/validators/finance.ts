@@ -4,6 +4,7 @@ export const invoiceItemSchema = z.object({
   description: z.string().min(1, "Description is required"),
   quantity: z.number().positive("Must be > 0"),
   unit_price: z.number().min(0),
+  hsn_code: z.string().optional().or(z.literal("")),
 })
 
 export const invoiceSchema = z.object({
@@ -13,6 +14,9 @@ export const invoiceSchema = z.object({
   buyer_address: z.string().optional().or(z.literal("")),
   buyer_gst: z.string().optional().or(z.literal("")),
   tax_rate: z.number().min(0).max(100),
+  place_of_supply: z.string().optional().or(z.literal("")),
+  reverse_charge: z.boolean().optional().default(false),
+  is_igst: z.boolean().optional().default(false),
   issue_date: z.string().min(1, "Issue date is required"),
   due_date: z.string().optional().or(z.literal("")),
   notes: z.string().optional().or(z.literal("")),
