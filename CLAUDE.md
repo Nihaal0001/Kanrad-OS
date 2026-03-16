@@ -86,12 +86,15 @@ Phase 9: Polish + Deploy
 - **Phase 9**: COMPLETE — Toast notifications (sonner, all 16 forms), breadcrumbs (all detail pages), command palette (⌘K, searches orders/materials/workers), dashboard clickable KPIs + Quick Actions, HR date filters (attendance by date, payroll by month), settings page (org info, DB details, module status)
 - **Phase 10**: COMPLETE — AI integration (Sarvam voice chat widget, Gemini insights on dashboard, smart suggestions in command palette). AI keys: `GEMINI_API_KEY`, `SARVAM_API_KEY` in `.env.local`
 - **Phase 11**: NOT STARTED — Deploy to Vercel
+- **Finance Upgrade**: IN PROGRESS — see Finance Upgrade section below
 
 ## Supabase
 - Project ref: `spwighzxkaeibutmijus`
 - Migration files must be run manually by the user in the Supabase SQL Editor
 - Migrations run: `00001` through `00006` confirmed. `00007_auth_rls.sql` written but **not yet run**
+- `00013_finance_upgrade.sql` written but **not yet run** — adds 5 new tables for Finance Upgrade
 - Tables: profiles, buyers, orders, order_items, order_materials, material_categories, materials, stock_transactions, purchase_orders, purchase_order_items, production_stages, production_tracking, quality_checks, tasks, notifications, invoices, invoice_items, payments, order_costings, shifts, worker_shifts, attendance, leaves, payroll
+- Finance upgrade tables (pending migration): expense_categories, expenses, purchase_invoices, purchase_invoice_items, purchase_payments
 
 ## Known Issues & Quirks
 - **Turbopack cache corruption**: If you get `ENOENT: build-manifest.json` errors, run `rm -rf .next && npm run dev`
@@ -145,5 +148,30 @@ Phase 9: Polish + Deploy
 ## Next Steps
 1. **Run migration `00007_auth_rls.sql`** in Supabase SQL Editor (adds auth_id, trigger, proper RLS)
 2. **Run migration `00010_qr_attendance.sql`** in Supabase SQL Editor (QR attendance logs table)
-3. **Delete** `src/app/api/dev/auth-status/route.ts` before production deploy
-4. **Phase 11** — Deploy to Vercel
+3. **Run migration `00013_finance_upgrade.sql`** in Supabase SQL Editor (expense_categories, expenses, purchase_invoices, purchase_invoice_items, purchase_payments)
+4. **Create `receipts` storage bucket** in Supabase dashboard (for expense receipt uploads)
+5. **Delete** `src/app/api/dev/auth-status/route.ts` before production deploy
+6. **Phase 11** — Deploy to Vercel
+
+## Finance Upgrade (In Progress)
+Goal: full financial visibility for owner + CA-ready exports + AI expense anomaly detection. NOT a full accounting system — no general ledger, no double-entry.
+
+### Completed
+- **Migration** `supabase/migrations/00013_finance_upgrade.sql` — 5 new tables with RLS, triggers, 8 default expense categories
+- **Expense tracking** — validator, actions (`src/actions/expenses.ts`), components (expense-form, expense-category-dialog, expense-actions), pages (`/finance/expenses`, `/finance/expenses/new`). Order-wise expense tagging supported.
+- **Purchase invoices** — validator, actions (`src/actions/purchase-invoices.ts`), components (purchase-invoice-form with full GST/IGST support, purchase-invoice-actions, purchase-payment-form), pages (`/finance/purchases`, `/finance/purchases/new`, `/finance/purchases/[id]`), cron (`/api/cron/purchase-invoice-overdue`)
+- **Finance dashboard** (`/finance`) — Revenue/Outstanding/Expenses/Net Profit stat cards, Receivables + Payables aging buckets, Cash Flow chart (recharts), Inventory valuation, Audit readiness progress bar. Actions: `src/actions/finance-reports.ts`
+- **Finance reports** (`/finance/reports`) — 4 tabs (P&L, GST Summary, Receivables, Payables), month selector (URL param), per-tab CSV/Excel export
+- **Export utilities** — `src/lib/export.ts` (arrayToCSV, downloadCSV, downloadExcel with lazy xlsx), `src/components/finance/export-button.tsx` (dropdown: CSV or Excel). `xlsx@0.18.5` installed.
+
+### Remaining
+- **Phase 5 (partial)**: Add ExportButton to invoices, payments, expenses, purchases list pages
+- **Phase 6**: 5 KYRE read-only finance tools in `agent.ts` (get_invoices, get_receivables_summary, get_expenses_summary, get_gst_summary, get_profit_loss) + execute cases + TOOL_PERMISSIONS; expense anomaly detection in `context.ts` (flag category >15% increase month-over-month)
+- **Phase 7**: Sidebar Finance group 3→7 items (Overview, Invoices, Purchases, Expenses, Payments, Costing, Reports); `notifications-list.tsx` add `purchase_invoice_overdue` type; `vercel.json` add purchase-invoice-overdue cron; `types.ts` new finance types
+
+### Key Conventions for Finance Upgrade
+- Purchase invoice numbers = supplier's own number (plain text, NOT auto-generated)
+- Expense categories: 8 seeded defaults (`is_default=true`) + admin can add custom; `ON DELETE RESTRICT` prevents deleting categories with expenses
+- IGST auto-detection: compare first 2 digits of buyer/supplier GSTIN with org state code
+- Audit readiness = % of expenses + purchase invoices that have receipt/document URLs
+- `xlsx` is lazy-imported in `downloadExcel` to avoid SSR issues
