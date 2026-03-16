@@ -337,7 +337,7 @@ export function AIChatWidget() {
                   {agentMode
                     ? ["Mark Rajan as present", "Approve Priya's leave", "Create a task: check fabric"].map((q) => (
                         <button key={q} onClick={() => handleSend(q)}
-                          className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs text-blue-700 transition-all hover:bg-blue-100">
+                          className="rounded-full border border-blue-400/30 bg-blue-500/10 px-3 py-1.5 text-xs text-blue-400 dark:text-blue-300 transition-all hover:bg-blue-500/20">
                           {q}
                         </button>
                       ))
@@ -357,9 +357,9 @@ export function AIChatWidget() {
                 if (msg.role === "confirmation") {
                   return (
                     <div key={i} className="flex justify-start">
-                      <div className="max-w-[92%] rounded-2xl rounded-bl-md border border-blue-200 bg-blue-50 px-4 py-3 space-y-2.5">
-                        <p className="text-[11px] font-semibold uppercase tracking-wide text-blue-500">I'll do the following</p>
-                        <p className="text-sm text-blue-900 leading-snug">
+                      <div className="max-w-[92%] rounded-2xl rounded-bl-md border border-blue-400/30 bg-blue-500/10 px-4 py-3 space-y-2.5">
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-blue-400">I'll do the following</p>
+                        <p className="text-sm text-foreground leading-snug">
                           <BoldText text={msg.displayText} />
                         </p>
                         {!msg.resolved && (
@@ -374,7 +374,7 @@ export function AIChatWidget() {
                             <Button
                               variant="outline"
                               size="sm"
-                              className="h-7 gap-1.5 text-xs border-blue-200 text-blue-700 hover:bg-blue-100"
+                              className="h-7 gap-1.5 text-xs border-blue-400/30 text-blue-400 hover:bg-blue-500/10"
                               onClick={() => handleCancel(i)}
                             >
                               <Ban className="h-3 w-3" /> Cancel
@@ -382,7 +382,7 @@ export function AIChatWidget() {
                           </div>
                         )}
                         {msg.resolved && (
-                          <p className="text-[11px] text-blue-400 italic">Action resolved</p>
+                          <p className="text-[11px] text-blue-400/70 italic">Action resolved</p>
                         )}
                       </div>
                     </div>
@@ -431,7 +431,7 @@ export function AIChatWidget() {
           <div className="border-t border-border px-3 py-3">
             <div className={cn(
               "flex items-center gap-2 rounded-xl px-3 py-1.5",
-              agentMode ? "bg-blue-50 border border-blue-100" : "bg-accent/50"
+              agentMode ? "bg-blue-500/10 border border-blue-400/20" : "bg-accent/50"
             )}>
               <input
                 ref={inputRef}
