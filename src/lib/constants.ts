@@ -18,6 +18,7 @@ import {
   QrCode,
   ScanLine,
   ClipboardCheck,
+  ShoppingCart,
   type LucideIcon,
 } from "lucide-react"
 
@@ -41,6 +42,7 @@ export const navigation: NavGroup[] = [
       { title: "Dashboard", href: "/", icon: LayoutDashboard, permission: "dashboard" },
       { title: "Orders", href: "/orders", icon: ShoppingBag, permission: "orders" },
       { title: "Inventory", href: "/inventory", icon: Package, permission: "inventory" },
+      { title: "Purchase Orders", href: "/inventory/purchase-orders", icon: ShoppingCart, permission: "inventory" },
       { title: "PO Approvals", href: "/inventory/approvals", icon: ClipboardCheck, permission: "inventory" },
       { title: "Production", href: "/production", icon: Factory, permission: "production" },
       { title: "Tasks", href: "/tasks", icon: ListTodo, permission: "tasks" },
