@@ -160,18 +160,31 @@ Goal: full financial visibility for owner + CA-ready exports + AI expense anomal
 - **Migration** `supabase/migrations/00013_finance_upgrade.sql` — 5 new tables with RLS, triggers, 8 default expense categories
 - **Expense tracking** — validator, actions (`src/actions/expenses.ts`), components (expense-form, expense-category-dialog, expense-actions), pages (`/finance/expenses`, `/finance/expenses/new`). Order-wise expense tagging supported.
 - **Purchase invoices** — validator, actions (`src/actions/purchase-invoices.ts`), components (purchase-invoice-form with full GST/IGST support, purchase-invoice-actions, purchase-payment-form), pages (`/finance/purchases`, `/finance/purchases/new`, `/finance/purchases/[id]`), cron (`/api/cron/purchase-invoice-overdue`)
-- **Finance dashboard** (`/finance`) — Revenue/Outstanding/Expenses/Net Profit stat cards, Receivables + Payables aging buckets, Cash Flow chart (recharts), Inventory valuation, Audit readiness progress bar. Actions: `src/actions/finance-reports.ts`
-- **Finance reports** (`/finance/reports`) — 4 tabs (P&L, GST Summary, Receivables, Payables), month selector (URL param), per-tab CSV/Excel export
-- **Export utilities** — `src/lib/export.ts` (arrayToCSV, downloadCSV, downloadExcel with lazy xlsx), `src/components/finance/export-button.tsx` (dropdown: CSV or Excel). `xlsx@0.18.5` installed.
+- **Finance dashboard** (`/finance`) — Revenue/Outstanding/Expenses/Net Profit (this month) stat cards, Receivables + Payables aging buckets (drafts excluded), Cash Flow chart (recharts), Inventory valuation, Audit readiness progress bar. Actions: `src/actions/finance-reports.ts`
+- **Finance reports** (`/finance/reports`) — 4 tabs (P&L, GST Summary, Receivables, Payables), month + Financial Year selectors (Indian FY Apr–Mar, last 4 FYs, mutually exclusive URL params), per-tab CSV/Excel export. `getProfitLoss` and `getGSTSummary` take `start`/`end` strings (not `month`)
+- **Cash flow page** (`/finance/cash-flow`) — 12-month statement with stat cards, area chart, detailed table (sales receipts / purchase payments / expenses / net / running total). Each row links to month detail.
+- **Cash flow month detail** (`/finance/cash-flow/[month]`) — per-transaction breakdown: Sales Receipts, Purchase Payments, Expenses cards with individual line items, payment method badges (border-only for dark mode compatibility)
+- **Export utilities** — `src/lib/export.ts` (arrayToCSV, downloadCSV, downloadExcel, downloadExcelStyled with exceljs), `src/components/finance/export-button.tsx`. `xlsx@0.18.5` + `exceljs@4.4.0` installed.
+- **Sidebar** — Finance group has 8 items: Overview, Sales, Purchases, Expenses, Payments, Cash Flow, Costing, Reports
+
+### Bug fixes applied
+- Cash flow chart: `useTheme` hook for explicit hex colors in dark mode (recharts SVG doesn't inherit CSS variables)
+- Payment method badges: border-only styling (`border border-blue-500 text-blue-500`) — no `dark:` in dynamic JS strings
+- `revalidatePath("/finance")` and `revalidatePath("/finance/cash-flow")` added to all payment/expense mutations
+- Receivables aging excludes draft invoices (both Overview and Reports)
+- COGS in `getProfitLoss` filtered by `created_at` within selected period (was all-time)
+- Net profit card on Overview labelled "This month" and uses current-month invoiced revenue (matches P&L report)
 
 ### Remaining
 - **Phase 5 (partial)**: Add ExportButton to invoices, payments, expenses, purchases list pages
-- **Phase 6**: 5 KYRE read-only finance tools in `agent.ts` (get_invoices, get_receivables_summary, get_expenses_summary, get_gst_summary, get_profit_loss) + execute cases + TOOL_PERMISSIONS; expense anomaly detection in `context.ts` (flag category >15% increase month-over-month)
-- **Phase 7**: Sidebar Finance group 3→7 items (Overview, Invoices, Purchases, Expenses, Payments, Costing, Reports); `notifications-list.tsx` add `purchase_invoice_overdue` type; `vercel.json` add purchase-invoice-overdue cron; `types.ts` new finance types
+- **Phase 6**: 5 KYRE read-only finance tools in `agent.ts` (get_invoices, get_receivables_summary, get_expenses_summary, get_gst_summary, get_profit_loss) + execute cases + TOOL_PERMISSIONS; expense anomaly detection in `context.ts`
+- **Phase 7**: `notifications-list.tsx` add `purchase_invoice_overdue` type; `vercel.json` add purchase-invoice-overdue cron; `types.ts` new finance types
 
 ### Key Conventions for Finance Upgrade
 - Purchase invoice numbers = supplier's own number (plain text, NOT auto-generated)
 - Expense categories: 8 seeded defaults (`is_default=true`) + admin can add custom; `ON DELETE RESTRICT` prevents deleting categories with expenses
 - IGST auto-detection: compare first 2 digits of buyer/supplier GSTIN with org state code
 - Audit readiness = % of expenses + purchase invoices that have receipt/document URLs
-- `xlsx` is lazy-imported in `downloadExcel` to avoid SSR issues
+- `xlsx` lazy-imported in `downloadExcel`; `exceljs` used in `downloadExcelStyled` for styled multi-sheet exports
+- Dark mode in recharts: always use `useTheme` + explicit hex, never CSS variables in SVG attributes
+- Dark mode in dynamic badge strings: use border-only Tailwind classes (no `dark:` prefix in JS object values)
