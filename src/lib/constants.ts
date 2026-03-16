@@ -55,7 +55,7 @@ export const navigation: NavGroup[] = [
     label: "Finance",
     items: [
       { title: "Overview", href: "/finance", icon: IndianRupee, permission: "finance" },
-      { title: "Invoices", href: "/finance/invoices", icon: FileText, permission: "finance" },
+      { title: "Sales", href: "/finance/invoices", icon: FileText, permission: "finance" },
       { title: "Purchases", href: "/finance/purchases", icon: Receipt, permission: "finance" },
       { title: "Expenses", href: "/finance/expenses", icon: Wallet, permission: "finance" },
       { title: "Payments", href: "/finance/payments", icon: CreditCard, permission: "finance" },
