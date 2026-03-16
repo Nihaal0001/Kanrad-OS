@@ -238,7 +238,32 @@ export async function getPurchaseInvoicesForExport() {
     }))
   )
 
-  return { invoices, lineItems }
+  // Total row for invoices sheet
+  const sum = (key: string) => invoices.reduce((s, r) => s + (Number((r as Record<string, unknown>)[key]) || 0), 0)
+  const invoicesTotalRow: Record<string, unknown> = {
+    Vendor: "TOTAL",
+    "Invoice #": "", Date: "", "Due Date": "",
+    Subtotal: sum("Subtotal"),
+    CGST: sum("CGST"), "CGST %": "",
+    SGST: sum("SGST"), "SGST %": "",
+    IGST: sum("IGST"), "IGST %": "",
+    "Tax (Total)": sum("Tax (Total)"),
+    Total: sum("Total"),
+    Currency: "", "Payment Terms": "", "Upload Date": "", Status: "",
+  }
+
+  // Total row for line items sheet
+  const lineItemsTotalRow: Record<string, unknown> = {
+    "Invoice Vendor": "TOTAL", "Invoice #": "", Description: "",
+    Quantity: lineItems.reduce((s, r) => s + (Number(r.Quantity) || 0), 0),
+    "Unit Price": "",
+    Amount: lineItems.reduce((s, r) => s + (Number(r.Amount) || 0), 0),
+  }
+
+  return {
+    invoices: [...invoices, invoicesTotalRow],
+    lineItems: [...lineItems, lineItemsTotalRow],
+  }
 }
 
 export async function getPurchaseOrdersForInvoice() {

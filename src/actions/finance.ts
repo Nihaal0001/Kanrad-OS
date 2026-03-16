@@ -378,7 +378,34 @@ export async function getInvoicesForExport() {
     }))
   )
 
-  return { invoices, lineItems }
+  // Total row for invoices sheet
+  const sum = (key: string) => invoices.reduce((s, r) => s + (Number((r as Record<string, unknown>)[key]) || 0), 0)
+  const invoicesTotalRow: Record<string, unknown> = {
+    "Invoice #": "TOTAL",
+    Buyer: "", "Buyer GST": "", "Issue Date": "", "Due Date": "",
+    Subtotal: sum("Subtotal"),
+    CGST: sum("CGST"), "CGST %": "",
+    SGST: sum("SGST"), "SGST %": "",
+    IGST: sum("IGST"), "IGST %": "",
+    "Tax (Total)": sum("Tax (Total)"),
+    Total: sum("Total"),
+    "Amount Paid": sum("Amount Paid"),
+    Outstanding: sum("Outstanding"),
+    Currency: "", Notes: "", "Created Date": "", Status: "",
+  }
+
+  // Total row for line items sheet
+  const lineItemsTotalRow: Record<string, unknown> = {
+    "Invoice #": "TOTAL", Buyer: "", Description: "",
+    Quantity: lineItems.reduce((s, r) => s + (Number(r.Quantity) || 0), 0),
+    "Unit Price": "",
+    Amount: lineItems.reduce((s, r) => s + (Number(r.Amount) || 0), 0),
+  }
+
+  return {
+    invoices: [...invoices, invoicesTotalRow],
+    lineItems: [...lineItems, lineItemsTotalRow],
+  }
 }
 
 export async function upsertOrderCosting(orderId: string, formData: CostingFormData) {

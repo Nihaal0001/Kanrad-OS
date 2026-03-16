@@ -5,7 +5,7 @@ import { Download } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { getInvoicesForExport } from "@/actions/finance"
-import { downloadExcelMultiSheet, downloadCSV } from "@/lib/export"
+import { downloadExcelStyled, downloadCSV } from "@/lib/export"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -43,10 +43,10 @@ export function InvoiceExportButton() {
     setLoading(true)
     try {
       const { invoices, lineItems } = await getInvoicesForExport()
-      await downloadExcelMultiSheet(
+      await downloadExcelStyled(
         [
-          { name: "Invoices", data: invoices },
-          { name: "Line Items", data: lineItems },
+          { name: "Invoices", data: invoices, hasTotalRow: true },
+          { name: "Line Items", data: lineItems, hasTotalRow: true },
         ],
         "invoices.xlsx"
       )
