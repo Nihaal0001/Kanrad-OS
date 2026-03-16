@@ -39,9 +39,9 @@ const INSIGHT_COLORS = {
 }
 
 const INSIGHT_BG = {
-  warning: "bg-white border border-amber-200",
-  suggestion: "bg-white border border-emerald-200",
-  alert: "bg-white border border-red-200",
+  warning: "bg-amber-500/10 border border-amber-500/20",
+  suggestion: "bg-emerald-500/10 border border-emerald-500/20",
+  alert: "bg-red-500/10 border border-red-500/20",
 }
 
 export function AIInsightsPanel() {
@@ -79,7 +79,7 @@ export function AIInsightsPanel() {
   }
 
   return (
-    <Card className="border-amber-300 bg-amber-50/60">
+    <Card className="border-amber-500/30 bg-amber-500/5">
       <CardHeader className="flex flex-row items-center justify-between pb-3">
         <CardTitle className="flex items-center gap-2 text-lg">
           <Sparkles className="h-5 w-5 text-amber-500" />
