@@ -40,6 +40,19 @@ export async function downloadExcel(
   XLSX.writeFile(wb, filename)
 }
 
+export async function downloadExcelMultiSheet(
+  sheets: { name: string; data: Record<string, unknown>[] }[],
+  filename: string
+) {
+  const XLSX = await import("xlsx")
+  const wb = XLSX.utils.book_new()
+  for (const sheet of sheets) {
+    const ws = XLSX.utils.json_to_sheet(sheet.data)
+    XLSX.utils.book_append_sheet(wb, ws, sheet.name)
+  }
+  XLSX.writeFile(wb, filename)
+}
+
 function triggerDownload(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob)
   const a = document.createElement("a")

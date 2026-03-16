@@ -5,7 +5,7 @@ import { getPurchaseInvoices } from "@/actions/purchase-invoices"
 import { PageHeader } from "@/components/shared/page-header"
 import { EmptyState } from "@/components/shared/empty-state"
 import { PurchaseInvoiceActions } from "@/components/finance/purchase-invoice-actions"
-import { ExportButton } from "@/components/finance/export-button"
+import { PurchaseInvoiceExportButton } from "@/components/finance/purchase-invoice-export-button"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -23,17 +23,6 @@ function formatCurrency(n: number) {
   return n.toLocaleString("en-IN", { minimumFractionDigits: 2 })
 }
 
-const EXPORT_COLS = [
-  { key: "invoice_number", label: "Invoice #" },
-  { key: "supplier_name", label: "Supplier" },
-  { key: "invoice_date", label: "Date" },
-  { key: "due_date", label: "Due Date" },
-  { key: "total_amount", label: "Total (₹)" },
-  { key: "amount_paid", label: "Paid (₹)" },
-  { key: "outstanding", label: "Outstanding (₹)" },
-  { key: "status", label: "Status" },
-]
-
 export default async function PurchaseInvoicesPage() {
   const invoices = await getPurchaseInvoices()
 
@@ -42,17 +31,6 @@ export default async function PurchaseInvoicesPage() {
     (sum, i) => sum + Math.max(0, (i.total_amount ?? 0) - (i.amount_paid ?? 0)),
     0
   )
-
-  const exportData = invoices.map((inv) => ({
-    invoice_number: inv.invoice_number ?? "",
-    supplier_name: inv.supplier_name,
-    invoice_date: inv.invoice_date,
-    due_date: inv.due_date ?? "",
-    total_amount: inv.total_amount ?? 0,
-    amount_paid: inv.amount_paid ?? 0,
-    outstanding: Math.max(0, (inv.total_amount ?? 0) - (inv.amount_paid ?? 0)),
-    status: inv.status,
-  }))
 
   return (
     <>
@@ -68,7 +46,7 @@ export default async function PurchaseInvoicesPage() {
           { label: "Purchases" },
         ]}
       >
-        <ExportButton data={exportData} columns={EXPORT_COLS} filename="purchase-invoices" />
+        <PurchaseInvoiceExportButton />
         <Link href="/finance/purchases/new">
           <Button>
             <Plus className="h-4 w-4" />

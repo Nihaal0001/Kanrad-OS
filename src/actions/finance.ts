@@ -320,6 +320,67 @@ export async function getOrderCosting(orderId: string) {
   return { order: normalizedOrder, costing, computedMaterialCost: materialCost }
 }
 
+// ===== Invoice Export =====
+
+export async function getInvoicesForExport() {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from("invoices")
+    .select(`*, invoice_items(*)`)
+    .order("issue_date", { ascending: false })
+
+  if (error) throw new Error(error.message)
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const invoices = (data ?? []).map((inv: any) => {
+    const cgstPct = !inv.is_igst && inv.tax_rate > 0 ? inv.tax_rate / 2 : 0
+    const sgstPct = !inv.is_igst && inv.tax_rate > 0 ? inv.tax_rate / 2 : 0
+    const igstPct = inv.is_igst ? inv.tax_rate : 0
+
+    return {
+      "Invoice #": inv.invoice_number,
+      Buyer: inv.buyer_name,
+      "Buyer GST": inv.buyer_gst ?? "",
+      "Issue Date": inv.issue_date ?? "",
+      "Due Date": inv.due_date ?? "",
+      Subtotal: inv.subtotal ?? 0,
+      CGST: inv.cgst_amount ?? 0,
+      "CGST %": cgstPct > 0 ? `${cgstPct}%` : "",
+      SGST: inv.sgst_amount ?? 0,
+      "SGST %": sgstPct > 0 ? `${sgstPct}%` : "",
+      IGST: inv.igst_amount ?? 0,
+      "IGST %": igstPct > 0 ? `${igstPct}%` : "",
+      "Tax (Total)": inv.tax_amount ?? 0,
+      Total: inv.total_amount ?? 0,
+      "Amount Paid": inv.amount_paid ?? 0,
+      Outstanding: (inv.total_amount ?? 0) - (inv.amount_paid ?? 0),
+      Currency: "INR",
+      Notes: inv.notes ?? "",
+      "Created Date": inv.created_at ? inv.created_at.split("T")[0] : "",
+      Status: inv.status,
+    }
+  })
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const lineItems = (data ?? []).flatMap((inv: any) =>
+    (inv.invoice_items ?? []).map((item: {
+      description: string
+      quantity: number
+      unit_price: number
+      amount: number
+    }) => ({
+      "Invoice #": inv.invoice_number,
+      Buyer: inv.buyer_name,
+      Description: item.description,
+      Quantity: item.quantity,
+      "Unit Price": item.unit_price,
+      Amount: item.amount,
+    }))
+  )
+
+  return { invoices, lineItems }
+}
+
 export async function upsertOrderCosting(orderId: string, formData: CostingFormData) {
   const validated = costingSchema.parse(formData)
   const supabase = await createClient()
@@ -349,3 +410,4 @@ export async function upsertOrderCosting(orderId: string, formData: CostingFormD
   revalidatePath(`/finance/costing/${orderId}`)
   return { data }
 }
+

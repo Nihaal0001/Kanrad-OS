@@ -5,7 +5,7 @@ import { getInvoices } from "@/actions/finance"
 import { PageHeader } from "@/components/shared/page-header"
 import { EmptyState } from "@/components/shared/empty-state"
 import { InvoiceActions } from "@/components/finance/invoice-actions"
-import { ExportButton } from "@/components/finance/export-button"
+import { InvoiceExportButton } from "@/components/finance/invoice-export-button"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
@@ -31,35 +31,13 @@ function formatCurrency(n: number) {
   return n.toLocaleString("en-IN", { minimumFractionDigits: 2 })
 }
 
-const EXPORT_COLS = [
-  { key: "invoice_number", label: "Invoice #" },
-  { key: "buyer_name", label: "Buyer" },
-  { key: "issue_date", label: "Issue Date" },
-  { key: "due_date", label: "Due Date" },
-  { key: "total_amount", label: "Total (₹)" },
-  { key: "amount_paid", label: "Paid (₹)" },
-  { key: "outstanding", label: "Outstanding (₹)" },
-  { key: "status", label: "Status" },
-]
-
 export default async function InvoicesPage() {
   const invoices = await getInvoices()
-
-  const exportData = invoices.map((inv) => ({
-    invoice_number: inv.invoice_number,
-    buyer_name: inv.buyer_name,
-    issue_date: inv.issue_date,
-    due_date: inv.due_date ?? "",
-    total_amount: inv.total_amount,
-    amount_paid: inv.amount_paid,
-    outstanding: inv.total_amount - inv.amount_paid,
-    status: inv.status,
-  }))
 
   return (
     <>
       <PageHeader title="Invoices" description="Generate and manage client invoices">
-        <ExportButton data={exportData} columns={EXPORT_COLS} filename="invoices" />
+        <InvoiceExportButton />
         <Button asChild>
           <Link href="/finance/invoices/new">
             <Plus className="h-4 w-4" />

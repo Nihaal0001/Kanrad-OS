@@ -182,6 +182,65 @@ export async function deletePurchasePayment(id: string) {
 
 // ===== Helpers =====
 
+// ===== Export =====
+
+export async function getPurchaseInvoicesForExport() {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from("purchase_invoices")
+    .select(`
+      *,
+      purchase_invoice_items(*)
+    `)
+    .order("invoice_date", { ascending: false })
+
+  if (error) throw new Error(error.message)
+
+  const invoices = (data ?? []).map((inv) => {
+    const cgstPct = !inv.is_igst && inv.tax_rate > 0 ? inv.tax_rate / 2 : 0
+    const sgstPct = !inv.is_igst && inv.tax_rate > 0 ? inv.tax_rate / 2 : 0
+    const igstPct = inv.is_igst ? inv.tax_rate : 0
+
+    return {
+      Vendor: inv.supplier_name,
+      "Invoice #": inv.invoice_number ?? "",
+      Date: inv.invoice_date ?? "",
+      "Due Date": inv.due_date ?? "",
+      Subtotal: inv.subtotal ?? 0,
+      CGST: inv.cgst_amount ?? 0,
+      "CGST %": cgstPct > 0 ? `${cgstPct}%` : "",
+      SGST: inv.sgst_amount ?? 0,
+      "SGST %": sgstPct > 0 ? `${sgstPct}%` : "",
+      IGST: inv.igst_amount ?? 0,
+      "IGST %": igstPct > 0 ? `${igstPct}%` : "",
+      "Tax (Total)": inv.tax_amount ?? 0,
+      Total: inv.total_amount ?? 0,
+      Currency: "INR",
+      "Payment Terms": inv.notes ?? "",
+      "Upload Date": inv.created_at ? inv.created_at.split("T")[0] : "",
+      Status: inv.status,
+    }
+  })
+
+  const lineItems = (data ?? []).flatMap((inv) =>
+    (inv.purchase_invoice_items ?? []).map((item: {
+      description: string
+      quantity: number
+      unit_price: number
+      amount: number
+    }) => ({
+      "Invoice Vendor": inv.supplier_name,
+      "Invoice #": inv.invoice_number ?? "",
+      Description: item.description,
+      Quantity: item.quantity,
+      "Unit Price": item.unit_price,
+      Amount: item.amount,
+    }))
+  )
+
+  return { invoices, lineItems }
+}
+
 export async function getPurchaseOrdersForInvoice() {
   const supabase = await createClient()
   const { data } = await supabase
