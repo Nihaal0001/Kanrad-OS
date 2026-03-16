@@ -164,6 +164,8 @@ export async function createPurchasePayment(formData: PurchasePaymentFormData) {
   if (error) return { error: error.message }
 
   revalidatePath("/finance/purchases")
+  revalidatePath("/finance/cash-flow")
+  revalidatePath("/finance")
   return { data }
 }
 
@@ -177,6 +179,8 @@ export async function deletePurchasePayment(id: string) {
   if (error) return { error: error.message }
 
   revalidatePath("/finance/purchases")
+  revalidatePath("/finance/cash-flow")
+  revalidatePath("/finance")
   return { success: true }
 }
 

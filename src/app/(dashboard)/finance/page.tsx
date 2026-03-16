@@ -71,7 +71,7 @@ export default async function FinanceDashboardPage() {
         <StatCard
           title="Net Profit"
           value={fmt(netProfit)}
-          description="Revenue − COGS − Expenses"
+          description="This month"
           icon={Wallet}
           href="/finance/reports"
         />

@@ -220,6 +220,8 @@ export async function createPayment(formData: PaymentFormData) {
 
   revalidatePath("/finance/payments")
   revalidatePath("/finance/invoices")
+  revalidatePath("/finance/cash-flow")
+  revalidatePath("/finance")
   return { data }
 }
 
@@ -234,6 +236,8 @@ export async function deletePayment(id: string) {
 
   revalidatePath("/finance/payments")
   revalidatePath("/finance/invoices")
+  revalidatePath("/finance/cash-flow")
+  revalidatePath("/finance")
   return { success: true }
 }
 

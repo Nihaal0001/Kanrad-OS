@@ -10,6 +10,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts"
+import { useTheme } from "next-themes"
 
 interface CashFlowChartProps {
   data: { month: string; inflow: number; outflow: number }[]
@@ -22,6 +23,15 @@ function formatCurrency(n: number) {
 }
 
 export function CashFlowChart({ data }: CashFlowChartProps) {
+  const { resolvedTheme } = useTheme()
+  const isDark = resolvedTheme === "dark"
+
+  const textColor = isDark ? "#ffffff" : "#3c2a1e"
+  const mutedColor = isDark ? "#9ca3af" : "#6b7280"
+  const gridColor = isDark ? "#374151" : "#e5e7eb"
+  const tooltipBg = isDark ? "#1c1917" : "#ffffff"
+  const tooltipBorder = isDark ? "#374151" : "#e5e7eb"
+
   if (data.every((d) => d.inflow === 0 && d.outflow === 0)) {
     return (
       <div className="flex items-center justify-center h-[250px] text-sm text-muted-foreground">
@@ -33,21 +43,24 @@ export function CashFlowChart({ data }: CashFlowChartProps) {
   return (
     <ResponsiveContainer width="100%" height={250}>
       <AreaChart data={data} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-        <XAxis dataKey="month" tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
-        <YAxis tickFormatter={formatCurrency} tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
+        <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+        <XAxis dataKey="month" tick={{ fontSize: 12, fill: textColor }} stroke={mutedColor} />
+        <YAxis tickFormatter={formatCurrency} tick={{ fontSize: 12, fill: textColor }} stroke={mutedColor} />
         <Tooltip
           formatter={(value) =>
             `₹${Number(value).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`
           }
           contentStyle={{
-            backgroundColor: "hsl(var(--background))",
-            border: "1px solid hsl(var(--border))",
+            backgroundColor: tooltipBg,
+            border: `1px solid ${tooltipBorder}`,
             borderRadius: "0.625rem",
             fontSize: 13,
+            color: textColor,
           }}
+          labelStyle={{ color: textColor }}
+          itemStyle={{ color: textColor }}
         />
-        <Legend />
+        <Legend wrapperStyle={{ color: textColor }} />
         <Area
           type="monotone"
           dataKey="inflow"

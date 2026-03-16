@@ -22,6 +22,7 @@ import {
   Receipt,
   BarChart3,
   IndianRupee,
+  ArrowLeftRight,
   type LucideIcon,
 } from "lucide-react"
 
@@ -59,6 +60,7 @@ export const navigation: NavGroup[] = [
       { title: "Purchases", href: "/finance/purchases", icon: Receipt, permission: "finance" },
       { title: "Expenses", href: "/finance/expenses", icon: Wallet, permission: "finance" },
       { title: "Payments", href: "/finance/payments", icon: CreditCard, permission: "finance" },
+      { title: "Cash Flow", href: "/finance/cash-flow", icon: ArrowLeftRight, permission: "finance" },
       { title: "Costing", href: "/finance/costing", icon: Calculator, permission: "finance" },
       { title: "Reports", href: "/finance/reports", icon: BarChart3, permission: "finance" },
     ],

@@ -46,7 +46,8 @@ interface AgingItem {
 }
 
 interface Props {
-  month: string
+  period: string      // display label: "2026-03" or "FY 2025-26"
+  mode: "month" | "fy"
   pl: PL
   gst: GST
   receivables: AgingItem[]
@@ -85,6 +86,22 @@ function generateMonthOptions() {
     const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
     const label = d.toLocaleString("en-IN", { month: "long", year: "numeric" })
     options.push({ value, label })
+  }
+  return options
+}
+
+function generateFYOptions() {
+  // Show last 4 financial years including current
+  const now = new Date()
+  const month = now.getMonth() + 1
+  const year = now.getFullYear()
+  const currentFYStart = month >= 4 ? year : year - 1
+
+  const options: { value: string; label: string }[] = []
+  for (let i = 0; i < 4; i++) {
+    const fyStart = currentFYStart - i
+    const value = `${fyStart}-${String(fyStart + 1).slice(-2)}`
+    options.push({ value, label: `FY ${value}` })
   }
   return options
 }
@@ -144,12 +161,20 @@ function GSTRow({ label, cgst, sgst, igst, total, bold }: { label: string; cgst:
   )
 }
 
-export function ReportsDisplay({ month, pl, gst, receivables, payables }: Props) {
+export function ReportsDisplay({ period, mode, pl, gst, receivables, payables }: Props) {
   const router = useRouter()
   const monthOptions = generateMonthOptions()
+  const fyOptions = generateFYOptions()
+
+  // Derive current month value for the month selector
+  const currentMonth = mode === "month" ? period : monthOptions[0].value
 
   function handleMonthChange(e: React.ChangeEvent<HTMLSelectElement>) {
     router.push(`/finance/reports?month=${e.target.value}`)
+  }
+
+  function handleFYChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    router.push(`/finance/reports?fy=${e.target.value}`)
   }
 
   // P&L export data
@@ -206,20 +231,38 @@ export function ReportsDisplay({ month, pl, gst, receivables, payables }: Props)
 
   return (
     <div>
-      {/* Month Selector */}
-      <div className="mb-4 flex items-center gap-3">
-        <label className="text-sm font-medium">Month:</label>
-        <select
-          value={month}
-          onChange={handleMonthChange}
-          className="rounded-md border bg-background px-3 py-1.5 text-sm"
-        >
-          {monthOptions.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
+      {/* Period Selectors */}
+      <div className="mb-4 flex flex-wrap items-center gap-4">
+        <div className="flex items-center gap-2">
+          <label className="text-sm font-medium text-muted-foreground">Month:</label>
+          <select
+            value={mode === "month" ? currentMonth : ""}
+            onChange={handleMonthChange}
+            className={`rounded-md border bg-background px-3 py-1.5 text-sm ${mode === "month" ? "ring-2 ring-primary/40" : "opacity-60"}`}
+          >
+            {monthOptions.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <label className="text-sm font-medium text-muted-foreground">Financial Year:</label>
+          <select
+            value={mode === "fy" ? period.replace("FY ", "") : ""}
+            onChange={handleFYChange}
+            className={`rounded-md border bg-background px-3 py-1.5 text-sm ${mode === "fy" ? "ring-2 ring-primary/40" : "opacity-60"}`}
+          >
+            {mode !== "fy" && <option value="">— select FY —</option>}
+            {fyOptions.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <Tabs defaultValue="pl">
@@ -234,10 +277,10 @@ export function ReportsDisplay({ month, pl, gst, receivables, payables }: Props)
         <TabsContent value="pl">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-base">Profit &amp; Loss — {month}</CardTitle>
+              <CardTitle className="text-base">Profit &amp; Loss — {period}</CardTitle>
               <ExportMenu
-                onCSV={() => downloadCSV(plCSVData(), plCols, `pl-${month}.csv`)}
-                onExcel={() => downloadExcel(plCSVData(), plCols, `pl-${month}.xlsx`, "P&L")}
+                onCSV={() => downloadCSV(plCSVData(), plCols, `pl-${period}.csv`)}
+                onExcel={() => downloadExcel(plCSVData(), plCols, `pl-${period}.xlsx`, "P&L")}
               />
             </CardHeader>
             <CardContent>
@@ -267,7 +310,7 @@ export function ReportsDisplay({ month, pl, gst, receivables, payables }: Props)
               </div>
 
               {pl.revenue === 0 && pl.totalExpenses === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-4">No data for this month</p>
+                <p className="text-sm text-muted-foreground text-center py-4">No data for this period</p>
               )}
             </CardContent>
           </Card>
@@ -277,10 +320,10 @@ export function ReportsDisplay({ month, pl, gst, receivables, payables }: Props)
         <TabsContent value="gst">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-base">GST Summary — {month}</CardTitle>
+              <CardTitle className="text-base">GST Summary — {period}</CardTitle>
               <ExportMenu
-                onCSV={() => downloadCSV(gstCSVData() as Record<string, unknown>[], gstCols, `gst-${month}.csv`)}
-                onExcel={() => downloadExcel(gstCSVData() as Record<string, unknown>[], gstCols, `gst-${month}.xlsx`, "GST")}
+                onCSV={() => downloadCSV(gstCSVData() as Record<string, unknown>[], gstCols, `gst-${period}.csv`)}
+                onExcel={() => downloadExcel(gstCSVData() as Record<string, unknown>[], gstCols, `gst-${period}.xlsx`, "GST")}
               />
             </CardHeader>
             <CardContent>
@@ -307,7 +350,7 @@ export function ReportsDisplay({ month, pl, gst, receivables, payables }: Props)
               </div>
 
               {gst.output.total === 0 && gst.input.total === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-4">No GST data for this month</p>
+                <p className="text-sm text-muted-foreground text-center py-4">No GST data for this period</p>
               )}
             </CardContent>
           </Card>

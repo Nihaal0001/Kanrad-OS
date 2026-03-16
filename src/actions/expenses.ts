@@ -129,6 +129,8 @@ export async function createExpense(formData: ExpenseFormData) {
   if (error) return { error: error.message }
 
   revalidatePath("/finance/expenses")
+  revalidatePath("/finance/cash-flow")
+  revalidatePath("/finance")
   return { data }
 }
 
@@ -154,6 +156,8 @@ export async function updateExpense(id: string, formData: ExpenseFormData) {
   if (error) return { error: error.message }
 
   revalidatePath("/finance/expenses")
+  revalidatePath("/finance/cash-flow")
+  revalidatePath("/finance")
   return { success: true }
 }
 
@@ -167,5 +171,7 @@ export async function deleteExpense(id: string) {
   if (error) return { error: error.message }
 
   revalidatePath("/finance/expenses")
+  revalidatePath("/finance/cash-flow")
+  revalidatePath("/finance")
   return { success: true }
 }

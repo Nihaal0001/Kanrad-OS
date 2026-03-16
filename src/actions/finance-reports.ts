@@ -15,6 +15,7 @@ export async function getFinanceDashboard() {
 
   const [
     invoicesRes,
+    revenueThisMonthRes,
     expensesThisMonthRes,
     expensesLastMonthRes,
     costingsRes,
@@ -23,10 +24,16 @@ export async function getFinanceDashboard() {
     expenseReceiptsRes,
     purchaseReceiptsRes,
   ] = await Promise.all([
-    // Revenue: all non-cancelled invoices
+    // Revenue: all non-cancelled invoices (for totals + aging)
     supabase
       .from("invoices")
       .select("total_amount, amount_paid, status, due_date")
+      .neq("status", "cancelled"),
+    // Revenue this month (for net profit — matches P&L report)
+    supabase
+      .from("invoices")
+      .select("total_amount")
+      .gte("issue_date", thisMonthStart)
       .neq("status", "cancelled"),
     // Expenses this month
     supabase
@@ -55,6 +62,7 @@ export async function getFinanceDashboard() {
   ])
 
   const invoices = invoicesRes.data ?? []
+  const revenueThisMonth = revenueThisMonthRes.data ?? []
   const expensesThisMonth = expensesThisMonthRes.data ?? []
   const expensesLastMonth = expensesLastMonthRes.data ?? []
   const costings = costingsRes.data ?? []
@@ -76,14 +84,15 @@ export async function getFinanceDashboard() {
   // COGS
   const totalCogs = costings.reduce((s, c) => s + (c.total_cost ?? 0), 0)
 
-  // Net profit (simplified: this month revenue - COGS allocation - expenses)
-  const netProfit = totalReceived - totalCogs - expThisMonth
+  // Net profit: this month invoiced revenue - COGS - this month expenses (matches P&L report)
+  const revenueThisMonthTotal = revenueThisMonth.reduce((s, i) => s + (i.total_amount ?? 0), 0)
+  const netProfit = revenueThisMonthTotal - totalCogs - expThisMonth
 
   // Receivables aging
   const today = new Date()
   const receivablesAging = computeAging(
     invoices
-      .filter((i) => i.status !== "paid" && i.due_date)
+      .filter((i) => i.status !== "paid" && i.status !== "draft" && i.due_date)
       .map((i) => ({
         amount: (i.total_amount ?? 0) - (i.amount_paid ?? 0),
         due_date: i.due_date!,
@@ -145,7 +154,113 @@ function computeAging(
   return buckets
 }
 
-// ===== Cash Flow (last 6 months) =====
+// ===== Cash Flow Statement (last 12 months, detailed) =====
+
+export async function getCashFlowStatement() {
+  const supabase = await createClient()
+  const rows: {
+    monthKey: string   // "YYYY-MM" — used for detail page URL
+    month: string      // display label e.g. "Mar 2026"
+    inflow: number
+    purchaseOutflow: number
+    expenseOutflow: number
+    outflow: number
+    net: number
+    runningBalance: number
+  }[] = []
+
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date()
+    d.setDate(1)
+    d.setMonth(d.getMonth() - i)
+    const year = d.getFullYear()
+    const month = d.getMonth() + 1
+    const monthKey = `${year}-${String(month).padStart(2, "0")}`
+    const start = `${monthKey}-01`
+    const nextD = new Date(year, month, 1)
+    const end = `${nextD.getFullYear()}-${String(nextD.getMonth() + 1).padStart(2, "0")}-01`
+    const label = d.toLocaleString("en-IN", { month: "short", year: "numeric" })
+
+    const [paymentsIn, expensesOut, purchasePaymentsOut] = await Promise.all([
+      supabase.from("payments").select("amount").gte("payment_date", start).lt("payment_date", end),
+      supabase.from("expenses").select("amount").gte("expense_date", start).lt("expense_date", end),
+      supabase.from("purchase_payments").select("amount").gte("payment_date", start).lt("payment_date", end),
+    ])
+
+    const inflow = (paymentsIn.data ?? []).reduce((s, p) => s + (p.amount ?? 0), 0)
+    const expenseOutflow = (expensesOut.data ?? []).reduce((s, e) => s + (e.amount ?? 0), 0)
+    const purchaseOutflow = (purchasePaymentsOut.data ?? []).reduce((s, p) => s + (p.amount ?? 0), 0)
+    const outflow = expenseOutflow + purchaseOutflow
+
+    rows.push({ monthKey, month: label, inflow, purchaseOutflow, expenseOutflow, outflow, net: inflow - outflow, runningBalance: 0 })
+  }
+
+  // Compute running balance
+  let running = 0
+  for (const row of rows) {
+    running += row.net
+    row.runningBalance = running
+  }
+
+  return rows
+}
+
+// ===== Cash Flow Month Detail =====
+
+export async function getCashFlowMonthDetail(monthKey: string) {
+  // monthKey: "YYYY-MM"
+  const [year, mon] = monthKey.split("-").map(Number)
+  const start = `${monthKey}-01`
+  const nextD = new Date(year, mon, 1)
+  const end = `${nextD.getFullYear()}-${String(nextD.getMonth() + 1).padStart(2, "0")}-01`
+
+  const supabase = await createClient()
+
+  const [paymentsRes, expensesRes, purchasePaymentsRes] = await Promise.all([
+    supabase
+      .from("payments")
+      .select("id, amount, method, reference, payment_date, invoice:invoices(invoice_number, buyer_name)")
+      .gte("payment_date", start)
+      .lt("payment_date", end)
+      .order("payment_date"),
+    supabase
+      .from("expenses")
+      .select("id, amount, expense_date, description, category:expense_categories(name)")
+      .gte("expense_date", start)
+      .lt("expense_date", end)
+      .order("expense_date"),
+    supabase
+      .from("purchase_payments")
+      .select("id, amount, method, reference, payment_date, invoice:purchase_invoices(invoice_number, supplier_name)")
+      .gte("payment_date", start)
+      .lt("payment_date", end)
+      .order("payment_date"),
+  ])
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const payments = (paymentsRes.data ?? []).map((p: any) => ({
+    ...p,
+    invoice: Array.isArray(p.invoice) ? p.invoice[0] ?? null : p.invoice,
+  }))
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const expenses = (expensesRes.data ?? []).map((e: any) => ({
+    ...e,
+    category: Array.isArray(e.category) ? e.category[0] ?? null : e.category,
+  }))
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const purchasePayments = (purchasePaymentsRes.data ?? []).map((p: any) => ({
+    ...p,
+    invoice: Array.isArray(p.invoice) ? p.invoice[0] ?? null : p.invoice,
+  }))
+
+  const label = new Date(year, mon - 1, 1).toLocaleString("en-IN", { month: "long", year: "numeric" })
+
+  return { label, payments, expenses, purchasePayments }
+}
+
+// ===== Cash Flow (last 6 months, for dashboard chart) =====
 
 export async function getCashFlowData() {
   const supabase = await createClient()
@@ -187,6 +302,7 @@ export async function getReceivablesAging() {
     .select("id, invoice_number, buyer_name, total_amount, amount_paid, due_date, status")
     .neq("status", "cancelled")
     .neq("status", "paid")
+    .neq("status", "draft")
     .not("due_date", "is", null)
     .order("due_date")
 
@@ -222,13 +338,7 @@ export async function getPayablesAging() {
 
 // ===== GST Summary =====
 
-export async function getGSTSummary(month: string) {
-  // month format: "YYYY-MM"
-  const start = `${month}-01`
-  const [year, mon] = month.split("-").map(Number)
-  const nextMonth = new Date(year, mon, 1)
-  const end = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, "0")}-01`
-
+export async function getGSTSummary(start: string, end: string) {
   const supabase = await createClient()
 
   const [salesRes, purchasesRes] = await Promise.all([
@@ -269,12 +379,7 @@ export async function getGSTSummary(month: string) {
 
 // ===== P&L =====
 
-export async function getProfitLoss(month: string) {
-  const start = `${month}-01`
-  const [year, mon] = month.split("-").map(Number)
-  const nextMonth = new Date(year, mon, 1)
-  const end = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, "0")}-01`
-
+export async function getProfitLoss(start: string, end: string) {
   const supabase = await createClient()
 
   const [revenueRes, expensesRes, costingsRes] = await Promise.all([
@@ -289,7 +394,11 @@ export async function getProfitLoss(month: string) {
       .select("amount, category:expense_categories(name)")
       .gte("expense_date", start)
       .lt("expense_date", end),
-    supabase.from("order_costings").select("total_cost"),
+    supabase
+      .from("order_costings")
+      .select("total_cost")
+      .gte("created_at", start)
+      .lt("created_at", end),
   ])
 
   const revenue = (revenueRes.data ?? []).reduce((s, i) => s + (i.total_amount ?? 0), 0)
