@@ -17,6 +17,18 @@ const TYPE_COLORS: Record<string, string> = {
   low_stock: "bg-amber-500",
   task_assigned: "bg-purple-500",
   deadline: "bg-orange-500",
+  invoice_overdue: "bg-red-500",
+  order_deadline_50: "bg-yellow-500",
+  order_deadline_75: "bg-orange-500",
+  order_deadline_90: "bg-red-500",
+  order_deadline_overdue: "bg-red-600",
+  task_overdue: "bg-red-500",
+  bottleneck_50: "bg-yellow-500",
+  bottleneck_75: "bg-orange-500",
+  bottleneck_90: "bg-red-500",
+  bottleneck_overdue: "bg-red-600",
+  leave_request: "bg-purple-500",
+  attendance_anomaly: "bg-red-500",
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -26,6 +38,18 @@ const TYPE_LABELS: Record<string, string> = {
   low_stock: "Inventory",
   task_assigned: "Task",
   deadline: "Deadline",
+  invoice_overdue: "Finance",
+  order_deadline_50: "Deadline",
+  order_deadline_75: "Deadline",
+  order_deadline_90: "Deadline",
+  order_deadline_overdue: "Deadline",
+  task_overdue: "Task",
+  bottleneck_50: "Production",
+  bottleneck_75: "Production",
+  bottleneck_90: "Production",
+  bottleneck_overdue: "Production",
+  leave_request: "HR",
+  attendance_anomaly: "HR",
 }
 
 interface NotificationsListProps {

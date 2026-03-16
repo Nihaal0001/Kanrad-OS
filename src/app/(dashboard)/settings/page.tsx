@@ -43,6 +43,7 @@ export default async function SettingsPage() {
       <PageHeader
         title="Settings"
         description="Organisation information and system configuration"
+        breadcrumbs={[{ label: "Settings" }]}
       />
 
       <div className="max-w-2xl space-y-8">

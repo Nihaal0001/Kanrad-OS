@@ -30,6 +30,12 @@ const WRITE_TOOLS = new Set([
   "create_task",
   "update_task_status",
   "update_production_stage",
+  "create_order",
+  "update_order_status",
+  "create_buyer",
+  "adjust_stock",
+  "create_quality_check",
+  "mark_notifications_read",
 ])
 
 type UIMessage =
@@ -329,13 +335,13 @@ export function AIChatWidget() {
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground max-w-[260px] leading-relaxed">
                   {agentMode
-                    ? "Ask me to mark attendance, approve leaves, create tasks, update production stages, and more."
+                    ? "Create orders, manage inventory, log QC checks, update production — I can handle it all."
                     : "Ask about orders, inventory, production, or anything about your factory. Speak or type in any language."
                   }
                 </p>
                 <div className="mt-4 flex flex-wrap gap-1.5 justify-center">
                   {agentMode
-                    ? ["Mark Rajan as present", "Approve Priya's leave", "Create a task: check fabric"].map((q) => (
+                    ? ["Create an order for 500 polo shirts", "Show me low stock items", "Log QC for cutting stage"].map((q) => (
                         <button key={q} onClick={() => handleSend(q)}
                           className="rounded-full border border-blue-400/30 bg-blue-500/10 px-3 py-1.5 text-xs text-blue-400 dark:text-blue-300 transition-all hover:bg-blue-500/20">
                           {q}

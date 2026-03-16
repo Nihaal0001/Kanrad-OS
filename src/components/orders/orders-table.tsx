@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation"
 import { MoreHorizontal, Search, Eye, Pencil, Trash2 } from "lucide-react"
 
 import type { OrderWithBuyer } from "@/lib/supabase/types"
-import { cn, formatDate, friendlyError } from "@/lib/utils"
+import { cn, formatDate, friendlyError, isOverdue } from "@/lib/utils"
 import { deleteOrder } from "@/actions/orders"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -181,7 +181,11 @@ export function OrdersTable({ orders }: OrdersTableProps) {
                   <TableCell className="text-right tabular-nums">
                     {order.total_quantity.toLocaleString("en-IN")}
                   </TableCell>
-                  <TableCell className="whitespace-nowrap">
+                  <TableCell className={cn(
+                    "whitespace-nowrap",
+                    !["completed", "dispatched", "cancelled"].includes(order.status) && isOverdue(order.deadline) && "text-destructive font-medium"
+                  )}>
+                    {!["completed", "dispatched", "cancelled"].includes(order.status) && isOverdue(order.deadline) && "Overdue · "}
                     {formatDate(order.deadline)}
                   </TableCell>
                   <TableCell>

@@ -18,6 +18,7 @@ export default async function NotificationsPage() {
             ? `${unread} unread notification${unread !== 1 ? "s" : ""}`
             : "You're all caught up"
         }
+        breadcrumbs={[{ label: "Notifications" }]}
       />
 
       {notifications.length === 0 ? (

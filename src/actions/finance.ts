@@ -98,7 +98,7 @@ export async function createInvoice(formData: InvoiceFormData) {
   return { data: invoice }
 }
 
-const VALID_INVOICE_STATUSES = ["draft", "sent", "paid", "overdue", "cancelled"] as const
+const VALID_INVOICE_STATUSES = ["draft", "sent", "paid", "partially_paid", "overdue", "cancelled"] as const
 
 export async function updateInvoiceStatus(id: string, status: string) {
   if (!VALID_INVOICE_STATUSES.includes(status as typeof VALID_INVOICE_STATUSES[number])) {

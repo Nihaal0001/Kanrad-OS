@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback, Suspense } from "react"
-import { useSearchParams } from "next/navigation"
+import { useSearchParams, useRouter } from "next/navigation"
 import {
   MapPin,
   CheckCircle2,
@@ -10,6 +10,7 @@ import {
   Camera,
   AlertTriangle,
   QrCode,
+  ArrowLeft,
 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -30,6 +31,7 @@ type ScanState =
   | { phase: "error"; message: string }
 
 function ScanPageInner() {
+  const router = useRouter()
   const searchParams = useSearchParams()
   const [state, setState] = useState<ScanState>({ phase: "loading" })
   const [coords, setCoords] = useState<{ lat: number; long: number } | null>(null)
@@ -92,6 +94,17 @@ function ScanPageInner() {
 
   return (
     <div className="space-y-6">
+      {/* Back button */}
+      <Button
+        variant="ghost"
+        size="sm"
+        className="gap-1.5 text-muted-foreground"
+        onClick={() => router.back()}
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Back
+      </Button>
+
       {/* Header */}
       <div className="text-center">
         <h1 className="text-2xl font-bold">Mark Attendance</h1>

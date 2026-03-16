@@ -15,6 +15,7 @@ export default async function TasksPage() {
       <PageHeader
         title="Tasks"
         description="Assign and track tasks across departments"
+        breadcrumbs={[{ label: "Tasks" }]}
       >
         <TaskForm
           trigger={

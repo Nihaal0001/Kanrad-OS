@@ -3,6 +3,22 @@
     {
       "path": "/api/cron/impossible-commute",
       "schedule": "30 18 * * *"
+    },
+    {
+      "path": "/api/cron/invoice-overdue",
+      "schedule": "0 18 * * *"
+    },
+    {
+      "path": "/api/cron/deadline-alerts",
+      "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/task-overdue",
+      "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/production-bottleneck",
+      "schedule": "0 3 * * *"
     }
   ]
 }

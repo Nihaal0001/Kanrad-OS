@@ -53,3 +53,12 @@ export function formatDateRelative(date: string | Date): string {
   if (diffDays < 7) return `${diffDays}d ago`
   return formatDate(date)
 }
+
+/** Check if a date string is in the past (overdue) */
+export function isOverdue(date: string | null | undefined): boolean {
+  if (!date) return false
+  const d = new Date(date)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  return d < today
+}

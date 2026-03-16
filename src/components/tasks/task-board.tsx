@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { MoreHorizontal, Pencil, Trash2 } from "lucide-react"
 
 import type { TaskWithDetails } from "@/lib/supabase/types"
-import { cn, formatDate } from "@/lib/utils"
+import { cn, formatDate, isOverdue } from "@/lib/utils"
 import { updateTaskStatus, deleteTask } from "@/actions/tasks"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -174,8 +174,14 @@ export function TaskBoard({ tasks }: TaskBoardProps) {
                       </span>
                     )}
                     {task.due_date && (
-                      <span className="text-xs text-muted-foreground ml-auto">
-                        Due {formatDate(task.due_date)}
+                      <span className={cn(
+                        "text-xs ml-auto",
+                        col.status !== "done" && isOverdue(task.due_date)
+                          ? "text-destructive font-medium"
+                          : "text-muted-foreground"
+                      )}>
+                        {col.status !== "done" && isOverdue(task.due_date) ? "Overdue · " : "Due "}
+                        {formatDate(task.due_date)}
                       </span>
                     )}
                   </div>

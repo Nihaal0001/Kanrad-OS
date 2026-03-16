@@ -40,6 +40,7 @@ export default async function UsersPage() {
       <PageHeader
         title="Users"
         description={`${activeCount} active team member${activeCount !== 1 ? "s" : ""}`}
+        breadcrumbs={[{ label: "Users" }]}
       />
 
       {users.length === 0 ? (
