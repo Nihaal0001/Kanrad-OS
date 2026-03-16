@@ -3,7 +3,7 @@
 import { useState, useMemo, useCallback } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { MoreHorizontal, Search, Eye, Trash2 } from "lucide-react"
+import { MoreHorizontal, Search, Eye, Trash2, CheckCircle2, Clock, XCircle } from "lucide-react"
 
 import type { PurchaseOrder } from "@/lib/supabase/types"
 import { cn, formatCurrency, formatDate, friendlyError } from "@/lib/utils"
@@ -28,6 +28,23 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { StatusBadge } from "@/components/shared/status-badge"
+
+const APPROVAL_BADGE: Record<string, { label: string; icon: React.ElementType; className: string }> = {
+  pending_approval: { label: "Pending Approval", icon: Clock, className: "text-amber-600 bg-amber-500/10 border-amber-500/20" },
+  approved: { label: "Approved", icon: CheckCircle2, className: "text-emerald-600 bg-emerald-500/10 border-emerald-500/20" },
+  rejected: { label: "Rejected", icon: XCircle, className: "text-red-600 bg-red-500/10 border-red-500/20" },
+}
+
+function ApprovalBadge({ status }: { status: string }) {
+  const config = APPROVAL_BADGE[status] ?? APPROVAL_BADGE.pending_approval
+  const Icon = config.icon
+  return (
+    <span className={cn("inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium", config.className)}>
+      <Icon className="h-3 w-3" />
+      {config.label}
+    </span>
+  )
+}
 
 const STATUS_FILTERS = [
   { value: "all", label: "All" },
@@ -137,6 +154,7 @@ export function PurchaseOrdersTable({ purchaseOrders }: PurchaseOrdersTableProps
                 <TableHead>Expected</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Approval</TableHead>
                 <TableHead className="w-[50px]">
                   <span className="sr-only">Actions</span>
                 </TableHead>
@@ -167,6 +185,9 @@ export function PurchaseOrdersTable({ purchaseOrders }: PurchaseOrdersTableProps
                   </TableCell>
                   <TableCell>
                     <StatusBadge status={po.status} />
+                  </TableCell>
+                  <TableCell>
+                    <ApprovalBadge status={po.approval_status ?? "pending_approval"} />
                   </TableCell>
                   <TableCell>
                     <DropdownMenu>

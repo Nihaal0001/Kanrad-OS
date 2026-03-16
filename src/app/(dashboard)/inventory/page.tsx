@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { Package, Plus, ShoppingCart } from "lucide-react"
+import { Package, Plus, ShoppingCart, History } from "lucide-react"
 
 import { getMaterials, getCategories } from "@/actions/inventory"
 import { PageHeader } from "@/components/shared/page-header"
@@ -19,6 +19,12 @@ export default async function InventoryPage() {
         title="Inventory"
         description="Track raw materials and stock levels"
       >
+        <Button variant="outline" asChild>
+          <Link href="/inventory/history">
+            <History className="h-4 w-4" />
+            Stock History
+          </Link>
+        </Button>
         <Button variant="outline" asChild>
           <Link href="/inventory/purchase-orders">
             <ShoppingCart className="h-4 w-4" />

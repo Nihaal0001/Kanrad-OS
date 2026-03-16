@@ -345,6 +345,88 @@ export async function receivePurchaseOrderItem(
   return { success: true }
 }
 
+// ==================== PO Approval (admin only) ====================
+
+export async function approvePurchaseOrder(id: string, notes?: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
+  const { data: profile } = await supabase
+    .from("profiles").select("role").eq("auth_id", user.id).maybeSingle()
+  if (profile?.role !== "admin") return { error: "Forbidden: admin only" }
+
+  const { error } = await supabase
+    .from("purchase_orders")
+    .update({
+      approval_status: "approved",
+      approved_by: user.id,
+      approved_at: new Date().toISOString(),
+      approval_notes: notes || null,
+    })
+    .eq("id", id)
+
+  if (error) return { error: error.message }
+
+  revalidatePath("/inventory/purchase-orders")
+  revalidatePath(`/inventory/purchase-orders/${id}`)
+  return { success: true }
+}
+
+export async function rejectPurchaseOrder(id: string, notes?: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
+  const { data: profile } = await supabase
+    .from("profiles").select("role").eq("auth_id", user.id).maybeSingle()
+  if (profile?.role !== "admin") return { error: "Forbidden: admin only" }
+
+  const { error } = await supabase
+    .from("purchase_orders")
+    .update({
+      approval_status: "rejected",
+      approved_by: user.id,
+      approved_at: new Date().toISOString(),
+      approval_notes: notes || null,
+    })
+    .eq("id", id)
+
+  if (error) return { error: error.message }
+
+  revalidatePath("/inventory/purchase-orders")
+  revalidatePath(`/inventory/purchase-orders/${id}`)
+  return { success: true }
+}
+
+// ==================== Global Stock History ====================
+
+export async function getAllStockTransactions(filters?: {
+  type?: string
+  materialId?: string
+}) {
+  const supabase = await createClient()
+  let query = supabase
+    .from("stock_transactions")
+    .select(`
+      *,
+      material:materials(id, name, sku, unit)
+    `)
+    .order("created_at", { ascending: false })
+    .limit(200)
+
+  if (filters?.type) query = query.eq("type", filters.type)
+  if (filters?.materialId) query = query.eq("material_id", filters.materialId)
+
+  const { data, error } = await query
+  if (error) throw new Error(error.message)
+
+  return (data ?? []).map((t: any) => ({ // eslint-disable-line @typescript-eslint/no-explicit-any
+    ...t,
+    material: Array.isArray(t.material) ? t.material[0] ?? null : t.material,
+  }))
+}
+
 export async function deletePurchaseOrder(id: string) {
   const supabase = await createClient()
 

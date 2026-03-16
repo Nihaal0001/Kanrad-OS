@@ -124,6 +124,10 @@ export type PurchaseOrder = {
   supplier_name: string
   supplier_contact: string | null
   status: "draft" | "sent" | "partial" | "received" | "cancelled"
+  approval_status: "pending_approval" | "approved" | "rejected"
+  approved_by: string | null
+  approved_at: string | null
+  approval_notes: string | null
   order_date: string
   expected_date: string | null
   total_amount: number

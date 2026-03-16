@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
 import { StatusBadge } from "@/components/shared/status-badge"
+import { POApprovalButtons } from "@/components/inventory/po-approval-buttons"
 
 interface POItem {
   id: string
@@ -44,6 +45,8 @@ interface PurchaseOrderDetailProps {
     supplier_name: string
     supplier_contact: string | null
     status: string
+    approval_status: string
+    approval_notes: string | null
     order_date: string
     expected_date: string | null
     total_amount: number
@@ -234,6 +237,22 @@ export function PurchaseOrderDetail({ po: initialPo }: PurchaseOrderDetailProps)
               <div className="mt-1">
                 <StatusBadge status={po.status} />
               </div>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground mb-2">Approval</p>
+              <POApprovalButtons poId={po.id} approvalStatus={po.approval_status ?? "pending_approval"} />
+              {po.approval_status === "approved" && (
+                <span className="inline-flex items-center gap-1 text-xs text-emerald-600 font-medium">✓ Approved</span>
+              )}
+              {po.approval_status === "rejected" && (
+                <div>
+                  <span className="inline-flex items-center gap-1 text-xs text-red-600 font-medium">✕ Rejected</span>
+                  {po.approval_notes && <p className="text-xs text-muted-foreground mt-0.5">{po.approval_notes}</p>}
+                </div>
+              )}
+              {po.approval_status === "pending_approval" && (
+                <p className="text-xs text-muted-foreground">Awaiting admin approval</p>
+              )}
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Order Date</p>
