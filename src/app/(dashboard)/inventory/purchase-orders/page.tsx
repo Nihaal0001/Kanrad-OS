@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { ShoppingCart, Plus } from "lucide-react"
+import { ShoppingCart, Plus, ClipboardCheck } from "lucide-react"
 
 import { getPurchaseOrders } from "@/actions/inventory"
 import { PageHeader } from "@/components/shared/page-header"
@@ -8,7 +8,10 @@ import { Button } from "@/components/ui/button"
 import { PurchaseOrdersTable } from "@/components/inventory/purchase-orders-table"
 
 export default async function PurchaseOrdersPage() {
-  const purchaseOrders = await getPurchaseOrders()
+  const [purchaseOrders, pendingCount] = await Promise.all([
+    getPurchaseOrders(),
+    getPurchaseOrders({ approval_status: "pending_approval" }).then((r) => r.length),
+  ])
 
   return (
     <>
@@ -16,6 +19,17 @@ export default async function PurchaseOrdersPage() {
         title="Purchase Orders"
         description="Manage material purchase orders from suppliers"
       >
+        <Button variant="outline" asChild>
+          <Link href="/inventory/approvals" className="relative">
+            <ClipboardCheck className="h-4 w-4" />
+            Approvals
+            {pendingCount > 0 && (
+              <span className="ml-1 rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] text-white font-semibold leading-none">
+                {pendingCount}
+              </span>
+            )}
+          </Link>
+        </Button>
         <Button variant="outline" asChild>
           <Link href="/inventory">Back to Inventory</Link>
         </Button>

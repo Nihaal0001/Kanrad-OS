@@ -178,6 +178,7 @@ export async function createStockTransaction(formData: StockAdjustmentFormData) 
 
 export async function getPurchaseOrders(filters?: {
   status?: string
+  approval_status?: string
   search?: string
 }) {
   const supabase = await createClient()
@@ -188,6 +189,9 @@ export async function getPurchaseOrders(filters?: {
 
   if (filters?.status) {
     query = query.eq("status", filters.status)
+  }
+  if (filters?.approval_status) {
+    query = query.eq("approval_status", filters.approval_status)
   }
   if (filters?.search) {
     const escaped = filters.search.replace(/%/g, "\\%").replace(/_/g, "\\_")
