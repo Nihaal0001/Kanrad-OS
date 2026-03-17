@@ -2,17 +2,19 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { useForm } from "react-hook-form"
+import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Loader2, Plus } from "lucide-react"
-
 import { toast } from "sonner"
+
 import { attendanceSchema, type AttendanceFormData } from "@/lib/validators/hr"
 import { upsertAttendance } from "@/actions/hr"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
+import { DatePicker } from "@/components/ui/date-picker"
+import { TimePicker } from "@/components/ui/time-picker"
 import {
   Dialog,
   DialogContent,
@@ -52,6 +54,7 @@ export function AttendanceForm({ workers, defaultDate, defaultWorkerId, trigger 
   const {
     register,
     handleSubmit,
+    control,
     setValue,
     watch,
     reset,
@@ -111,6 +114,7 @@ export function AttendanceForm({ workers, defaultDate, defaultWorkerId, trigger 
             </div>
           )}
 
+          {/* Worker */}
           <div className="space-y-1.5">
             <Label>Worker *</Label>
             <Select
@@ -135,10 +139,21 @@ export function AttendanceForm({ workers, defaultDate, defaultWorkerId, trigger 
             )}
           </div>
 
+          {/* Date + Status */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="date">Date *</Label>
-              <Input id="date" type="date" {...register("date")} />
+              <Label>Date *</Label>
+              <Controller
+                control={control}
+                name="date"
+                render={({ field }) => (
+                  <DatePicker
+                    value={field.value}
+                    onChange={field.onChange}
+                    disableFuture
+                  />
+                )}
+              />
               {errors.date && <p className="text-xs text-destructive">{errors.date.message}</p>}
             </div>
 
@@ -161,19 +176,33 @@ export function AttendanceForm({ workers, defaultDate, defaultWorkerId, trigger 
             </div>
           </div>
 
+          {/* Check In / Check Out */}
           {(status === "present" || status === "half_day") && (
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="check_in">Check In</Label>
-                <Input id="check_in" type="time" {...register("check_in")} />
+                <Label>Check In</Label>
+                <Controller
+                  control={control}
+                  name="check_in"
+                  render={({ field }) => (
+                    <TimePicker value={field.value ?? ""} onChange={field.onChange} />
+                  )}
+                />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="check_out">Check Out</Label>
-                <Input id="check_out" type="time" {...register("check_out")} />
+                <Label>Check Out</Label>
+                <Controller
+                  control={control}
+                  name="check_out"
+                  render={({ field }) => (
+                    <TimePicker value={field.value ?? ""} onChange={field.onChange} />
+                  )}
+                />
               </div>
             </div>
           )}
 
+          {/* Overtime */}
           {status === "present" && (
             <div className="space-y-1.5">
               <Label htmlFor="overtime_hours">Overtime Hours</Label>
@@ -189,6 +218,7 @@ export function AttendanceForm({ workers, defaultDate, defaultWorkerId, trigger 
             </div>
           )}
 
+          {/* Notes */}
           <div className="space-y-1.5">
             <Label htmlFor="notes">Notes</Label>
             <Textarea id="notes" {...register("notes")} rows={2} placeholder="Optional notes" />

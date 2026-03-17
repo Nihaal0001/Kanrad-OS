@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { useForm } from "react-hook-form"
+import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 
 import { toast } from "sonner"
@@ -15,6 +15,7 @@ import type { ProductionStage } from "@/lib/supabase/types"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { DatePicker } from "@/components/ui/date-picker"
 import { Label } from "@/components/ui/label"
 import {
   Card,
@@ -138,10 +139,12 @@ export function QualityCheckForm({
 
             <div className="space-y-2">
               <Label htmlFor="checked_at">Inspection Date</Label>
-              <Input
-                id="checked_at"
-                type="date"
-                {...form.register("checked_at")}
+              <Controller
+                control={form.control}
+                name="checked_at"
+                render={({ field }) => (
+                  <DatePicker value={field.value ?? ""} onChange={field.onChange} />
+                )}
               />
               {form.formState.errors.checked_at && (
                 <p className="text-sm text-destructive">

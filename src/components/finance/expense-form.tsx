@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { useForm } from "react-hook-form"
+import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Loader2 } from "lucide-react"
 
@@ -11,6 +11,7 @@ import { expenseSchema, type ExpenseFormData } from "@/lib/validators/expenses"
 import { createExpense, updateExpense } from "@/actions/expenses"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { DatePicker } from "@/components/ui/date-picker"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -41,6 +42,7 @@ export function ExpenseForm({ categories, orders, editId, defaultValues }: Expen
   const {
     register,
     handleSubmit,
+    control,
     setValue,
     watch,
     formState: { errors },
@@ -140,7 +142,13 @@ export function ExpenseForm({ categories, orders, editId, defaultValues }: Expen
 
             <div className="space-y-1.5">
               <Label htmlFor="expense_date">Date *</Label>
-              <Input id="expense_date" type="date" {...register("expense_date")} />
+              <Controller
+                control={control}
+                name="expense_date"
+                render={({ field }) => (
+                  <DatePicker value={field.value} onChange={field.onChange} />
+                )}
+              />
               {errors.expense_date && (
                 <p className="text-xs text-destructive">{errors.expense_date.message}</p>
               )}

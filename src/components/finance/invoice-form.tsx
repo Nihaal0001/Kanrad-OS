@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { useForm, useFieldArray } from "react-hook-form"
+import { useForm, useFieldArray, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Plus, Trash2, Loader2 } from "lucide-react"
 
@@ -11,6 +11,7 @@ import { invoiceSchema, type InvoiceFormData } from "@/lib/validators/finance"
 import { createInvoice, getOrderForInvoice } from "@/actions/finance"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { DatePicker } from "@/components/ui/date-picker"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import {
@@ -297,14 +298,26 @@ export function InvoiceForm({ orders, preloadedOrder, preloadedOrderId, orgGstin
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="space-y-1.5">
               <Label htmlFor="issue_date">Issue Date *</Label>
-              <Input id="issue_date" type="date" {...register("issue_date")} />
+              <Controller
+                control={control}
+                name="issue_date"
+                render={({ field }) => (
+                  <DatePicker value={field.value} onChange={field.onChange} />
+                )}
+              />
               {errors.issue_date && (
                 <p className="text-xs text-destructive">{errors.issue_date.message}</p>
               )}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="due_date">Due Date</Label>
-              <Input id="due_date" type="date" {...register("due_date")} />
+              <Controller
+                control={control}
+                name="due_date"
+                render={({ field }) => (
+                  <DatePicker value={field.value ?? ""} onChange={field.onChange} />
+                )}
+              />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="tax_rate">GST Rate (%)</Label>

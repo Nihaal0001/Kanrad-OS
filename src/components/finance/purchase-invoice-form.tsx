@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { useForm, useFieldArray } from "react-hook-form"
+import { useForm, useFieldArray, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Loader2, Plus, X } from "lucide-react"
 
@@ -14,6 +14,7 @@ import {
 import { createPurchaseInvoice } from "@/actions/purchase-invoices"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { DatePicker } from "@/components/ui/date-picker"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -217,7 +218,13 @@ export function PurchaseInvoiceForm({ purchaseOrders, orgGstin }: PurchaseInvoic
         <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className="space-y-1.5">
             <Label htmlFor="invoice_date">Invoice Date *</Label>
-            <Input id="invoice_date" type="date" {...register("invoice_date")} />
+            <Controller
+              control={control}
+              name="invoice_date"
+              render={({ field }) => (
+                <DatePicker value={field.value} onChange={field.onChange} />
+              )}
+            />
             {errors.invoice_date && (
               <p className="text-xs text-destructive">{errors.invoice_date.message}</p>
             )}
@@ -225,7 +232,13 @@ export function PurchaseInvoiceForm({ purchaseOrders, orgGstin }: PurchaseInvoic
 
           <div className="space-y-1.5">
             <Label htmlFor="due_date">Due Date</Label>
-            <Input id="due_date" type="date" {...register("due_date")} />
+            <Controller
+              control={control}
+              name="due_date"
+              render={({ field }) => (
+                <DatePicker value={field.value ?? ""} onChange={field.onChange} />
+              )}
+            />
           </div>
 
           <div className="space-y-1.5">

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { useForm } from "react-hook-form"
+import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Loader2, Plus } from "lucide-react"
 
@@ -11,6 +11,7 @@ import { payrollSchema, type PayrollFormData } from "@/lib/validators/hr"
 import { createPayroll, getAttendanceSummary } from "@/actions/hr"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { DatePicker } from "@/components/ui/date-picker"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import {
@@ -54,6 +55,7 @@ export function PayrollForm({ workers, trigger }: PayrollFormProps) {
   const {
     register,
     handleSubmit,
+    control,
     setValue,
     watch,
     reset,
@@ -166,11 +168,23 @@ export function PayrollForm({ workers, trigger }: PayrollFormProps) {
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="period_start">Period Start *</Label>
-              <Input id="period_start" type="date" {...register("period_start")} />
+              <Controller
+                control={control}
+                name="period_start"
+                render={({ field }) => (
+                  <DatePicker value={field.value} onChange={field.onChange} />
+                )}
+              />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="period_end">Period End *</Label>
-              <Input id="period_end" type="date" {...register("period_end")} />
+              <Controller
+                control={control}
+                name="period_end"
+                render={({ field }) => (
+                  <DatePicker value={field.value} onChange={field.onChange} />
+                )}
+              />
             </div>
           </div>
 

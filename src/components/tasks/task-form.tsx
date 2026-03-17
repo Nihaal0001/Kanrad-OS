@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { useForm } from "react-hook-form"
+import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 
 import { toast } from "sonner"
@@ -12,6 +12,7 @@ import type { Task } from "@/lib/supabase/types"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { DatePicker } from "@/components/ui/date-picker"
 import { Label } from "@/components/ui/label"
 import {
   Dialog,
@@ -197,7 +198,13 @@ export function TaskForm({ task, defaultStatus = "todo", trigger }: TaskFormProp
 
           <div className="space-y-2">
             <Label htmlFor="due_date">Due Date</Label>
-            <Input id="due_date" type="date" {...form.register("due_date")} />
+            <Controller
+              control={form.control}
+              name="due_date"
+              render={({ field }) => (
+                <DatePicker value={field.value ?? ""} onChange={field.onChange} />
+              )}
+            />
           </div>
 
           <div className="flex justify-end gap-2 pt-2">

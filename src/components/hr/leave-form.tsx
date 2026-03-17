@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { useForm } from "react-hook-form"
+import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Loader2, Plus } from "lucide-react"
 
@@ -11,6 +11,7 @@ import { leaveSchema, type LeaveFormData } from "@/lib/validators/hr"
 import { createLeave } from "@/actions/hr"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { DatePicker } from "@/components/ui/date-picker"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import {
@@ -50,6 +51,7 @@ export function LeaveForm({ workers, trigger }: LeaveFormProps) {
   const {
     register,
     handleSubmit,
+    control,
     setValue,
     watch,
     reset,
@@ -153,14 +155,26 @@ export function LeaveForm({ workers, trigger }: LeaveFormProps) {
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="from_date">From *</Label>
-              <Input id="from_date" type="date" {...register("from_date")} />
+              <Controller
+                control={control}
+                name="from_date"
+                render={({ field }) => (
+                  <DatePicker value={field.value} onChange={field.onChange} />
+                )}
+              />
               {errors.from_date && (
                 <p className="text-xs text-destructive">{errors.from_date.message}</p>
               )}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="to_date">To *</Label>
-              <Input id="to_date" type="date" {...register("to_date")} />
+              <Controller
+                control={control}
+                name="to_date"
+                render={({ field }) => (
+                  <DatePicker value={field.value} onChange={field.onChange} />
+                )}
+              />
               {errors.to_date && (
                 <p className="text-xs text-destructive">{errors.to_date.message}</p>
               )}

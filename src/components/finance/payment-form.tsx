@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { useForm } from "react-hook-form"
+import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Loader2, Plus } from "lucide-react"
 
@@ -11,6 +11,7 @@ import { paymentSchema, type PaymentFormData } from "@/lib/validators/finance"
 import { createPayment } from "@/actions/finance"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { DatePicker } from "@/components/ui/date-picker"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import {
@@ -54,6 +55,7 @@ export function PaymentForm({ invoiceId, invoiceNumber, outstanding, trigger }: 
   const {
     register,
     handleSubmit,
+    control,
     setValue,
     watch,
     reset,
@@ -150,7 +152,13 @@ export function PaymentForm({ invoiceId, invoiceNumber, outstanding, trigger }: 
 
           <div className="space-y-1.5">
             <Label htmlFor="payment_date">Payment Date *</Label>
-            <Input id="payment_date" type="date" {...register("payment_date")} />
+            <Controller
+              control={control}
+              name="payment_date"
+              render={({ field }) => (
+                <DatePicker value={field.value} onChange={field.onChange} />
+              )}
+            />
             {errors.payment_date && (
               <p className="text-xs text-destructive">{errors.payment_date.message}</p>
             )}

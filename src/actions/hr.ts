@@ -104,6 +104,30 @@ export async function deleteShift(id: string) {
 
 // ===== Attendance =====
 
+export async function getAttendanceForDate(date: string) {
+  const supabase = await createClient()
+
+  const [workersRes, attRes] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("id, full_name, department")
+      .eq("is_active", true)
+      .order("full_name"),
+    supabase.from("attendance").select("*").eq("date", date),
+  ])
+
+  const workers = workersRes.data ?? []
+  const attMap = new Map((attRes.data ?? []).map((a) => [a.worker_id, a]))
+
+  return workers.map((w) => ({
+    workerId: w.id,
+    workerName: w.full_name,
+    department: w.department as string | null,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    attendance: (attMap.get(w.id) as any) ?? null,
+  }))
+}
+
 export async function getAttendance(filters?: { date?: string; date_from?: string; date_to?: string; worker_id?: string }) {
   const supabase = await createClient()
   let query = supabase
@@ -349,6 +373,82 @@ export async function deletePayroll(id: string) {
 
   revalidatePath("/hr/payroll")
   return { success: true }
+}
+
+// ===== HR Overview =====
+
+export async function getHROverview() {
+  const supabase = await createClient()
+  const today = new Date().toISOString().split("T")[0]
+  const now = new Date()
+  const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`
+  const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1)
+  const monthEnd = nextMonth.toISOString().split("T")[0]
+
+  const [workersRes, todayAttRes, pendingLeavesRes, monthOTRes] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("id, full_name, department, role")
+      .eq("is_active", true)
+      .order("full_name"),
+    supabase
+      .from("attendance")
+      .select("*, worker:profiles(id, full_name, department)")
+      .eq("date", today),
+    supabase
+      .from("leaves")
+      .select("*, worker:profiles!worker_id(id, full_name, department)")
+      .eq("status", "pending")
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("attendance")
+      .select("worker_id, overtime_hours")
+      .gte("date", monthStart)
+      .lt("date", monthEnd)
+      .gt("overtime_hours", 0),
+  ])
+
+  const workers = workersRes.data ?? []
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const todayAtt = (todayAttRes.data ?? []).map((a: any) => ({
+    ...a,
+    worker: Array.isArray(a.worker) ? a.worker[0] ?? null : a.worker,
+  }))
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const pendingLeaves = (pendingLeavesRes.data ?? []).map((l: any) => ({
+    ...l,
+    worker: Array.isArray(l.worker) ? l.worker[0] ?? null : l.worker,
+  }))
+
+  const monthOT = monthOTRes.data ?? []
+
+  const markedIds = new Set(todayAtt.map((a: { worker_id: string }) => a.worker_id))
+  const present = todayAtt.filter((a: { status: string }) => a.status === "present").length
+  const absent = todayAtt.filter((a: { status: string }) => a.status === "absent").length
+  const halfDay = todayAtt.filter((a: { status: string }) => a.status === "half_day").length
+  const onLeave = todayAtt.filter((a: { status: string }) => a.status === "leave").length
+  const unmarked = workers.filter((w) => !markedIds.has(w.id)).length
+
+  const otByWorker: Record<string, number> = {}
+  for (const r of monthOT) {
+    otByWorker[r.worker_id] = (otByWorker[r.worker_id] ?? 0) + (r.overtime_hours ?? 0)
+  }
+
+  return {
+    totalWorkers: workers.length,
+    present,
+    absent,
+    halfDay,
+    onLeave,
+    unmarked,
+    workers,
+    todayAtt,
+    unmarkedWorkers: workers.filter((w) => !markedIds.has(w.id)),
+    pendingLeaves,
+    otByWorker,
+  }
 }
 
 // Helper: compute attendance summary for a worker over a period

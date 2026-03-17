@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { useForm } from "react-hook-form"
+import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Loader2, Plus, Pencil } from "lucide-react"
 
@@ -12,6 +12,7 @@ import { createShift, updateShift } from "@/actions/hr"
 import type { Shift } from "@/lib/supabase/types"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { TimePicker } from "@/components/ui/time-picker"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import {
@@ -36,6 +37,7 @@ export function ShiftForm({ existing, trigger }: ShiftFormProps) {
   const {
     register,
     handleSubmit,
+    control,
     reset,
     formState: { errors },
   } = useForm<ShiftFormData>({
@@ -98,14 +100,26 @@ export function ShiftForm({ existing, trigger }: ShiftFormProps) {
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="start_time">Start Time *</Label>
-              <Input id="start_time" type="time" {...register("start_time")} />
+              <Controller
+                control={control}
+                name="start_time"
+                render={({ field }) => (
+                  <TimePicker value={field.value} onChange={field.onChange} />
+                )}
+              />
               {errors.start_time && (
                 <p className="text-xs text-destructive">{errors.start_time.message}</p>
               )}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="end_time">End Time *</Label>
-              <Input id="end_time" type="time" {...register("end_time")} />
+              <Controller
+                control={control}
+                name="end_time"
+                render={({ field }) => (
+                  <TimePicker value={field.value} onChange={field.onChange} />
+                )}
+              />
               {errors.end_time && (
                 <p className="text-xs text-destructive">{errors.end_time.message}</p>
               )}

@@ -2,10 +2,12 @@
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
 import { useCallback } from "react"
+import { ChevronLeft, ChevronRight, X } from "lucide-react"
+import { format, addDays, parseISO } from "date-fns"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
-import { X } from "lucide-react"
+import { DatePicker } from "@/components/ui/date-picker"
 
 interface AttendanceDateFilterProps {
   value: string
@@ -48,12 +50,13 @@ export function HRDateFilter({ value, type }: DateFilterProps) {
       <div className="flex items-end gap-2">
         <div className="space-y-1">
           <Label className="text-xs text-muted-foreground">Filter by date</Label>
-          <Input
-            type="date"
-            value={value}
-            onChange={(e) => updateParam("date", e.target.value)}
-            className="h-9 w-44"
-          />
+          <div className="w-44">
+            <DatePicker
+              value={value || undefined}
+              onChange={(v) => updateParam("date", v)}
+              placeholder="Pick a date"
+            />
+          </div>
         </div>
         {value && (
           <Button variant="ghost" size="icon" className="h-9 w-9" onClick={clear}>
@@ -64,7 +67,7 @@ export function HRDateFilter({ value, type }: DateFilterProps) {
     )
   }
 
-  // month filter
+  // month filter (used by payroll page)
   return (
     <div className="flex items-end gap-2">
       <div className="space-y-1">
@@ -79,6 +82,65 @@ export function HRDateFilter({ value, type }: DateFilterProps) {
       {value && (
         <Button variant="ghost" size="icon" className="h-9 w-9" onClick={clear}>
           <X className="h-4 w-4" />
+        </Button>
+      )}
+    </div>
+  )
+}
+
+// ===== Attendance date navigation (prev/next/today) =====
+
+interface AttendanceDateNavProps {
+  date: string // YYYY-MM-DD, always provided
+}
+
+export function AttendanceDateNav({ date }: AttendanceDateNavProps) {
+  const router = useRouter()
+  const pathname = usePathname()
+
+  const today = new Date().toISOString().split("T")[0]
+  const isToday = date === today
+
+  function navigate(offset: number) {
+    const d = addDays(parseISO(date), offset)
+    router.push(`${pathname}?date=${format(d, "yyyy-MM-dd")}`)
+  }
+
+  function jumpToDate(newDate: string) {
+    router.push(`${pathname}?date=${newDate}`)
+  }
+
+  return (
+    <div className="flex items-center gap-1">
+      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(-1)}>
+        <ChevronLeft className="h-4 w-4" />
+      </Button>
+
+      <DatePicker
+        value={date}
+        onChange={jumpToDate}
+        disableFuture
+        className="min-w-[170px] h-8"
+      />
+
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-8 w-8"
+        onClick={() => navigate(1)}
+        disabled={isToday}
+      >
+        <ChevronRight className="h-4 w-4" />
+      </Button>
+
+      {!isToday && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 ml-1"
+          onClick={() => router.push(pathname)}
+        >
+          Today
         </Button>
       )}
     </div>

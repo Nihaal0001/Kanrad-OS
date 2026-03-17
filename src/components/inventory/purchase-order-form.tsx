@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { useForm, useFieldArray } from "react-hook-form"
+import { useForm, useFieldArray, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Plus, X } from "lucide-react"
 
@@ -17,6 +17,7 @@ import type { Material } from "@/lib/supabase/types"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { DatePicker } from "@/components/ui/date-picker"
 import { Label } from "@/components/ui/label"
 import {
   Card,
@@ -136,10 +137,12 @@ export function PurchaseOrderForm({ materials }: PurchaseOrderFormProps) {
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="order_date">Order Date</Label>
-              <Input
-                id="order_date"
-                type="date"
-                {...form.register("order_date")}
+              <Controller
+                control={form.control}
+                name="order_date"
+                render={({ field }) => (
+                  <DatePicker value={field.value ?? ""} onChange={field.onChange} />
+                )}
               />
               {form.formState.errors.order_date && (
                 <p className="text-sm text-destructive">
@@ -149,10 +152,12 @@ export function PurchaseOrderForm({ materials }: PurchaseOrderFormProps) {
             </div>
             <div className="space-y-2">
               <Label htmlFor="expected_date">Expected Delivery</Label>
-              <Input
-                id="expected_date"
-                type="date"
-                {...form.register("expected_date")}
+              <Controller
+                control={form.control}
+                name="expected_date"
+                render={({ field }) => (
+                  <DatePicker value={field.value ?? ""} onChange={field.onChange} />
+                )}
               />
             </div>
           </div>

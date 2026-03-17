@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { useForm, useFieldArray } from "react-hook-form"
+import { useForm, useFieldArray, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Plus, X } from "lucide-react"
 
@@ -14,6 +14,7 @@ import type { OrderDetail } from "@/lib/supabase/types"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { DatePicker } from "@/components/ui/date-picker"
 import { Label } from "@/components/ui/label"
 import {
   Card,
@@ -194,10 +195,12 @@ export function OrderForm({ order, buyers }: OrderFormProps) {
             {/* Deadline */}
             <div className="space-y-2">
               <Label htmlFor="deadline">Deadline</Label>
-              <Input
-                id="deadline"
-                type="date"
-                {...form.register("deadline")}
+              <Controller
+                control={form.control}
+                name="deadline"
+                render={({ field }) => (
+                  <DatePicker value={field.value ?? ""} onChange={field.onChange} />
+                )}
               />
               {form.formState.errors.deadline && (
                 <p className="text-sm text-destructive">

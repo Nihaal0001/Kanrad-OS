@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/shared/page-header"
 import { EmptyState } from "@/components/shared/empty-state"
 import { ExpenseActions } from "@/components/finance/expense-actions"
 import { ExportButton } from "@/components/finance/export-button"
+import { ExpenseFilters } from "@/components/finance/expense-filters"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -71,42 +72,12 @@ export default async function ExpensesPage({
       </PageHeader>
 
       {/* Filters */}
-      <form className="mb-4 flex flex-wrap gap-3">
-        <select
-          name="category"
-          defaultValue={params.category ?? ""}
-          className="rounded-md border bg-background px-3 py-1.5 text-sm"
-        >
-          <option value="">All categories</option>
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
-        <input
-          type="date"
-          name="from"
-          defaultValue={params.from ?? ""}
-          className="rounded-md border bg-background px-3 py-1.5 text-sm"
-        />
-        <input
-          type="date"
-          name="to"
-          defaultValue={params.to ?? ""}
-          className="rounded-md border bg-background px-3 py-1.5 text-sm"
-        />
-        <Button type="submit" variant="outline" size="sm">
-          Filter
-        </Button>
-        {(params.category || params.from || params.to) && (
-          <Link href="/finance/expenses">
-            <Button type="button" variant="ghost" size="sm">
-              Clear
-            </Button>
-          </Link>
-        )}
-      </form>
+      <ExpenseFilters
+        categories={categories}
+        currentCategory={params.category}
+        currentFrom={params.from}
+        currentTo={params.to}
+      />
 
       {expenses.length === 0 ? (
         <EmptyState

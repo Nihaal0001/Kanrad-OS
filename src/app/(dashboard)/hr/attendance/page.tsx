@@ -1,88 +1,120 @@
-import { Clock } from "lucide-react"
-
-import { getAttendance, getWorkers } from "@/actions/hr"
+import { getAttendanceForDate, getWorkers } from "@/actions/hr"
 import { PageHeader } from "@/components/shared/page-header"
-import { EmptyState } from "@/components/shared/empty-state"
 import { AttendanceForm } from "@/components/hr/attendance-form"
-import { HRDateFilter } from "@/components/hr/date-filter"
-import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+import { AttendanceDateNav } from "@/components/hr/date-filter"
+import { AttendanceStatusSection } from "@/components/hr/attendance-status-section"
+import { DayChangeRefresh } from "@/components/hr/day-change-refresh"
 import { cn } from "@/lib/utils"
-
-const STATUS_STYLES: Record<string, string> = {
-  present: "bg-emerald-100 text-emerald-700",
-  absent: "bg-red-100 text-red-700",
-  half_day: "bg-amber-100 text-amber-700",
-  leave: "bg-blue-100 text-blue-700",
-}
-
-const STATUS_LABELS: Record<string, string> = {
-  present: "Present",
-  absent: "Absent",
-  half_day: "Half Day",
-  leave: "On Leave",
-}
 
 interface Props {
   searchParams: Promise<{ date?: string }>
 }
 
+const SUMMARY_PILLS = [
+  { key: "present", label: "Present", cls: "border border-emerald-500 text-emerald-600" },
+  { key: "leave", label: "On Leave", cls: "border border-blue-500 text-blue-600" },
+  { key: "half_day", label: "Half Day", cls: "border border-amber-500 text-amber-600" },
+  { key: "absent", label: "Absent", cls: "border border-red-500 text-red-600" },
+  {
+    key: "not_marked",
+    label: "Not Marked",
+    cls: "border border-muted-foreground text-muted-foreground",
+  },
+] as const
+
 export default async function AttendancePage({ searchParams }: Props) {
   const { date } = await searchParams
-  const [records, workers] = await Promise.all([
-    getAttendance(date ? { date } : undefined),
+  const today = new Date().toISOString().split("T")[0]
+  const effectiveDate = date ?? today
+
+  const [rows, workers] = await Promise.all([
+    getAttendanceForDate(effectiveDate),
     getWorkers(),
   ])
 
+  const counts = {
+    present: rows.filter((r) => r.attendance?.status === "present").length,
+    leave: rows.filter((r) => r.attendance?.status === "leave").length,
+    half_day: rows.filter((r) => r.attendance?.status === "half_day").length,
+    absent: rows.filter((r) => r.attendance?.status === "absent").length,
+    not_marked: rows.filter((r) => r.attendance === null).length,
+  }
+
+  const grouped = {
+    present: rows.filter((r) => r.attendance?.status === "present"),
+    leave: rows.filter((r) => r.attendance?.status === "leave"),
+    half_day: rows.filter((r) => r.attendance?.status === "half_day"),
+    absent: rows.filter((r) => r.attendance?.status === "absent"),
+    not_marked: rows.filter((r) => r.attendance === null),
+  }
+
   return (
     <>
-      <PageHeader
-        title="Attendance"
-        description="Daily attendance and overtime tracking"
-      >
-        <HRDateFilter type="date" value={date ?? ""} />
-        <AttendanceForm workers={workers} />
+      <PageHeader title="Attendance" description="Daily attendance and overtime tracking">
+        <AttendanceDateNav date={effectiveDate} />
+        <AttendanceForm workers={workers} defaultDate={effectiveDate} />
       </PageHeader>
 
-      {records.length === 0 ? (
-        <EmptyState
-          icon={Clock}
-          title="No attendance records"
-          description={date ? `No records for ${date}` : "Mark today's attendance to get started"}
-        />
-      ) : (
-        <div className="space-y-2">
-          <div className="hidden grid-cols-[1.5fr_1fr_1fr_1fr_1fr_1fr] gap-4 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide sm:grid">
-            <span>Worker</span>
-            <span>Date</span>
-            <span>Status</span>
-            <span>Check In</span>
-            <span>Check Out</span>
-            <span>OT Hours</span>
+      {/* Summary pills */}
+      <div className="mb-5 flex flex-wrap gap-2">
+        {SUMMARY_PILLS.map((pill) => (
+          <div
+            key={pill.key}
+            className={cn(
+              "flex items-center gap-1.5 rounded-full bg-transparent px-3 py-1 text-sm font-medium",
+              pill.cls
+            )}
+          >
+            <span className="font-bold">{counts[pill.key]}</span>
+            <span>{pill.label}</span>
           </div>
+        ))}
+      </div>
 
-          {records.map((r) => (
-            <Card key={r.id}>
-              <CardContent className="grid grid-cols-[1.5fr_1fr_1fr_1fr_1fr_1fr] items-center gap-4 p-4">
-                <div>
-                  <p className="text-sm font-medium">{r.worker?.full_name ?? "—"}</p>
-                  {r.worker?.department && (
-                    <p className="text-xs text-muted-foreground">{r.worker.department}</p>
-                  )}
-                </div>
-                <p className="text-sm text-muted-foreground">{r.date}</p>
-                <Badge className={cn("w-fit text-xs font-medium", STATUS_STYLES[r.status])}>
-                  {STATUS_LABELS[r.status] ?? r.status}
-                </Badge>
-                <p className="text-sm text-muted-foreground">{r.check_in ?? "—"}</p>
-                <p className="text-sm text-muted-foreground">{r.check_out ?? "—"}</p>
-                <p className="text-sm text-muted-foreground">
-                  {r.overtime_hours > 0 ? `${r.overtime_hours}h` : "—"}
-                </p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+      {/* Auto-refresh on day change */}
+      <DayChangeRefresh />
+
+      {/* Status sections */}
+      <AttendanceStatusSection
+        status="present"
+        rows={grouped.present}
+        date={effectiveDate}
+        workers={workers}
+        defaultOpen
+      />
+      <AttendanceStatusSection
+        status="leave"
+        rows={grouped.leave}
+        date={effectiveDate}
+        workers={workers}
+        defaultOpen={false}
+      />
+      <AttendanceStatusSection
+        status="half_day"
+        rows={grouped.half_day}
+        date={effectiveDate}
+        workers={workers}
+        defaultOpen={false}
+      />
+      <AttendanceStatusSection
+        status="absent"
+        rows={grouped.absent}
+        date={effectiveDate}
+        workers={workers}
+        defaultOpen={false}
+      />
+      <AttendanceStatusSection
+        status="not_marked"
+        rows={grouped.not_marked}
+        date={effectiveDate}
+        workers={workers}
+        defaultOpen
+      />
+
+      {rows.length === 0 && (
+        <p className="mt-12 text-center text-sm text-muted-foreground">
+          No active workers found.
+        </p>
       )}
     </>
   )

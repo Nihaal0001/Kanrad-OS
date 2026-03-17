@@ -68,6 +68,7 @@ export const navigation: NavGroup[] = [
   {
     label: "HR",
     items: [
+      { title: "Overview", href: "/hr", icon: Users, permission: "hr" },
       { title: "Attendance", href: "/hr/attendance", icon: Clock, permission: "hr" },
       { title: "QR Kiosk", href: "/kiosk", icon: QrCode, permission: "hr" },
       { title: "Scan QR", href: "/scan", icon: ScanLine },
