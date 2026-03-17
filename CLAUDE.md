@@ -188,3 +188,21 @@ Goal: full financial visibility for owner + CA-ready exports + AI expense anomal
 - `xlsx` lazy-imported in `downloadExcel`; `exceljs` used in `downloadExcelStyled` for styled multi-sheet exports
 - Dark mode in recharts: always use `useTheme` + explicit hex, never CSS variables in SVG attributes
 - Dark mode in dynamic badge strings: use border-only Tailwind classes (no `dark:` prefix in JS object values)
+
+## Feature Roadmap (20 features, 6 phases)
+Full details in `docs/ROADMAP.md`. Summary:
+
+- **Phase 1 — Trust & Compliance**: Audit trail, HSN/SAC codes, full data export, journal & ledger entries (double-entry)
+- **Phase 2 — Daily Operations**: Customers & Suppliers directory, delivery challan, packing slip, dispatch details, copy/repeat order
+- **Phase 3 — Inventory & Costing**: Wastage/scrap tracking, PO↔purchase invoice matching, enhanced order costing
+- **Phase 4 — Notifications**: Email notifications, WhatsApp integration, worker payslip delivery
+- **Phase 5 — Demo Polish**: Buyer portal (token-based read-only order status)
+- **Phase 6 — Financial Maturity**: Credit notes/returns, Tally XML export, e-invoice (GST portal), bank reconciliation
+
+## Multi-Client Strategy
+- "Just Clothing" = demo/template for garment manufacturing
+- Multi-industry: adapted per client (food, furniture, leather, pharma, etc.) via git branches
+- Each client: own Supabase project + Vercel deployment, branched off `main`
+- Branding changes: ~15 files with "JUST CLOTHING" + CSS color palette swap
+- Bug fixes/features on `main` → merge to client branches
+- At 10+ clients: move to `client.config.ts` for zero-code branding
