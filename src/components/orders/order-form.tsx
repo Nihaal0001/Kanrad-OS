@@ -60,8 +60,9 @@ export function OrderForm({ order, buyers }: OrderFormProps) {
             color: item.color,
             quantity: item.quantity,
             unit_price: item.unit_price,
+            hsn_code: item.hsn_code ?? "",
           }))
-        : [{ size: "", color: "", quantity: 1, unit_price: 0 }],
+        : [{ size: "", color: "", quantity: 1, unit_price: 0, hsn_code: "" }],
     },
   })
 
@@ -266,9 +267,10 @@ export function OrderForm({ order, buyers }: OrderFormProps) {
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Column headers for desktop */}
-          <div className="hidden sm:grid sm:grid-cols-[1fr_1fr_100px_120px_40px] sm:gap-3 sm:px-1">
+          <div className="hidden sm:grid sm:grid-cols-[1fr_1fr_90px_90px_120px_40px] sm:gap-3 sm:px-1">
             <Label className="text-xs text-muted-foreground">Size</Label>
             <Label className="text-xs text-muted-foreground">Color</Label>
+            <Label className="text-xs text-muted-foreground">HSN/SAC</Label>
             <Label className="text-xs text-muted-foreground">Quantity</Label>
             <Label className="text-xs text-muted-foreground">Unit Price</Label>
             <span />
@@ -277,7 +279,7 @@ export function OrderForm({ order, buyers }: OrderFormProps) {
           {fields.map((field, index) => (
             <div
               key={field.id}
-              className="grid gap-3 sm:grid-cols-[1fr_1fr_100px_120px_40px] items-start"
+              className="grid gap-3 sm:grid-cols-[1fr_1fr_90px_90px_120px_40px] items-start"
             >
               {/* Size */}
               <div className="space-y-1">
@@ -324,6 +326,15 @@ export function OrderForm({ order, buyers }: OrderFormProps) {
                     {form.formState.errors.items[index]?.color?.message}
                   </p>
                 )}
+              </div>
+
+              {/* HSN/SAC Code */}
+              <div className="space-y-1">
+                <Label className="sm:hidden text-xs text-muted-foreground">HSN/SAC</Label>
+                <Input
+                  placeholder="e.g. 6205"
+                  {...form.register(`items.${index}.hsn_code`)}
+                />
               </div>
 
               {/* Quantity */}
@@ -395,7 +406,7 @@ export function OrderForm({ order, buyers }: OrderFormProps) {
             variant="outline"
             size="sm"
             onClick={() =>
-              append({ size: "", color: "", quantity: 1, unit_price: 0 })
+              append({ size: "", color: "", quantity: 1, unit_price: 0, hsn_code: "" })
             }
           >
             <Plus className="mr-2 h-4 w-4" />

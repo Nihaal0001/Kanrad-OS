@@ -23,6 +23,11 @@ import {
   BarChart3,
   IndianRupee,
   ArrowLeftRight,
+  BookOpen,
+  Scale,
+  History,
+  UserCircle,
+  Truck,
   type LucideIcon,
 } from "lucide-react"
 
@@ -45,6 +50,8 @@ export const navigation: NavGroup[] = [
     items: [
       { title: "Dashboard", href: "/", icon: LayoutDashboard, permission: "dashboard" },
       { title: "Orders", href: "/orders", icon: ShoppingBag, permission: "orders" },
+      { title: "Customers", href: "/customers", icon: UserCircle, permission: "orders" },
+      { title: "Suppliers", href: "/suppliers", icon: Truck, permission: "inventory" },
       { title: "Inventory", href: "/inventory", icon: Package, permission: "inventory" },
       { title: "Purchase Orders", href: "/inventory/purchase-orders", icon: ShoppingCart, permission: "inventory" },
       { title: "PO Approvals", href: "/inventory/approvals", icon: ClipboardCheck, permission: "inventory" },
@@ -63,6 +70,9 @@ export const navigation: NavGroup[] = [
       { title: "Cash Flow", href: "/finance/cash-flow", icon: ArrowLeftRight, permission: "finance" },
       { title: "Costing", href: "/finance/costing", icon: Calculator, permission: "finance" },
       { title: "Reports", href: "/finance/reports", icon: BarChart3, permission: "finance" },
+      { title: "Journal", href: "/finance/journal", icon: BookOpen, permission: "finance" },
+      { title: "Ledger", href: "/finance/ledger", icon: Scale, permission: "finance" },
+      { title: "Trial Balance", href: "/finance/trial-balance", icon: BarChart3, permission: "finance" },
     ],
   },
   {
@@ -80,6 +90,7 @@ export const navigation: NavGroup[] = [
   {
     label: "",
     items: [
+      { title: "Audit Log", href: "/audit", icon: History, permission: "settings" },
       { title: "Notifications", href: "/notifications", icon: Bell, permission: "notifications" },
       { title: "Users", href: "/users", icon: Users, permission: "users" },
       { title: "Settings", href: "/settings", icon: Settings, permission: "settings" },

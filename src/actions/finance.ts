@@ -10,6 +10,7 @@ import {
   type PaymentFormData,
   type CostingFormData,
 } from "@/lib/validators/finance"
+import { logAudit } from "@/actions/audit"
 
 // ===== Invoices =====
 
@@ -95,6 +96,7 @@ export async function createInvoice(formData: InvoiceFormData) {
   if (itemsErr) return { error: itemsErr.message }
 
   revalidatePath("/finance/invoices")
+  await logAudit({ entityType: "invoice", entityId: invoice.id, entityLabel: invoice.invoice_number, action: "created" })
   return { data: invoice }
 }
 
@@ -119,6 +121,7 @@ export async function updateInvoiceStatus(id: string, status: string) {
 
   revalidatePath("/finance/invoices")
   revalidatePath(`/finance/invoices/${id}`)
+  await logAudit({ entityType: "invoice", entityId: id, action: "status_changed", newValues: { status } })
   return { success: true }
 }
 
@@ -132,6 +135,7 @@ export async function deleteInvoice(id: string) {
   if (error) return { error: error.message }
 
   revalidatePath("/finance/invoices")
+  await logAudit({ entityType: "invoice", entityId: id, action: "deleted" })
   return { success: true }
 }
 
@@ -222,6 +226,7 @@ export async function createPayment(formData: PaymentFormData) {
   revalidatePath("/finance/invoices")
   revalidatePath("/finance/cash-flow")
   revalidatePath("/finance")
+  await logAudit({ entityType: "payment", entityId: data.id, action: "created", newValues: { amount: validated.amount, method: validated.method, invoice_id: validated.invoice_id } })
   return { data }
 }
 

@@ -5,6 +5,7 @@ export const orderItemSchema = z.object({
   color: z.string().min(1, "Color is required"),
   quantity: z.number().int().min(1, "Quantity must be at least 1"),
   unit_price: z.number().min(0, "Price cannot be negative"),
+  hsn_code: z.string().optional().or(z.literal("")),
 })
 
 export const orderSchema = z.object({

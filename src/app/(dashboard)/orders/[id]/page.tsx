@@ -162,6 +162,47 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
             </CardContent>
           </Card>
 
+          {/* Dispatch Details — shown when dispatched */}
+          {order.status === "dispatched" && (order.transporter_name || order.lr_number || order.vehicle_number || order.dispatch_date) && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Dispatch Details</CardTitle>
+              </CardHeader>
+              <CardContent className="grid gap-4 sm:grid-cols-2">
+                {order.transporter_name && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Transporter</p>
+                    <p className="font-medium">{order.transporter_name}</p>
+                  </div>
+                )}
+                {order.lr_number && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">LR Number</p>
+                    <p className="font-mono text-sm">{order.lr_number}</p>
+                  </div>
+                )}
+                {order.vehicle_number && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Vehicle Number</p>
+                    <p className="font-mono text-sm">{order.vehicle_number}</p>
+                  </div>
+                )}
+                {order.dispatch_date && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Dispatch Date</p>
+                    <p>{formatDate(order.dispatch_date)}</p>
+                  </div>
+                )}
+                {order.expected_delivery_date && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Expected Delivery</p>
+                    <p>{formatDate(order.expected_delivery_date)}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
           {/* Items Table */}
           <Card>
             <CardHeader>

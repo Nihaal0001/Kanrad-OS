@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { OrgSettingsForm } from "./org-settings-form"
 import { KioskSettingsForm } from "./kiosk-settings-form"
 import { getOrgSettings, getOfficeLocation } from "./actions"
+import { ExportAllButton } from "@/components/settings/export-all-button"
 
 const MODULES = [
   { name: "Orders & Buyers", status: "active" },
@@ -86,7 +87,7 @@ export default async function SettingsPage() {
             </div>
             <div className="flex items-center justify-between rounded-lg border border-border p-3 text-sm">
               <span className="text-muted-foreground">Migrations Applied</span>
-              <span className="font-medium">00001 — 00008</span>
+              <span className="font-medium">00001 — 00014</span>
             </div>
             <div className="flex items-center justify-between rounded-lg border border-border p-3 text-sm">
               <span className="text-muted-foreground">RLS</span>
@@ -94,6 +95,19 @@ export default async function SettingsPage() {
                 Authenticated users only
               </Badge>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Data Export */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Data Export</CardTitle>
+            <CardDescription>
+              Export all your ERP data as a multi-sheet Excel file — orders, invoices, materials, HR, audit log, and more.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ExportAllButton />
           </CardContent>
         </Card>
 

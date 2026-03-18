@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
 import { orderSchema, type OrderFormData } from "@/lib/validators/order"
+import { logAudit } from "@/actions/audit"
+import type { OrderItem } from "@/lib/supabase/types"
 
 export async function getOrders(filters?: {
   status?: string
@@ -79,6 +81,7 @@ export async function createOrder(formData: OrderFormData) {
     color: item.color,
     quantity: item.quantity,
     unit_price: item.unit_price,
+    hsn_code: item.hsn_code || null,
   }))
 
   const { error: itemsError } = await supabase
@@ -93,6 +96,7 @@ export async function createOrder(formData: OrderFormData) {
 
   revalidatePath("/orders")
   revalidatePath("/")
+  await logAudit({ entityType: "order", entityId: order.id, entityLabel: order.order_number, action: "created", newValues: cleaned })
   return { data: order }
 }
 
@@ -131,6 +135,7 @@ export async function updateOrder(id: string, formData: OrderFormData) {
     color: item.color,
     quantity: item.quantity,
     unit_price: item.unit_price,
+    hsn_code: item.hsn_code || null,
   }))
 
   const { error: itemsError } = await supabase
@@ -142,6 +147,7 @@ export async function updateOrder(id: string, formData: OrderFormData) {
   revalidatePath("/orders")
   revalidatePath(`/orders/${id}`)
   revalidatePath("/")
+  await logAudit({ entityType: "order", entityId: id, action: "updated", newValues: cleaned })
   return { success: true }
 }
 
@@ -166,6 +172,7 @@ export async function updateOrderStatus(id: string, status: string) {
   revalidatePath("/orders")
   revalidatePath(`/orders/${id}`)
   revalidatePath("/")
+  await logAudit({ entityType: "order", entityId: id, action: "status_changed", newValues: { status } })
   return { success: true }
 }
 
@@ -181,5 +188,63 @@ export async function deleteOrder(id: string) {
 
   revalidatePath("/orders")
   revalidatePath("/")
+  await logAudit({ entityType: "order", entityId: id, action: "deleted" })
   return { success: true }
+}
+
+export async function duplicateOrder(id: string) {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
+  // Fetch original order with items
+  const { data: original, error: fetchError } = await supabase
+    .from("orders")
+    .select("*, order_items(*)")
+    .eq("id", id)
+    .single()
+
+  if (fetchError || !original) return { error: "Order not found" }
+
+  // Create new order (draft), clearing dispatch fields
+  const { data: newOrder, error: createError } = await supabase
+    .from("orders")
+    .insert({
+      buyer_id: original.buyer_id,
+      style_name: original.style_name,
+      description: original.description,
+      total_quantity: original.total_quantity,
+      deadline: original.deadline,
+      priority: original.priority,
+      notes: original.notes,
+      customer_id: original.customer_id,
+      status: "draft",
+      order_number: "", // trigger sets this
+    })
+    .select()
+    .single()
+
+  if (createError || !newOrder) return { error: createError?.message ?? "Failed to create order" }
+
+  // Duplicate items
+  if (original.order_items?.length) {
+    const items = original.order_items.map((item: OrderItem) => ({
+      order_id: newOrder.id,
+      size: item.size,
+      color: item.color,
+      quantity: item.quantity,
+      unit_price: item.unit_price,
+      hsn_code: item.hsn_code,
+    }))
+    const { error: itemsError } = await supabase.from("order_items").insert(items)
+    if (itemsError) {
+      await supabase.from("orders").delete().eq("id", newOrder.id)
+      return { error: itemsError.message }
+    }
+  }
+
+  revalidatePath("/orders")
+  await logAudit({ entityType: "order", entityId: newOrder.id, entityLabel: newOrder.order_number, action: "created", newValues: { duplicated_from: id } })
+  return { data: newOrder }
 }

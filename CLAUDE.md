@@ -91,17 +91,15 @@ Phase 9: Polish + Deploy
 ## Supabase
 - Project ref: `spwighzxkaeibutmijus`
 - Migration files must be run manually by the user in the Supabase SQL Editor
-- Migrations run: `00001` through `00006` confirmed. `00007_auth_rls.sql` written but **not yet run**
-- `00013_finance_upgrade.sql` written but **not yet run** — adds 5 new tables for Finance Upgrade
-- Tables: profiles, buyers, orders, order_items, order_materials, material_categories, materials, stock_transactions, purchase_orders, purchase_order_items, production_stages, production_tracking, quality_checks, tasks, notifications, invoices, invoice_items, payments, order_costings, shifts, worker_shifts, attendance, leaves, payroll
-- Finance upgrade tables (pending migration): expense_categories, expenses, purchase_invoices, purchase_invoice_items, purchase_payments
+- Migrations run: `00001` through `00007`, `00010`, `00013` confirmed. `00014_phase1_trust_compliance.sql` written but **not yet run**
+- Tables: profiles, buyers, orders, order_items, order_materials, material_categories, materials, stock_transactions, purchase_orders, purchase_order_items, production_stages, production_tracking, quality_checks, tasks, notifications, invoices, invoice_items, payments, order_costings, shifts, worker_shifts, attendance, leaves, payroll, expense_categories, expenses, purchase_invoices, purchase_invoice_items, purchase_payments
+- Phase 1 tables (pending migration 00014): audit_logs, hsn_master, chart_of_accounts, journal_entries, journal_entry_lines
 
 ## Known Issues & Quirks
 - **Turbopack cache corruption**: If you get `ENOENT: build-manifest.json` errors, run `rm -rf .next && npm run dev`
 - **Radix Select**: Never use `value=""` on `<SelectItem>` — use `"none"` as sentinel and map it back
 - **Zod v4**: Don't use `required_error` on `z.number()` — it's not valid in Zod v4
 - **Supabase joins**: `leaves` table has two FKs to `profiles` (worker_id, approved_by) — must use `profiles!worker_id` hint
-- **Migration 00007 not run**: `auth_id` column doesn't exist yet on profiles. Dashboard falls back gracefully (shows email as name) but run the migration to get proper profile data
 - **Dev diagnostic route**: `src/app/api/dev/auth-status/route.ts` exists for debugging — delete before deploying to production
 - **Production trigger fires on UPDATE only**: The `on_order_confirmed` trigger only fires on status UPDATE, not INSERT. Orders created directly as "confirmed" won't auto-get tracking rows from the trigger. Fixed in code: `getOrderProduction` now auto-creates tracking rows on first load if none exist.
 
@@ -146,11 +144,11 @@ Phase 9: Polish + Deploy
 - `getUserByEmail` doesn't exist in Supabase Admin API — replaced with `listUsers()` + `.find()` in `src/app/auth/login/actions.ts`
 
 ## Next Steps
-1. **Run migration `00007_auth_rls.sql`** in Supabase SQL Editor (adds auth_id, trigger, proper RLS)
-2. **Run migration `00010_qr_attendance.sql`** in Supabase SQL Editor (QR attendance logs table)
-3. **Run migration `00013_finance_upgrade.sql`** in Supabase SQL Editor (expense_categories, expenses, purchase_invoices, purchase_invoice_items, purchase_payments)
-4. **Create `receipts` storage bucket** in Supabase dashboard (for expense receipt uploads)
-5. **Delete** `src/app/api/dev/auth-status/route.ts` before production deploy
+1. **Run migration `00014_phase1_trust_compliance.sql`** in Supabase SQL Editor (audit_logs, hsn_master, chart_of_accounts, journal_entries, journal_entry_lines + 5 DB triggers)
+2. **Create `receipts` storage bucket** in Supabase dashboard (for expense receipt uploads)
+3. **Delete** `src/app/api/dev/auth-status/route.ts` before production deploy
+4. **Finance Upgrade remaining** — ExportButton on list pages, KYRE finance tools in `agent.ts`, `purchase_invoice_overdue` notification type
+5. **Roadmap Phase 2** — Customers & Suppliers directory, delivery challan, packing slip, dispatch details, copy/repeat order
 6. **Phase 11** — Deploy to Vercel
 
 ## Finance Upgrade (In Progress)
@@ -192,12 +190,41 @@ Goal: full financial visibility for owner + CA-ready exports + AI expense anomal
 ## Feature Roadmap (20 features, 6 phases)
 Full details in `docs/ROADMAP.md`. Summary:
 
-- **Phase 1 — Trust & Compliance**: Audit trail, HSN/SAC codes, full data export, journal & ledger entries (double-entry)
+- **Phase 1 — Trust & Compliance**: COMPLETE — see Phase 1 section below
 - **Phase 2 — Daily Operations**: Customers & Suppliers directory, delivery challan, packing slip, dispatch details, copy/repeat order
 - **Phase 3 — Inventory & Costing**: Wastage/scrap tracking, PO↔purchase invoice matching, enhanced order costing
 - **Phase 4 — Notifications**: Email notifications, WhatsApp integration, worker payslip delivery
 - **Phase 5 — Demo Polish**: Buyer portal (token-based read-only order status)
 - **Phase 6 — Financial Maturity**: Credit notes/returns, Tally XML export, e-invoice (GST portal), bank reconciliation
+
+## Phase 1 — Trust & Compliance (COMPLETE)
+
+### Features Delivered
+1. **Audit Trail** — `audit_logs` table (entity_type, entity_id, entity_label, action, old_values, new_values, changed_by, changed_by_name). Hooked into orders, invoices, and payments server actions. UI at `/audit` with filters by module, action, and date range.
+2. **HSN/SAC Codes** — `hsn_master` table seeded with 27 common garment HSN/SAC codes. `hsn_code` column added to `order_items` and `materials`. HSN field added to order form per line item. Invoice items already had `hsn_code`.
+3. **Full Data Export** — Settings page → "Export All Data" exports 18 sheets (Orders, Buyers, Invoice, Payments, Materials, Production, HR, Audit Log, etc.) as styled Excel via `exportAllData()` → `downloadExcelStyled()`.
+4. **Journal & Ledger** — Double-entry accounting: `chart_of_accounts` (26 accounts, 6 types), `journal_entries`, `journal_entry_lines`. DB triggers auto-create journal entries from invoices (sent→), payments, expenses, purchase invoices (received→), purchase payments. UI:
+   - `/finance/journal` — all journal entries, expandable per-entry line view
+   - `/finance/ledger` — account-level ledger with running balance (Dr/Cr)
+   - `/finance/trial-balance` — grouped trial balance, balanced check
+
+### New Files
+- `supabase/migrations/00014_phase1_trust_compliance.sql`
+- `src/actions/audit.ts`, `src/actions/accounting.ts`, `src/actions/export-all.ts`
+- `src/components/audit/audit-log-table.tsx`
+- `src/components/finance/journal-entries-table.tsx`, `ledger-display.tsx`, `trial-balance-table.tsx`
+- `src/components/settings/export-all-button.tsx`
+- `src/app/(dashboard)/audit/page.tsx` + `audit-filters.tsx`
+- `src/app/(dashboard)/finance/journal/page.tsx` + `journal-filters.tsx`
+- `src/app/(dashboard)/finance/ledger/page.tsx` + `ledger-account-selector.tsx`
+- `src/app/(dashboard)/finance/trial-balance/page.tsx` + `trial-balance-filters.tsx`
+
+### Key Conventions (Phase 1)
+- `logAudit()` is fire-and-forget — never blocks main operation, errors are swallowed
+- Journal entries are created by DB triggers (not application code) — automatic and consistent
+- HSN codes on order items are optional — no validation enforced
+- Trial balance uses JS-side date filtering (Supabase limitation: can't filter on joined table columns in nested select)
+- Chart of accounts seeded with 26 accounts across 6 types — admin can add custom via SQL for now
 
 ## Multi-Client Strategy
 - "Just Clothing" = demo/template for garment manufacturing

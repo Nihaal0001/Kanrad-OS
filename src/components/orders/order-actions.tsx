@@ -4,7 +4,7 @@ import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 
 import { toast } from "sonner"
-import { updateOrderStatus, deleteOrder } from "@/actions/orders"
+import { updateOrderStatus, deleteOrder, duplicateOrder } from "@/actions/orders"
 import type { OrderDetail } from "@/lib/supabase/types"
 
 import { Button } from "@/components/ui/button"
@@ -24,7 +24,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { Trash2 } from "lucide-react"
+import { Copy, FileDown, Printer, Trash2 } from "lucide-react"
 
 const statusTransitions: Record<string, { label: string; status: string }[]> = {
   draft: [{ label: "Confirm Order", status: "confirmed" }],
@@ -56,6 +56,18 @@ export function OrderActions({ order }: OrderActionsProps) {
       } else {
         toast.success("Order status updated")
         router.refresh()
+      }
+    })
+  }
+
+  function handleDuplicate() {
+    startTransition(async () => {
+      const result = await duplicateOrder(order.id)
+      if (result && "error" in result && result.error) {
+        toast.error(result.error)
+      } else if (result && "data" in result && result.data) {
+        toast.success("Order duplicated")
+        router.push(`/orders/${result.data.id}`)
       }
     })
   }
@@ -104,6 +116,33 @@ export function OrderActions({ order }: OrderActionsProps) {
           >
             Cancel Order
           </Button>
+        )}
+
+        <Button
+          variant="outline"
+          className="w-full"
+          disabled={isPending}
+          onClick={handleDuplicate}
+        >
+          <Copy className="mr-2 h-4 w-4" />
+          Duplicate Order
+        </Button>
+
+        {(order.status === "dispatched" || order.status === "completed") && (
+          <>
+            <a href={`/api/challan/${order.id}/pdf`} target="_blank" rel="noreferrer">
+              <Button variant="outline" className="w-full">
+                <FileDown className="mr-2 h-4 w-4" />
+                Download Challan
+              </Button>
+            </a>
+            <a href={`/api/packing-slip/${order.id}/pdf`} target="_blank" rel="noreferrer">
+              <Button variant="outline" className="w-full">
+                <Printer className="mr-2 h-4 w-4" />
+                Print Packing Slip
+              </Button>
+            </a>
+          </>
         )}
 
         {(order.status === "draft" || order.status === "cancelled") && (

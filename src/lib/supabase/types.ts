@@ -37,6 +37,12 @@ export type Order = {
   status: "draft" | "confirmed" | "in_production" | "completed" | "dispatched" | "cancelled"
   notes: string | null
   created_by: string | null
+  transporter_name: string | null
+  lr_number: string | null
+  vehicle_number: string | null
+  dispatch_date: string | null
+  expected_delivery_date: string | null
+  customer_id: string | null
   created_at: string
   updated_at: string
 }
@@ -52,6 +58,7 @@ export type OrderItem = {
   color: string
   quantity: number
   unit_price: number
+  hsn_code: string | null
   created_at: string
 }
 
@@ -171,6 +178,8 @@ export type ProductionTracking = {
   status: "pending" | "in_progress" | "completed" | "blocked"
   quantity_completed: number
   quantity_rejected: number
+  quantity_input: number
+  waste_notes: string | null
   assigned_to: string | null
   notes: string | null
   started_at: string | null
@@ -424,4 +433,132 @@ export type QrAttendanceLog = {
 
 export type QrAttendanceLogWithEmployee = QrAttendanceLog & {
   employee: Pick<Profile, "id" | "full_name" | "department"> | null
+}
+
+// ==================== Customers & Suppliers ====================
+
+export type Customer = {
+  id: string
+  name: string
+  company: string | null
+  email: string | null
+  phone: string | null
+  address: string | null
+  city: string | null
+  state: string | null
+  gstin: string | null
+  bank_name: string | null
+  bank_account: string | null
+  bank_ifsc: string | null
+  credit_limit: number | null
+  payment_terms: number | null
+  notes: string | null
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export type Supplier = {
+  id: string
+  name: string
+  company: string | null
+  email: string | null
+  phone: string | null
+  address: string | null
+  city: string | null
+  state: string | null
+  gstin: string | null
+  bank_name: string | null
+  bank_account: string | null
+  bank_ifsc: string | null
+  payment_terms: number | null
+  notes: string | null
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+// ==================== Audit Trail ====================
+
+export type AuditLog = {
+  id: string
+  entity_type: string
+  entity_id: string | null
+  entity_label: string | null
+  action: "created" | "updated" | "deleted" | "status_changed" | "approved" | "rejected"
+  old_values: Record<string, unknown> | null
+  new_values: Record<string, unknown> | null
+  changed_by: string | null
+  changed_by_name: string | null
+  created_at: string
+}
+
+// ==================== HSN Master ====================
+
+export type HsnMaster = {
+  id: string
+  code: string
+  description: string
+  gst_rate: number
+  category: "HSN" | "SAC"
+  created_at: string
+}
+
+// ==================== Accounting (Journal & Ledger) ====================
+
+export type ChartOfAccount = {
+  id: string
+  account_code: string
+  name: string
+  type: "asset" | "liability" | "equity" | "revenue" | "cogs" | "expense"
+  is_header: boolean
+  parent_code: string | null
+  description: string | null
+  is_active: boolean
+  created_at: string
+}
+
+export type JournalEntry = {
+  id: string
+  entry_date: string
+  description: string
+  reference_type: string | null
+  reference_id: string | null
+  created_by: string | null
+  created_at: string
+}
+
+export type JournalEntryLine = {
+  id: string
+  journal_entry_id: string
+  account_code: string
+  description: string | null
+  debit: number
+  credit: number
+  created_at: string
+}
+
+export type JournalEntryWithLines = JournalEntry & {
+  journal_entry_lines: (JournalEntryLine & {
+    account: Pick<ChartOfAccount, "account_code" | "name" | "type"> | null
+  })[]
+}
+
+export type LedgerEntry = {
+  entry_date: string
+  journal_entry_id: string
+  description: string
+  reference_type: string | null
+  debit: number
+  credit: number
+  running_balance: number
+}
+
+export type TrialBalanceRow = {
+  account_code: string
+  name: string
+  type: string
+  total_debit: number
+  total_credit: number
+  balance: number
 }
