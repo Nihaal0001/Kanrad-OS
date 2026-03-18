@@ -90,11 +90,11 @@ export default async function BuyerPortalPage({ params }: Props) {
   return (
     <div className="min-h-screen bg-[hsl(30,25%,97%)]">
       {/* Header */}
-      <header className="bg-white border-b border-border/60 sticky top-0 z-10">
+      <header className="sticky top-0 z-10 border-b border-[hsl(25,18%,78%)] bg-white/95 backdrop-blur">
         <div className="max-w-2xl mx-auto px-6 py-4 flex items-center justify-between">
           <div>
-            <p className="text-xs text-muted-foreground uppercase tracking-widest font-medium">JUST CLOTHING</p>
-            <p className="text-sm font-semibold">Order Tracking Portal</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[hsl(25,20%,42%)]">JUST CLOTHING</p>
+            <p className="text-sm font-semibold text-[hsl(25,20%,20%)]">Order Tracking Portal</p>
           </div>
           <span className={`text-xs font-semibold px-3 py-1 rounded-full ${STATUS_COLORS[order.status] ?? "bg-gray-100 text-gray-600"}`}>
             {STATUS_LABELS[order.status] ?? order.status}
@@ -104,37 +104,37 @@ export default async function BuyerPortalPage({ params }: Props) {
 
       <main className="max-w-2xl mx-auto px-6 py-10 space-y-6">
         {/* Order Card */}
-        <div className="bg-white rounded-xl border border-border/60 p-6">
-          <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1">Order Reference</p>
+        <div className="rounded-xl border border-[hsl(25,18%,72%)] bg-white shadow-[0_18px_45px_-32px_rgba(58,41,31,0.35)] p-6">
+          <p className="mb-1 text-xs font-semibold uppercase tracking-[0.24em] text-[hsl(25,20%,45%)]">Order Reference</p>
           <h1 className="text-3xl font-bold text-[hsl(16,65%,55%)]">{order.order_number}</h1>
-          <p className="text-lg text-foreground mt-1">{order.style_name}</p>
+          <p className="mt-1 text-lg font-medium text-[hsl(25,20%,18%)]">{order.style_name}</p>
           {buyer && (
-            <p className="text-sm text-muted-foreground mt-1">{buyer.name}{buyer.company ? ` · ${buyer.company}` : ""}</p>
+            <p className="mt-1 text-sm text-[hsl(25,16%,34%)]">{buyer.name}{buyer.company ? ` · ${buyer.company}` : ""}</p>
           )}
 
-          <div className="grid grid-cols-3 gap-4 mt-6 pt-6 border-t border-border/40">
+          <div className="mt-6 grid grid-cols-3 gap-4 border-t border-[hsl(25,16%,82%)] pt-6">
             <div>
-              <p className="text-xs text-muted-foreground">Total Quantity</p>
-              <p className="text-xl font-bold tabular-nums">{order.total_quantity.toLocaleString("en-IN")}</p>
-              <p className="text-xs text-muted-foreground">pieces</p>
+              <p className="text-xs font-medium text-[hsl(25,16%,40%)]">Total Quantity</p>
+              <p className="text-xl font-bold tabular-nums text-[hsl(25,20%,18%)]">{order.total_quantity.toLocaleString("en-IN")}</p>
+              <p className="text-xs text-[hsl(25,14%,42%)]">pieces</p>
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Deadline</p>
-              <p className="font-semibold">{fmtDate(order.deadline)}</p>
+              <p className="text-xs font-medium text-[hsl(25,16%,40%)]">Deadline</p>
+              <p className="font-semibold text-[hsl(25,20%,18%)]">{fmtDate(order.deadline)}</p>
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Current Stage</p>
-              <p className="font-semibold">{currentStage?.stage?.name ?? (order.status === "dispatched" ? "Dispatched" : "—")}</p>
+              <p className="text-xs font-medium text-[hsl(25,16%,40%)]">Current Stage</p>
+              <p className="font-semibold text-[hsl(25,20%,18%)]">{currentStage?.stage?.name ?? (order.status === "dispatched" ? "Dispatched" : "—")}</p>
             </div>
           </div>
         </div>
 
         {/* Production Progress */}
         {tracking.length > 0 && (
-          <div className="bg-white rounded-xl border border-border/60 p-6">
+          <div className="rounded-xl border border-[hsl(25,18%,72%)] bg-white shadow-[0_18px_45px_-32px_rgba(58,41,31,0.35)] p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="font-semibold">Production Progress</h2>
-              <span className="text-sm text-muted-foreground">{completedStages}/{totalStages} stages</span>
+              <h2 className="font-semibold text-[hsl(25,20%,18%)]">Production Progress</h2>
+              <span className="text-sm text-[hsl(25,16%,38%)]">{completedStages}/{totalStages} stages</span>
             </div>
 
             {/* Progress bar */}
@@ -153,11 +153,11 @@ export default async function BuyerPortalPage({ params }: Props) {
               }) => {
                 const Icon = STAGE_ICON[t.status] ?? Clock
                 return (
-                  <div key={t.id} className="flex items-center gap-3 py-2 border-b border-border/30 last:border-0">
-                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-bold">
+                  <div key={t.id} className="flex items-center gap-3 border-b border-[hsl(25,14%,88%)] py-2 last:border-0">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[hsl(30,20%,93%)] text-xs font-bold text-[hsl(25,18%,32%)]">
                       {t.stage?.sequence ?? "?"}
                     </span>
-                    <span className="flex-1 text-sm">{t.stage?.name ?? "—"}</span>
+                    <span className="flex-1 text-sm text-[hsl(25,20%,18%)]">{t.stage?.name ?? "—"}</span>
                     <span className={`flex items-center gap-1 text-xs font-medium ${STAGE_COLOR[t.status]}`}>
                       <Icon className="h-3.5 w-3.5" />
                       {t.status === "in_progress" ? "In Progress" : t.status.charAt(0).toUpperCase() + t.status.slice(1)}
@@ -171,7 +171,7 @@ export default async function BuyerPortalPage({ params }: Props) {
 
         {/* Dispatch Info */}
         {order.status === "dispatched" && (order.transporter_name || order.lr_number || order.dispatch_date) && (
-          <div className="bg-white rounded-xl border border-border/60 p-6">
+          <div className="rounded-xl border border-[hsl(25,18%,72%)] bg-white shadow-[0_18px_45px_-32px_rgba(58,41,31,0.35)] p-6">
             <div className="flex items-center gap-2 mb-4">
               <Truck className="h-5 w-5 text-emerald-600" />
               <h2 className="font-semibold text-emerald-700">Dispatched</h2>
@@ -179,26 +179,26 @@ export default async function BuyerPortalPage({ params }: Props) {
             <div className="grid grid-cols-2 gap-4 text-sm">
               {order.transporter_name && (
                 <div>
-                  <p className="text-xs text-muted-foreground">Transporter</p>
-                  <p className="font-medium">{order.transporter_name}</p>
+                  <p className="text-xs font-medium text-[hsl(25,16%,40%)]">Transporter</p>
+                  <p className="font-medium text-[hsl(25,20%,18%)]">{order.transporter_name}</p>
                 </div>
               )}
               {order.lr_number && (
                 <div>
-                  <p className="text-xs text-muted-foreground">LR Number</p>
-                  <p className="font-mono font-medium">{order.lr_number}</p>
+                  <p className="text-xs font-medium text-[hsl(25,16%,40%)]">LR Number</p>
+                  <p className="font-mono font-medium text-[hsl(25,20%,18%)]">{order.lr_number}</p>
                 </div>
               )}
               {order.vehicle_number && (
                 <div>
-                  <p className="text-xs text-muted-foreground">Vehicle</p>
-                  <p className="font-mono font-medium">{order.vehicle_number}</p>
+                  <p className="text-xs font-medium text-[hsl(25,16%,40%)]">Vehicle</p>
+                  <p className="font-mono font-medium text-[hsl(25,20%,18%)]">{order.vehicle_number}</p>
                 </div>
               )}
               {order.dispatch_date && (
                 <div>
-                  <p className="text-xs text-muted-foreground">Dispatch Date</p>
-                  <p className="font-medium">{fmtDate(order.dispatch_date)}</p>
+                  <p className="text-xs font-medium text-[hsl(25,16%,40%)]">Dispatch Date</p>
+                  <p className="font-medium text-[hsl(25,20%,18%)]">{fmtDate(order.dispatch_date)}</p>
                 </div>
               )}
               {order.expected_delivery_date && (
@@ -222,7 +222,7 @@ export default async function BuyerPortalPage({ params }: Props) {
         )}
 
         {/* Footer */}
-        <p className="text-center text-xs text-muted-foreground pt-4">
+        <p className="pt-4 text-center text-xs text-[hsl(25,14%,42%)]">
           This is a read-only view. For queries, contact JUST CLOTHING directly.
         </p>
       </main>

@@ -46,18 +46,12 @@ function MobileNavItem({
       href={item.href}
       onClick={onClose}
       className={cn(
-        "group flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm transition-all duration-200",
+        "group flex items-center rounded-xl px-4 py-2.5 text-sm transition-all duration-200",
         isActive
           ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
-          : "text-sidebar-foreground/75 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+          : "text-sidebar-foreground/90 hover:bg-sidebar-accent/35 hover:text-sidebar-foreground"
       )}
     >
-      <span
-        className={cn(
-          "h-1.5 w-1.5 shrink-0 rounded-full bg-current opacity-40 transition-all duration-200",
-          isActive && "opacity-100"
-        )}
-      />
       <span className="truncate">{item.title}</span>
       {item.badge != null && item.badge > 0 && (
         <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-sidebar-accent-foreground px-1.5 text-[10px] font-semibold text-white">
@@ -101,7 +95,7 @@ function MobileNavSection({
           "flex w-full cursor-pointer items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm font-medium transition-all duration-300",
           isActive
             ? "text-sidebar-accent-foreground"
-            : "text-sidebar-foreground/80 hover:text-sidebar-foreground"
+            : "text-sidebar-foreground/90 hover:text-sidebar-foreground"
         )}
         aria-expanded={isOpen}
       >
@@ -109,8 +103,8 @@ function MobileNavSection({
           className={cn(
             "flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition-colors duration-300",
             isOpen || isActive
-              ? "bg-sidebar-accent/80 text-sidebar-accent-foreground"
-              : "bg-sidebar-foreground/[0.05] text-sidebar-foreground/60"
+              ? "text-sidebar-accent-foreground"
+              : "text-sidebar-foreground/60"
           )}
         >
           <Icon className="h-4 w-4 shrink-0" />
@@ -126,7 +120,7 @@ function MobileNavSection({
 
       {isOpen && (
         <div className="overflow-hidden">
-          <div className="space-y-0.5 px-3 pb-3 pl-14 animate-in fade-in-0 slide-in-from-top-1 duration-200">
+          <div className="space-y-1 px-6 pb-4 pl-[5.25rem] animate-in fade-in-0 slide-in-from-top-1 duration-200">
             {section.items.map((item) => (
               <MobileNavItem
                 key={item.href}
