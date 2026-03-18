@@ -79,8 +79,8 @@ Admin/Owner, Production Manager, Inventory Manager, QC Head, Floor Supervisor, W
 ## Supabase
 - Project ref: `spwighzxkaeibutmijus`
 - Migration files must be run manually by the user in the Supabase SQL Editor
-- Migrations run: `00001` through `00007`, `00010`, `00013`, `00014`, `00015`
-- Tables: profiles, buyers, orders, order_items, order_materials, material_categories, materials, stock_transactions, purchase_orders, purchase_order_items, production_stages, production_tracking, quality_checks, tasks, notifications, invoices, invoice_items, payments, order_costings, shifts, worker_shifts, attendance, leaves, payroll, expense_categories, expenses, purchase_invoices, purchase_invoice_items, purchase_payments, audit_logs, hsn_master, chart_of_accounts, journal_entries, journal_entry_lines, customers, suppliers
+- Migrations run: `00001` through `00007`, `00010`, `00013`, `00014`, `00015` (00016 and 00017 pending)
+- Tables: profiles, buyers, orders, order_items, order_materials, material_categories, materials, stock_transactions, purchase_orders, purchase_order_items, production_stages, production_tracking, quality_checks, tasks, notifications, invoices, invoice_items, payments, order_costings, shifts, worker_shifts, attendance, leaves, payroll, expense_categories, expenses, purchase_invoices, purchase_invoice_items, purchase_payments, audit_logs, hsn_master, chart_of_accounts, journal_entries, journal_entry_lines, customers, suppliers, credit_notes, credit_note_items, bank_statement_rows, finance_import_batches, finance_import_items
 
 ## Known Issues & Quirks
 - **Turbopack cache corruption**: If you get `ENOENT: build-manifest.json` errors, run `rm -rf .next && npm run dev`
@@ -97,8 +97,9 @@ Admin/Owner, Production Manager, Inventory Manager, QC Head, Floor Supervisor, W
 - **Roadmap Phase 2 (Daily Operations)**: COMPLETE — customers/suppliers, delivery challan, packing slip, dispatch details, duplicate order
 - **Roadmap Phase 3 (Inventory & Costing)**: COMPLETE — wastage tracking, PO↔purchase invoice matching, enhanced order costing with margin
 - **Roadmap Phase 4 (Notifications)**: COMPLETE — email (Resend), WhatsApp digest (Twilio), payslip PDF
-- **Roadmap Phase 5 (Demo Polish)**: NOT STARTED — buyer portal
-- **Roadmap Phase 6 (Financial Maturity)**: NOT STARTED — credit notes, Tally XML, e-invoice, bank reconciliation
+- **Roadmap Phase 5 (Demo Polish)**: COMPLETE — buyer portal
+- **Roadmap Phase 6 (Financial Maturity)**: COMPLETE — credit notes, Tally XML, e-invoice, bank reconciliation
+- **AI Finance Import**: COMPLETE — Gemini-powered document intake at `/finance/import`
 - **Deploy to Vercel**: NOT STARTED
 
 ## Env Vars Required
@@ -130,9 +131,13 @@ CRON_SECRET
 - **Tally XML Export**: `GET /api/export/tally-xml?from=&to=` — Tally Prime–compatible voucher XML. Button in Settings
 - **E-Invoice JSON (GST IRP)**: `GET /api/einvoice/[id]/json` — GST IRP schema v1.1 payload. Button on invoice detail
 - **Bank Reconciliation**: `/finance/bank-recon` — CSV import, auto-match to payments by amount+date, export unmatched
+- **AI Finance Import**: `/finance/import` — drag-drop upload of supplier invoices/expense receipts; Gemini (gemini-2.5-flash) extracts supplier name, GST, line items, dates; review UI with fuzzy supplier/PO matching; submits as purchase invoice or expense draft. Batch tracking via `finance_import_batches` + `finance_import_items` tables. Files stored in `finance-documents` Supabase Storage bucket.
+- **Audit coverage expanded**: `logAudit()` added to credit note, expense, and purchase invoice mutations
+- **Sidebar/mobile nav**: updated to include AI Import link under Finance group
 
 ### New migrations needed
 - `00016_phase5_6.sql` — credit_notes, credit_note_items, bank_statement_rows tables
+- `00017_finance_import_ai.sql` — finance_import_batches, finance_import_items tables; adds document_path/document_url to purchase_invoices; creates finance-documents storage bucket
 
 ### New env vars needed
 - `PORTAL_SECRET` — 32+ char random string for HMAC buyer portal tokens
@@ -142,12 +147,13 @@ CRON_SECRET
 
 ## Next Steps
 1. **Run migration `00016_phase5_6.sql`** in Supabase SQL Editor (credit_notes, credit_note_items, bank_statement_rows)
-2. **Add env vars** to `.env.local` and Vercel dashboard: `PORTAL_SECRET`, `RESEND_API_KEY`, `EMAIL_FROM`, `OWNER_EMAIL`, `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_FROM`, `OWNER_WHATSAPP`, `CRON_SECRET`
-3. **Delete** `src/app/api/dev/auth-status/route.ts` before production deploy
-4. **Deploy to Vercel** — connect repo, set env vars, add cron config
+2. **Run migration `00017_finance_import_ai.sql`** in Supabase SQL Editor (finance_import_batches, finance_import_items, storage bucket)
+3. **Add env vars** to `.env.local` and Vercel dashboard: `PORTAL_SECRET`, `RESEND_API_KEY`, `EMAIL_FROM`, `OWNER_EMAIL`, `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_FROM`, `OWNER_WHATSAPP`, `CRON_SECRET`
+4. **Delete** `src/app/api/dev/auth-status/route.ts` before production deploy
+5. **Deploy to Vercel** — connect repo, set env vars, add cron config
 
 ## Feature Roadmap
-All roadmap phases complete. Buyer portal, credit notes, Tally XML, e-invoice JSON, and bank reconciliation are all live.
+All roadmap phases complete. AI Finance Import (Gemini-powered document intake), buyer portal, credit notes, Tally XML, e-invoice JSON, and bank reconciliation are all live.
 
 ## Multi-Client Strategy
 - "Just Clothing" = demo/template for garment manufacturing
