@@ -110,15 +110,44 @@ TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_WHATSAPP_FROM, OWNER_WHATSAPP
 CRON_SECRET
 ```
 
+## Post-Phase 10 Fixes (session 5 — All Modules Complete)
+
+### Features added (Phases 2–6 of ROADMAP.md)
+- **Customers & Suppliers**: Full directory CRUD at `/customers` and `/suppliers` with soft-delete
+- **Dispatch fields**: `transporter_name`, `lr_number`, `vehicle_number`, `dispatch_date`, `expected_delivery_date` on orders
+- **Delivery Challan PDF**: `GET /api/challan/[orderId]/pdf` — A4 PDF via @react-pdf/renderer
+- **Packing Slip PDF**: `GET /api/packing-slip/[orderId]/pdf` — A4 PDF via @react-pdf/renderer
+- **Duplicate Order**: `duplicateOrder(id)` server action + button in order actions
+- **Wastage Tracking**: `quantity_input` + `waste_notes` on production tracking; waste % shown per stage and in aggregate
+- **PO Matching**: Purchase invoice detail shows linked PO with ordered vs invoiced comparison, mismatch highlighting
+- **Order Margin / P&L**: Order costing page shows revenue from linked invoices, total cost, gross margin %
+- **Email alerts (Resend)**: Low stock, overdue invoices, leave request notifications via `src/lib/email.ts`
+- **WhatsApp digest (Twilio)**: Daily owner digest via `src/lib/whatsapp.ts`
+- **Payslip PDF**: `GET /api/payslip/[id]/pdf` — downloadable from payroll list
+- **Cron jobs**: `/api/cron/low-stock-alert`, `/api/cron/overdue-invoices`, `/api/cron/whatsapp-digest` (defined in `vercel.json`)
+- **Buyer Portal**: `/portal/[orderId]/[token]` — public HMAC-signed read-only order tracker. Token via `src/lib/portal.ts`
+- **Credit Notes**: Full CRUD at `/finance/credit-notes` with auto-numbering (CN-YYMMDD-NNN) and invoice linking
+- **Tally XML Export**: `GET /api/export/tally-xml?from=&to=` — Tally Prime–compatible voucher XML. Button in Settings
+- **E-Invoice JSON (GST IRP)**: `GET /api/einvoice/[id]/json` — GST IRP schema v1.1 payload. Button on invoice detail
+- **Bank Reconciliation**: `/finance/bank-recon` — CSV import, auto-match to payments by amount+date, export unmatched
+
+### New migrations needed
+- `00016_phase5_6.sql` — credit_notes, credit_note_items, bank_statement_rows tables
+
+### New env vars needed
+- `PORTAL_SECRET` — 32+ char random string for HMAC buyer portal tokens
+- `RESEND_API_KEY`, `EMAIL_FROM`, `OWNER_EMAIL` — Resend email alerts
+- `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_FROM`, `OWNER_WHATSAPP` — WhatsApp digest
+- `CRON_SECRET` — Bearer token for Vercel cron security
+
 ## Next Steps
-1. **Delete** `src/app/api/dev/auth-status/route.ts` before production deploy
-2. **Roadmap Phase 5** — Buyer portal (token-based read-only order status)
-3. **Deploy to Vercel** — connect repo, set env vars, add cron config
+1. **Run migration `00016_phase5_6.sql`** in Supabase SQL Editor (credit_notes, credit_note_items, bank_statement_rows)
+2. **Add env vars** to `.env.local` and Vercel dashboard: `PORTAL_SECRET`, `RESEND_API_KEY`, `EMAIL_FROM`, `OWNER_EMAIL`, `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_FROM`, `OWNER_WHATSAPP`, `CRON_SECRET`
+3. **Delete** `src/app/api/dev/auth-status/route.ts` before production deploy
+4. **Deploy to Vercel** — connect repo, set env vars, add cron config
 
 ## Feature Roadmap
-Full details in `docs/ROADMAP.md`. Remaining:
-- **Phase 5 — Demo Polish**: Buyer portal (token-based read-only order status)
-- **Phase 6 — Financial Maturity**: Credit notes/returns, Tally XML export, e-invoice (GST portal), bank reconciliation
+All roadmap phases complete. Buyer portal, credit notes, Tally XML, e-invoice JSON, and bank reconciliation are all live.
 
 ## Multi-Client Strategy
 - "Just Clothing" = demo/template for garment manufacturing

@@ -4,12 +4,14 @@ import { Pencil, Trash2 } from "lucide-react"
 
 import { getOrder } from "@/actions/orders"
 import { formatDate, formatCurrency } from "@/lib/utils"
+import { generatePortalToken } from "@/lib/portal"
 import type { OrderDetail } from "@/lib/supabase/types"
 
 import { PageHeader } from "@/components/shared/page-header"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { PriorityIndicator } from "@/components/shared/priority-indicator"
 import { Button } from "@/components/ui/button"
+import { SharePortalButton } from "@/components/orders/share-portal-button"
 import {
   Card,
   CardContent,
@@ -55,6 +57,8 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
     0
   ) ?? 0
 
+  const portalToken = generatePortalToken(order.id)
+
   return (
     <>
       <PageHeader
@@ -64,6 +68,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
           { label: order.order_number || "Order" },
         ]}
       >
+        <SharePortalButton orderId={order.id} token={portalToken} />
         <Link href={`/orders/${order.id}/edit`}>
           <Button variant="outline" size="sm">
             <Pencil className="mr-2 h-4 w-4" />

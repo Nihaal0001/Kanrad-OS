@@ -562,3 +562,38 @@ export type TrialBalanceRow = {
   total_credit: number
   balance: number
 }
+
+// ==================== Credit Notes ====================
+
+export type CreditNote = {
+  id: string
+  credit_note_number: string | null
+  order_id: string | null
+  invoice_id: string | null
+  buyer_name: string
+  buyer_gst: string | null
+  issue_date: string
+  reason: string | null
+  subtotal: number
+  tax_rate: number
+  tax_amount: number
+  total_amount: number
+  status: "draft" | "issued" | "cancelled"
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type CreditNoteItem = {
+  id: string
+  credit_note_id: string
+  description: string
+  quantity: number
+  unit_price: number
+  amount: number
+  created_at: string
+}
+
+export type CreditNoteDetail = CreditNote & {
+  credit_note_items: CreditNoteItem[]
+}

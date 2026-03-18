@@ -1,15 +1,17 @@
 import { notFound } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, Plus } from "lucide-react"
 
 import { getInvoice, updateInvoiceStatus } from "@/actions/finance"
+import { getCreditNotes } from "@/actions/credit-notes"
 import { PageHeader } from "@/components/shared/page-header"
 import { PaymentForm } from "@/components/finance/payment-form"
 import { PrintButton } from "@/components/finance/print-button"
 import { InvoiceActions } from "@/components/finance/invoice-actions"
+import { EInvoiceButton } from "@/components/finance/einvoice-button"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
 
@@ -48,6 +50,7 @@ export default async function InvoiceDetailPage({ params }: Props) {
   }
 
   const outstanding = invoice.total_amount - invoice.amount_paid
+  const creditNotes = await getCreditNotes({ invoice_id: id }).catch(() => [])
 
   async function markSent() {
     "use server"
@@ -104,6 +107,7 @@ export default async function InvoiceDetailPage({ params }: Props) {
             </form>
           )}
 
+          <EInvoiceButton invoiceId={id} invoiceNumber={invoice.invoice_number} status={invoice.status} />
           <InvoiceActions invoiceId={id} status={invoice.status} redirectAfterDelete />
         </div>
       </PageHeader>
@@ -235,6 +239,43 @@ export default async function InvoiceDetailPage({ params }: Props) {
       <div className="flex justify-end mb-6 print:hidden">
         <PrintButton invoiceId={id} />
       </div>
+
+      {/* Credit Notes */}
+      {(creditNotes.length > 0 || invoice.status !== "cancelled") && (
+        <Card className="print:hidden">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+            <CardTitle className="text-base">Credit Notes</CardTitle>
+            <Link href={`/finance/credit-notes/new?invoice_id=${id}`}>
+              <Button size="sm" variant="outline">
+                <Plus className="mr-1 h-3.5 w-3.5" />
+                New Credit Note
+              </Button>
+            </Link>
+          </CardHeader>
+          <CardContent>
+            {creditNotes.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No credit notes for this invoice.</p>
+            ) : (
+              <div className="space-y-2">
+                {creditNotes.map((cn) => (
+                  <Link key={cn.id} href={`/finance/credit-notes/${cn.id}`} className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/40 transition-colors">
+                    <div>
+                      <p className="text-sm font-mono font-medium">{cn.credit_note_number}</p>
+                      {cn.reason && <p className="text-xs text-muted-foreground truncate max-w-xs">{cn.reason}</p>}
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-semibold text-[hsl(16,65%,55%)]">₹{cn.total_amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</p>
+                      <Badge className={cn.status === "issued" ? "bg-blue-100 text-blue-700" : "bg-muted text-muted-foreground"}>
+                        {cn.status}
+                      </Badge>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </>
   )
 }

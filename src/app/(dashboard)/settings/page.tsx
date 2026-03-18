@@ -6,19 +6,30 @@ import { OrgSettingsForm } from "./org-settings-form"
 import { KioskSettingsForm } from "./kiosk-settings-form"
 import { getOrgSettings, getOfficeLocation } from "./actions"
 import { ExportAllButton } from "@/components/settings/export-all-button"
+import { TallyExportCard } from "@/components/settings/tally-export-card"
 
 const MODULES = [
   { name: "Orders & Buyers", status: "active" },
+  { name: "Customers & Suppliers Directory", status: "active" },
   { name: "Inventory", status: "active" },
-  { name: "Production Tracking", status: "active" },
+  { name: "Production Tracking + Wastage", status: "active" },
   { name: "Quality Control", status: "active" },
   { name: "Tasks", status: "active" },
   { name: "Notifications", status: "active" },
-  { name: "Finance", status: "active" },
+  { name: "Finance — Invoices, Payments, Costing", status: "active" },
+  { name: "Credit Notes & Returns", status: "active" },
+  { name: "Bank Reconciliation", status: "active" },
+  { name: "Tally XML Export", status: "active" },
+  { name: "E-Invoice JSON (GST IRP)", status: "active" },
+  { name: "Buyer Portal (share link)", status: "active" },
   { name: "HR & Payroll", status: "active" },
+  { name: "Email Alerts (Resend)", status: "active" },
+  { name: "WhatsApp Digest (Twilio)", status: "active" },
   { name: "Authentication & Roles", status: "active" },
   { name: "AI Assistant (Gemini + Sarvam)", status: "active" },
   { name: "QR Attendance Kiosk", status: "active" },
+  { name: "Accounting — Journal, Ledger, Trial Balance", status: "active" },
+  { name: "Audit Trail", status: "active" },
 ]
 
 export default async function SettingsPage() {
@@ -110,6 +121,9 @@ export default async function SettingsPage() {
             <ExportAllButton />
           </CardContent>
         </Card>
+
+        {/* Tally Export */}
+        <TallyExportCard />
 
         {/* Modules */}
         <Card>
