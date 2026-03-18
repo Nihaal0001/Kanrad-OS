@@ -36,7 +36,7 @@ export default async function SuppliersPage({
           icon={Truck}
           title="No suppliers yet"
           description="Add your fabric vendors, trims suppliers, and service providers"
-          action={<Link href="/suppliers/new"><Button>Add Supplier</Button></Link>}
+          action={{ label: "Add Supplier", href: "/suppliers/new" }}
         />
       ) : (
         <Card>

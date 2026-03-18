@@ -37,7 +37,7 @@ export default async function CustomersPage({
           icon={Users}
           title="No customers yet"
           description="Add your buyers, brands, and garment clients here"
-          action={<Link href="/customers/new"><Button>Add Customer</Button></Link>}
+          action={{ label: "Add Customer", href: "/customers/new" }}
         />
       ) : (
         <Card>
