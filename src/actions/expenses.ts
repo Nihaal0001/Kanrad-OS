@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
+import { logAudit } from "@/actions/audit"
 import {
   expenseSchema,
   expenseCategorySchema,
@@ -39,6 +40,7 @@ export async function createExpenseCategory(formData: ExpenseCategoryFormData) {
   if (error) return { error: error.message }
 
   revalidatePath("/finance/expenses")
+  await logAudit({ entityType: "expense_category", entityId: data.id, entityLabel: data.name, action: "created" })
   return { data }
 }
 
@@ -65,6 +67,7 @@ export async function deleteExpenseCategory(id: string) {
   if (error) return { error: error.message }
 
   revalidatePath("/finance/expenses")
+  await logAudit({ entityType: "expense_category", entityId: id, action: "deleted" })
   return { success: true }
 }
 
@@ -132,6 +135,18 @@ export async function createExpense(formData: ExpenseFormData) {
   revalidatePath("/finance/expenses")
   revalidatePath("/finance/cash-flow")
   revalidatePath("/finance")
+  await logAudit({
+    entityType: "expense",
+    entityId: data.id,
+    entityLabel: validated.description || validated.expense_date,
+    action: "created",
+    newValues: {
+      category_id: validated.category_id,
+      order_id: validated.order_id || null,
+      amount: validated.amount,
+      expense_date: validated.expense_date,
+    },
+  })
   return { data }
 }
 
@@ -165,6 +180,19 @@ export async function createImportedExpense(
   revalidatePath("/finance/expenses")
   revalidatePath("/finance/cash-flow")
   revalidatePath("/finance")
+  await logAudit({
+    entityType: "expense",
+    entityId: data.id,
+    entityLabel: validated.description || validated.expense_date,
+    action: "created",
+    newValues: {
+      category_id: validated.category_id,
+      order_id: validated.order_id || null,
+      amount: validated.amount,
+      expense_date: validated.expense_date,
+      imported: true,
+    },
+  })
   return { data }
 }
 
@@ -193,6 +221,17 @@ export async function updateExpense(id: string, formData: ExpenseFormData) {
   revalidatePath("/finance/expenses")
   revalidatePath("/finance/cash-flow")
   revalidatePath("/finance")
+  await logAudit({
+    entityType: "expense",
+    entityId: id,
+    action: "updated",
+    newValues: {
+      category_id: validated.category_id,
+      order_id: validated.order_id || null,
+      amount: validated.amount,
+      expense_date: validated.expense_date,
+    },
+  })
   return { success: true }
 }
 
@@ -208,5 +247,6 @@ export async function deleteExpense(id: string) {
   revalidatePath("/finance/expenses")
   revalidatePath("/finance/cash-flow")
   revalidatePath("/finance")
+  await logAudit({ entityType: "expense", entityId: id, action: "deleted" })
   return { success: true }
 }

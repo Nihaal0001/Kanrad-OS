@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
+import { logAudit } from "@/actions/audit"
 import {
   purchaseInvoiceSchema,
   purchasePaymentSchema,
@@ -119,6 +120,20 @@ export async function createPurchaseInvoice(formData: PurchaseInvoiceFormData) {
   if (itemsErr) return { error: itemsErr.message }
 
   revalidatePath("/finance/purchases")
+  await logAudit({
+    entityType: "purchase_invoice",
+    entityId: invoice.id,
+    entityLabel: validated.invoice_number || validated.supplier_name,
+    action: "created",
+    newValues: {
+      purchase_order_id: validated.purchase_order_id || null,
+      supplier_name: validated.supplier_name,
+      invoice_number: validated.invoice_number || null,
+      invoice_date: validated.invoice_date,
+      tax_rate: validated.tax_rate,
+      item_count: validated.items.length,
+    },
+  })
   return { data: invoice }
 }
 
@@ -170,6 +185,21 @@ export async function createImportedPurchaseInvoice(
   if (itemsErr) return { error: itemsErr.message }
 
   revalidatePath("/finance/purchases")
+  await logAudit({
+    entityType: "purchase_invoice",
+    entityId: invoice.id,
+    entityLabel: validated.invoice_number || validated.supplier_name,
+    action: "created",
+    newValues: {
+      purchase_order_id: validated.purchase_order_id || null,
+      supplier_name: validated.supplier_name,
+      invoice_number: validated.invoice_number || null,
+      invoice_date: validated.invoice_date,
+      tax_rate: validated.tax_rate,
+      item_count: validated.items.length,
+      imported: true,
+    },
+  })
   return { data: invoice }
 }
 
@@ -194,6 +224,7 @@ export async function updatePurchaseInvoiceStatus(id: string, status: string) {
 
   revalidatePath("/finance/purchases")
   revalidatePath(`/finance/purchases/${id}`)
+  await logAudit({ entityType: "purchase_invoice", entityId: id, action: "status_changed", newValues: { status } })
   return { success: true }
 }
 
@@ -207,6 +238,7 @@ export async function deletePurchaseInvoice(id: string) {
   if (error) return { error: error.message }
 
   revalidatePath("/finance/purchases")
+  await logAudit({ entityType: "purchase_invoice", entityId: id, action: "deleted" })
   return { success: true }
 }
 
@@ -237,6 +269,17 @@ export async function createPurchasePayment(formData: PurchasePaymentFormData) {
   revalidatePath("/finance/purchases")
   revalidatePath("/finance/cash-flow")
   revalidatePath("/finance")
+  await logAudit({
+    entityType: "purchase_payment",
+    entityId: data.id,
+    action: "created",
+    newValues: {
+      purchase_invoice_id: validated.purchase_invoice_id,
+      amount: validated.amount,
+      method: validated.method,
+      payment_date: validated.payment_date,
+    },
+  })
   return { data }
 }
 
@@ -252,6 +295,7 @@ export async function deletePurchasePayment(id: string) {
   revalidatePath("/finance/purchases")
   revalidatePath("/finance/cash-flow")
   revalidatePath("/finance")
+  await logAudit({ entityType: "purchase_payment", entityId: id, action: "deleted" })
   return { success: true }
 }
 

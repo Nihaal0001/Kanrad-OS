@@ -41,11 +41,7 @@ export default async function CreditNotesPage() {
           icon={FileX}
           title="No credit notes"
           description="Credit notes are created when buyers return goods or when corrections are needed on invoices"
-          action={
-            <Link href="/finance/credit-notes/new">
-              <Button>Create Credit Note</Button>
-            </Link>
-          }
+          action={{ label: "Create Credit Note", href: "/finance/credit-notes/new" }}
         />
       ) : (
         <div className="space-y-2">
@@ -56,15 +52,15 @@ export default async function CreditNotesPage() {
             <span>Total</span>
             <span>Status</span>
           </div>
-          {notes.map((cn) => (
-            <Link key={cn.id} href={`/finance/credit-notes/${cn.id}`}>
+          {notes.map((note) => (
+            <Link key={note.id} href={`/finance/credit-notes/${note.id}`}>
               <Card className="transition-colors hover:bg-accent/30 cursor-pointer">
                 <CardContent className="grid grid-cols-[1fr_1fr_1fr_1fr_100px] items-center gap-4 p-4">
-                  <p className="text-sm font-mono font-medium">{cn.credit_note_number || "—"}</p>
-                  <p className="text-sm">{cn.buyer_name}</p>
-                  <p className="text-sm text-muted-foreground truncate">{cn.reason || "—"}</p>
-                  <p className="text-sm font-semibold text-[hsl(16,65%,55%)]">₹{fmt(cn.total_amount)}</p>
-                  <Badge className={cn(STATUS_STYLES[cn.status], "text-xs")}>{cn.status}</Badge>
+                  <p className="text-sm font-mono font-medium">{note.credit_note_number || "—"}</p>
+                  <p className="text-sm">{note.buyer_name}</p>
+                  <p className="text-sm text-muted-foreground truncate">{note.reason || "—"}</p>
+                  <p className="text-sm font-semibold text-[hsl(16,65%,55%)]">₹{fmt(note.total_amount)}</p>
+                  <Badge className={cn(STATUS_STYLES[note.status], "text-xs")}>{note.status}</Badge>
                 </CardContent>
               </Card>
             </Link>

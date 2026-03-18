@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
+import { logAudit } from "@/actions/audit"
 import { creditNoteSchema, type CreditNoteFormData } from "@/lib/validators/credit-notes"
 
 export async function getCreditNotes(filters?: { invoice_id?: string; status?: string }) {
@@ -79,6 +80,20 @@ export async function createCreditNote(formData: CreditNoteFormData) {
 
   revalidatePath("/finance/credit-notes")
   if (validated.invoice_id) revalidatePath(`/finance/invoices/${validated.invoice_id}`)
+  await logAudit({
+    entityType: "credit_note",
+    entityId: cn.id,
+    entityLabel: cn.credit_note_number || validated.buyer_name,
+    action: "created",
+    newValues: {
+      invoice_id: validated.invoice_id || null,
+      order_id: validated.order_id || null,
+      buyer_name: validated.buyer_name,
+      issue_date: validated.issue_date,
+      total_amount: totalAmount,
+      item_count: validated.items.length,
+    },
+  })
   return { data: cn }
 }
 
@@ -92,6 +107,7 @@ export async function updateCreditNoteStatus(id: string, status: "draft" | "issu
   if (error) return { error: error.message }
 
   revalidatePath("/finance/credit-notes")
+  await logAudit({ entityType: "credit_note", entityId: id, action: "status_changed", newValues: { status } })
   return { success: true }
 }
 
@@ -105,5 +121,6 @@ export async function deleteCreditNote(id: string) {
   if (error) return { error: error.message }
 
   revalidatePath("/finance/credit-notes")
+  await logAudit({ entityType: "credit_note", entityId: id, action: "deleted" })
   return { success: true }
 }
