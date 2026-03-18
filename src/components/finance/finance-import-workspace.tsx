@@ -195,10 +195,17 @@ function ImportUploader({
 }
 
 function DocumentPreview({ item }: { item: BatchItemRecord }) {
-  if (!item.file_url) {
+  const [imageFailed, setImageFailed] = useState(false)
+
+  if (!item.file_url || imageFailed) {
     return (
-      <div className="flex h-[320px] items-center justify-center rounded-2xl border border-dashed border-sidebar-border text-sm text-muted-foreground">
-        Preview unavailable
+      <div className="flex min-h-[120px] items-center justify-center rounded-2xl border border-dashed border-sidebar-border/80 bg-card/40 p-6 text-center">
+        <div className="space-y-2">
+          <p className="text-sm font-medium text-foreground">Source file</p>
+          <div className="inline-flex max-w-full items-center rounded-full border border-sidebar-border/70 bg-background/80 px-3 py-1 text-sm text-muted-foreground">
+            <span className="truncate">{item.file_name}</span>
+          </div>
+        </div>
       </div>
     )
   }
@@ -219,7 +226,8 @@ function DocumentPreview({ item }: { item: BatchItemRecord }) {
     // eslint-disable-next-line @next/next/no-img-element
     <img
       src={item.file_url}
-      alt={item.file_name}
+      alt=""
+      onError={() => setImageFailed(true)}
       className="h-[320px] w-full rounded-2xl border border-sidebar-border bg-card/70 object-contain"
     />
   )
@@ -341,137 +349,133 @@ export function FinanceImportWorkspace({
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
-        <div className="space-y-4">
-          <ImportUploader targetHint={targetHint} existingBatchId={activeBatch?.id} />
+      <ImportUploader targetHint={targetHint} existingBatchId={activeBatch?.id} />
 
-          {activeBatch && (
-            <Card className="overflow-hidden">
-              <CardHeader className="border-b border-sidebar-border/70 bg-sidebar-foreground/[0.02] pb-4">
-                <div className="flex items-center justify-between gap-2">
-                  <CardTitle className="text-base">Review Queue</CardTitle>
-                  <Badge variant="outline">Batch {activeBatch.id.slice(0, 8)}</Badge>
-                </div>
-                <div className="flex flex-wrap gap-2 pt-2 text-xs">
-                  <Badge className={STATUS_STYLES.pending}>{counts.pending} Pending</Badge>
-                  <Badge className={STATUS_STYLES.reviewed}>{counts.reviewed} Reviewed</Badge>
-                  <Badge className={STATUS_STYLES.failed}>{counts.failed} Failed</Badge>
-                  <Badge className={STATUS_STYLES.submitted}>{counts.submitted} Submitted</Badge>
-                </div>
-              </CardHeader>
-              <ScrollArea className="h-[560px]">
-                <div className="space-y-2 p-3">
-                  {activeBatch.finance_import_items.map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => startSwitchTransition(() => setSelectedId(item.id))}
-                      className={cn(
-                        "w-full cursor-pointer rounded-2xl border px-3 py-3 text-left transition-all duration-200",
-                        selectedItem?.id === item.id
-                          ? "border-sidebar-accent/50 bg-sidebar-accent/10 shadow-sm ring-1 ring-sidebar-accent/15"
-                          : "border-sidebar-border/70 hover:border-sidebar-accent/30 hover:bg-sidebar-foreground/[0.02] hover:translate-y-[-1px]"
-                      )}
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-medium">{item.file_name}</p>
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            {formatTargetType(item.target_type)} · {formatPercent(item.extraction_confidence)}
-                          </p>
-                        </div>
-                        <Badge className={STATUS_STYLES[item.status] ?? "bg-muted text-muted-foreground"}>
-                          {STATUS_LABELS[item.status] ?? item.status}
-                        </Badge>
-                      </div>
-                      {item.extraction_warnings?.length ? (
-                        <p className="mt-2 text-xs text-warning">
-                          {item.extraction_warnings[0]}
-                        </p>
-                      ) : null}
-                      {item.extraction_error ? (
-                        <p className="mt-2 text-xs text-destructive">{item.extraction_error}</p>
-                      ) : null}
-                    </button>
-                  ))}
-                </div>
-              </ScrollArea>
-            </Card>
+      {activeBatch && (
+        <Card className="overflow-hidden">
+          <CardHeader className="border-b border-sidebar-border/70 bg-sidebar-foreground/[0.02] pb-4">
+            <div className="flex items-center justify-between gap-2">
+              <CardTitle className="text-base">Review Queue</CardTitle>
+              <Badge variant="outline">Batch {activeBatch.id.slice(0, 8)}</Badge>
+            </div>
+            <div className="flex flex-wrap gap-2 pt-2 text-xs">
+              <Badge className={STATUS_STYLES.pending}>{counts.pending} Pending</Badge>
+              <Badge className={STATUS_STYLES.reviewed}>{counts.reviewed} Reviewed</Badge>
+              <Badge className={STATUS_STYLES.failed}>{counts.failed} Failed</Badge>
+              <Badge className={STATUS_STYLES.submitted}>{counts.submitted} Submitted</Badge>
+            </div>
+          </CardHeader>
+          <ScrollArea className="max-h-[320px]">
+            <div className="space-y-2 p-3">
+              {activeBatch.finance_import_items.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => startSwitchTransition(() => setSelectedId(item.id))}
+                  className={cn(
+                    "w-full cursor-pointer rounded-2xl border px-5 py-4 text-left transition-all duration-200",
+                    selectedItem?.id === item.id
+                      ? "border-sidebar-accent/50 bg-sidebar-accent/10 shadow-sm ring-1 ring-sidebar-accent/15"
+                      : "border-sidebar-border/70 hover:border-sidebar-accent/30 hover:bg-sidebar-foreground/[0.02] hover:translate-y-[-1px]"
+                  )}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-lg font-medium">{item.file_name}</p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {formatTargetType(item.target_type)} · {formatPercent(item.extraction_confidence)}
+                      </p>
+                    </div>
+                    <Badge className={STATUS_STYLES[item.status] ?? "bg-muted text-muted-foreground"}>
+                      {STATUS_LABELS[item.status] ?? item.status}
+                    </Badge>
+                  </div>
+                  {item.extraction_warnings?.length ? (
+                    <p className="mt-2 text-xs text-warning">
+                      {item.extraction_warnings[0]}
+                    </p>
+                  ) : null}
+                  {item.extraction_error ? (
+                    <p className="mt-2 text-xs text-destructive">{item.extraction_error}</p>
+                  ) : null}
+                </button>
+              ))}
+            </div>
+          </ScrollArea>
+        </Card>
+      )}
+
+      {!selectedItem || !draft ? (
+        <Card>
+          <CardContent className="flex min-h-[520px] flex-col items-center justify-center text-center">
+            <div className="rounded-2xl bg-sidebar-accent/10 p-4 text-sidebar-accent-foreground">
+              <Receipt className="h-8 w-8" />
+            </div>
+            <h3 className="mt-4 text-lg font-semibold">No document selected</h3>
+            <p className="mt-2 max-w-md text-sm text-muted-foreground">
+              Upload supplier invoices to create a review queue, then open each document to verify the extracted fields before creating drafts.
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div
+          key={selectedItem.id}
+          className={cn(
+            "space-y-4 transition-all duration-200",
+            isSwitchingDocument ? "translate-y-1 opacity-80" : "translate-y-0 opacity-100"
           )}
-        </div>
+        >
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Document Review</p>
+              <h2 className="text-xl font-semibold tracking-tight">{selectedItem.file_name}</h2>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" onClick={persistReviewed} disabled={isPending}>
+                {activeAction === "review" ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                Mark Reviewed
+              </Button>
+              <Button onClick={createDrafts} disabled={isPending || !activeBatch}>
+                {activeAction === "submit" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                Create Reviewed Drafts
+              </Button>
+            </div>
+          </div>
 
-        <div className="space-y-4">
-          {!selectedItem || !draft ? (
-            <Card>
-              <CardContent className="flex min-h-[520px] flex-col items-center justify-center text-center">
-                <div className="rounded-2xl bg-sidebar-accent/10 p-4 text-sidebar-accent-foreground">
-                  <Receipt className="h-8 w-8" />
+          <div className="space-y-4">
+            <Card className="overflow-hidden">
+              <CardHeader className="border-b border-sidebar-border/70 bg-sidebar-foreground/[0.02]">
+                <CardTitle className="text-base">Source Document</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4 p-4">
+                <DocumentPreview item={selectedItem} />
+                <div className="flex flex-wrap gap-2">
+                  <Badge variant="outline">Confidence {formatPercent(selectedItem.extraction_confidence)}</Badge>
+                  <Badge className={STATUS_STYLES[selectedItem.status] ?? "bg-muted text-muted-foreground"}>
+                    {STATUS_LABELS[selectedItem.status] ?? selectedItem.status}
+                  </Badge>
                 </div>
-                <h3 className="mt-4 text-lg font-semibold">No document selected</h3>
-                <p className="mt-2 max-w-md text-sm text-muted-foreground">
-                  Upload supplier invoices to create a review queue, then open each document to verify the extracted fields before creating drafts.
-                </p>
+                {selectedItem.extraction_warnings?.length ? (
+                  <div className="rounded-2xl border border-warning/25 bg-warning/10 px-4 py-3">
+                    <div className="mb-2 flex items-center gap-2 text-sm font-medium text-warning">
+                      <AlertTriangle className="h-4 w-4" />
+                      Extraction Warnings
+                    </div>
+                    <ul className="space-y-1 text-sm text-warning/90">
+                      {selectedItem.extraction_warnings.map((warning) => (
+                        <li key={warning}>{warning}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
               </CardContent>
             </Card>
-          ) : (
-            <div
-              key={selectedItem.id}
-              className={cn(
-                "space-y-4 transition-all duration-200",
-                isSwitchingDocument ? "translate-y-1 opacity-80" : "translate-y-0 opacity-100"
-              )}
-            >
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Document Review</p>
-                  <h2 className="text-xl font-semibold tracking-tight">{selectedItem.file_name}</h2>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" onClick={persistReviewed} disabled={isPending}>
-                    {activeAction === "review" ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                    Mark Reviewed
-                  </Button>
-                  <Button onClick={createDrafts} disabled={isPending || !activeBatch}>
-                    {activeAction === "submit" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                    Create Reviewed Drafts
-                  </Button>
-                </div>
-              </div>
 
-              <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_420px]">
-                <Card className="overflow-hidden">
-                  <CardHeader className="border-b border-sidebar-border/70 bg-sidebar-foreground/[0.02]">
-                    <CardTitle className="text-base">Source Document</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4 p-4">
-                    <DocumentPreview item={selectedItem} />
-                    <div className="flex flex-wrap gap-2">
-                      <Badge variant="outline">Confidence {formatPercent(selectedItem.extraction_confidence)}</Badge>
-                      <Badge className={STATUS_STYLES[selectedItem.status] ?? "bg-muted text-muted-foreground"}>
-                        {STATUS_LABELS[selectedItem.status] ?? selectedItem.status}
-                      </Badge>
-                    </div>
-                    {selectedItem.extraction_warnings?.length ? (
-                      <div className="rounded-2xl border border-warning/25 bg-warning/10 px-4 py-3">
-                        <div className="mb-2 flex items-center gap-2 text-sm font-medium text-warning">
-                          <AlertTriangle className="h-4 w-4" />
-                          Extraction Warnings
-                        </div>
-                        <ul className="space-y-1 text-sm text-warning/90">
-                          {selectedItem.extraction_warnings.map((warning) => (
-                            <li key={warning}>{warning}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    ) : null}
-                  </CardContent>
-                </Card>
-
-                <Card className="overflow-hidden">
-                  <CardHeader className="border-b border-sidebar-border/70 bg-sidebar-foreground/[0.02]">
-                    <CardTitle className="text-base">Reviewed Draft</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4 p-4">
+            <Card className="overflow-hidden">
+              <CardHeader className="border-b border-sidebar-border/70 bg-sidebar-foreground/[0.02]">
+                <CardTitle className="text-base">Reviewed Draft</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4 p-4">
                     <div className="space-y-1.5">
                       <Label>Record Type</Label>
                       <Select
@@ -884,17 +888,15 @@ export function FinanceImportWorkspace({
                       </div>
                     )}
 
-                    <Separator />
-                    <p className="text-xs text-muted-foreground">
-                      AI extraction is assistive only. Review all amounts, tax details, and mappings before marking the document as reviewed.
-                    </p>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-          )}
+                <Separator />
+                <p className="text-xs text-muted-foreground">
+                  AI extraction is assistive only. Review all amounts, tax details, and mappings before marking the document as reviewed.
+                </p>
+              </CardContent>
+            </Card>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }
