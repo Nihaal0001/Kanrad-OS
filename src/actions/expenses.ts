@@ -122,6 +122,40 @@ export async function createExpense(formData: ExpenseFormData) {
       expense_date: validated.expense_date,
       description: validated.description || null,
       notes: validated.notes || null,
+      receipt_url: validated.receipt_url || null,
+    })
+    .select()
+    .single()
+
+  if (error) return { error: error.message }
+
+  revalidatePath("/finance/expenses")
+  revalidatePath("/finance/cash-flow")
+  revalidatePath("/finance")
+  return { data }
+}
+
+export async function createImportedExpense(
+  formData: ExpenseFormData & {
+    receipt_url?: string
+  }
+) {
+  const validated = expenseSchema.parse(formData)
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
+  const { data, error } = await supabase
+    .from("expenses")
+    .insert({
+      category_id: validated.category_id,
+      order_id: validated.order_id || null,
+      amount: validated.amount,
+      expense_date: validated.expense_date,
+      description: validated.description || null,
+      notes: validated.notes || null,
+      receipt_url: formData.receipt_url || null,
     })
     .select()
     .single()
@@ -150,6 +184,7 @@ export async function updateExpense(id: string, formData: ExpenseFormData) {
       expense_date: validated.expense_date,
       description: validated.description || null,
       notes: validated.notes || null,
+      receipt_url: validated.receipt_url || null,
     })
     .eq("id", id)
 

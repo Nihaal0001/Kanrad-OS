@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { Plus, FileInput } from "lucide-react"
+import { Plus, FileInput, Sparkles } from "lucide-react"
 
 import { getPurchaseInvoices } from "@/actions/purchase-invoices"
 import { PageHeader } from "@/components/shared/page-header"
@@ -46,6 +46,12 @@ export default async function PurchaseInvoicesPage() {
           { label: "Purchases" },
         ]}
       >
+        <Link href="/finance/import?target=purchase_invoice">
+          <Button variant="outline">
+            <Sparkles className="h-4 w-4" />
+            Upload Invoice
+          </Button>
+        </Link>
         <PurchaseInvoiceExportButton />
         <Link href="/finance/purchases/new">
           <Button>

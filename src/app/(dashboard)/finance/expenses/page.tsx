@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { Plus, Receipt } from "lucide-react"
+import { Plus, Receipt, Sparkles } from "lucide-react"
 
 import { getExpenses, getExpenseCategories } from "@/actions/expenses"
 import { PageHeader } from "@/components/shared/page-header"
@@ -62,6 +62,12 @@ export default async function ExpensesPage({
           { label: "Expenses" },
         ]}
       >
+        <Link href="/finance/import?target=expense">
+          <Button variant="outline">
+            <Sparkles className="h-4 w-4" />
+            Upload Invoice
+          </Button>
+        </Link>
         <ExportButton data={exportData} columns={EXPORT_COLS} filename="expenses" />
         <Link href="/finance/expenses/new">
           <Button>

@@ -1,11 +1,17 @@
 "use client"
 
 import Link from "next/link"
+import { useState } from "react"
 import { usePathname } from "next/navigation"
-import { PanelLeftClose, PanelLeftOpen } from "lucide-react"
+import { ChevronDown, PanelLeftClose, PanelLeftOpen } from "lucide-react"
 
 import { cn } from "@/lib/utils"
-import { navigation, type NavGroup, type NavItem } from "@/lib/constants"
+import {
+  getActiveNavItem,
+  isNavSectionActive,
+  navigation,
+  type NavSection,
+} from "@/lib/constants"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Button } from "@/components/ui/button"
 import {
@@ -22,82 +28,150 @@ interface SidebarProps {
   allowedPermissions?: string[]
 }
 
-function NavItemLink({
-  item,
-  pathname,
-  collapsed,
-}: {
-  item: NavItem
-  pathname: string
-  collapsed: boolean
-}) {
-  const isActive = pathname === item.href
-  const Icon = item.icon
+function getActiveSectionIds(pathname: string, sections: NavSection[]) {
+  return sections
+    .filter((section) => isNavSectionActive(pathname, section))
+    .map((section) => section.id)
+}
 
-  const link = (
+function NavChildLink({
+  item,
+  isActive,
+}: {
+  item: NavSection["items"][number]
+  isActive: boolean
+}) {
+  return (
     <Link
       href={item.href}
       className={cn(
-        "group relative flex items-center rounded-lg text-sm font-medium transition-colors",
-        collapsed ? "justify-center px-2 py-2.5" : "gap-3 px-3 py-2",
+        "group flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-all duration-200",
         isActive
-          ? "border-l-[3px] border-sidebar-accent-foreground bg-sidebar-accent text-sidebar-accent-foreground"
-          : "border-l-[3px] border-transparent text-sidebar-foreground hover:bg-sidebar-accent/50"
+          ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
+          : "text-sidebar-foreground/75 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
       )}
     >
-      <Icon className="h-4 w-4 shrink-0" />
-      {!collapsed && <span className="truncate">{item.title}</span>}
-      {!collapsed && item.badge != null && item.badge > 0 && (
+      <span
+        className={cn(
+          "h-1.5 w-1.5 shrink-0 rounded-full bg-current opacity-40 transition-all duration-200",
+          isActive && "opacity-100"
+        )}
+      />
+      <span className="truncate">{item.title}</span>
+      {item.badge != null && item.badge > 0 && (
         <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-sidebar-accent-foreground px-1.5 text-[10px] font-semibold text-white">
           {item.badge}
         </span>
       )}
     </Link>
   )
-
-  if (collapsed) {
-    return (
-      <Tooltip>
-        <TooltipTrigger asChild>{link}</TooltipTrigger>
-        <TooltipContent side="right" sideOffset={8}>
-          {item.title}
-        </TooltipContent>
-      </Tooltip>
-    )
-  }
-
-  return link
 }
 
-function NavGroupSection({
-  group,
+function CollapsedSectionButton({
+  section,
   pathname,
-  collapsed,
+  onOpenSection,
 }: {
-  group: NavGroup
+  section: NavSection
   pathname: string
-  collapsed: boolean
+  onOpenSection: () => void
 }) {
+  const Icon = section.icon
+  const isActive = isNavSectionActive(pathname, section)
+
+  const button = (
+    <button
+      type="button"
+      onClick={onOpenSection}
+      className={cn(
+        "flex w-full items-center justify-center rounded-xl border border-transparent px-2 py-2.5 text-sm transition-all duration-200",
+        isActive
+          ? "border-sidebar-accent/20 bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
+          : "text-sidebar-foreground/70 hover:border-sidebar-border hover:bg-sidebar-accent/40 hover:text-sidebar-foreground"
+      )}
+      aria-label={section.title}
+    >
+      <Icon className="h-4 w-4 shrink-0" />
+    </button>
+  )
+
   return (
-    <div className="py-1">
-      {group.label && !collapsed && (
-        <p className="mb-1 px-3 pt-3 text-[11px] font-semibold uppercase tracking-wider text-sidebar-foreground/50">
-          {group.label}
-        </p>
+    <Tooltip>
+      <TooltipTrigger asChild>{button}</TooltipTrigger>
+      <TooltipContent side="right" sideOffset={8}>
+        {section.title}
+      </TooltipContent>
+    </Tooltip>
+  )
+}
+
+function ExpandedSection({
+  section,
+  pathname,
+  isOpen,
+  onToggle,
+}: {
+  section: NavSection
+  pathname: string
+  isOpen: boolean
+  onToggle: () => void
+}) {
+  const Icon = section.icon
+  const isActive = isNavSectionActive(pathname, section)
+  const activeItem = getActiveNavItem(pathname, section.items)
+
+  return (
+    <div
+      className={cn(
+        "overflow-hidden rounded-2xl border border-transparent bg-transparent transition-all duration-300",
+        isOpen
+          ? "border-sidebar-border/80 bg-sidebar-foreground/[0.02] shadow-sm"
+          : "hover:border-sidebar-border/60 hover:bg-sidebar-foreground/[0.015]"
       )}
-      {group.label && collapsed && (
-        <div className="mx-auto my-2 h-px w-6 bg-sidebar-border" />
+    >
+      <button
+        type="button"
+        onClick={onToggle}
+        className={cn(
+          "flex w-full cursor-pointer items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm font-medium transition-all duration-300",
+          isActive
+            ? "text-sidebar-accent-foreground"
+            : "text-sidebar-foreground/80 hover:text-sidebar-foreground"
+        )}
+        aria-expanded={isOpen}
+      >
+        <div
+          className={cn(
+            "flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition-colors duration-300",
+            isOpen || isActive
+              ? "bg-sidebar-accent/80 text-sidebar-accent-foreground"
+              : "bg-sidebar-foreground/[0.05] text-sidebar-foreground/60"
+          )}
+        >
+          <Icon className="h-4 w-4 shrink-0" />
+        </div>
+        <span className="flex-1 truncate">{section.title}</span>
+        <ChevronDown
+          className={cn(
+            "h-4 w-4 shrink-0 text-sidebar-foreground/50 transition-transform duration-300 ease-out",
+            isOpen ? "rotate-180" : "rotate-0"
+          )}
+        />
+      </button>
+
+      {isOpen && (
+        <div className="overflow-hidden">
+          <div className="space-y-0.5 px-3 pb-3 pl-14 animate-in fade-in-0 slide-in-from-top-1 duration-200">
+            {section.items.map((item) => (
+              <NavChildLink
+                key={item.href}
+                item={item}
+                isActive={activeItem?.href === item.href}
+              />
+            ))}
+          </div>
+        </div>
       )}
-      <div className="space-y-0.5">
-        {group.items.map((item) => (
-          <NavItemLink
-            key={item.href}
-            item={item}
-            pathname={pathname}
-            collapsed={collapsed}
-          />
-        ))}
-      </div>
     </div>
   )
 }
@@ -111,14 +185,46 @@ export function Sidebar({
   const pathname = usePathname()
 
   const allowed = new Set(allowedPermissions ?? [])
-  const filteredNavigation: NavGroup[] = navigation
-    .map((group) => ({
-      ...group,
-      items: group.items.filter(
+  const filteredNavigation: NavSection[] = navigation
+    .map((section) => ({
+      ...section,
+      items: section.items.filter(
         (item) => !item.permission || allowed.has(item.permission)
       ),
     }))
-    .filter((group) => group.items.length > 0)
+    .filter((section) => section.items.length > 0)
+
+  const activeSectionIds = getActiveSectionIds(pathname, filteredNavigation)
+  const defaultOpenSectionId = activeSectionIds[0] ?? null
+  const [navState, setNavState] = useState<{
+    pathname: string
+    openSectionId: string | null
+  }>(() => ({
+    pathname,
+    openSectionId: defaultOpenSectionId,
+  }))
+
+  function isSectionOpen(sectionId: string) {
+    const openSectionId =
+      navState.pathname === pathname ? navState.openSectionId : defaultOpenSectionId
+
+    return openSectionId === sectionId
+  }
+
+  function toggleSection(sectionId: string) {
+    setNavState({
+      pathname,
+      openSectionId: isSectionOpen(sectionId) ? null : sectionId,
+    })
+  }
+
+  function handleCollapsedSectionOpen(sectionId: string) {
+    setNavState({
+      pathname,
+      openSectionId: sectionId,
+    })
+    onToggleCollapse?.()
+  }
 
   return (
     <TooltipProvider delayDuration={0}>
@@ -129,7 +235,6 @@ export function Sidebar({
           className
         )}
       >
-        {/* Brand */}
         <div className="flex h-16 items-center justify-between px-4">
           <Link href="/" className="flex items-center gap-2 overflow-hidden">
             {collapsed ? (
@@ -162,21 +267,29 @@ export function Sidebar({
           )}
         </div>
 
-        {/* Navigation */}
         <ScrollArea className={cn("flex-1", collapsed ? "px-2" : "px-3")}>
-          <nav className="flex flex-col gap-0.5 pb-4">
-            {filteredNavigation.map((group, index) => (
-              <NavGroupSection
-                key={group.label || `group-${index}`}
-                group={group}
-                pathname={pathname}
-                collapsed={collapsed}
-              />
-            ))}
+          <nav className="flex flex-col gap-1 pb-4">
+            {filteredNavigation.map((section) =>
+              collapsed ? (
+                <CollapsedSectionButton
+                  key={section.id}
+                  section={section}
+                  pathname={pathname}
+                  onOpenSection={() => handleCollapsedSectionOpen(section.id)}
+                />
+              ) : (
+                <ExpandedSection
+                  key={section.id}
+                  section={section}
+                  pathname={pathname}
+                  isOpen={isSectionOpen(section.id)}
+                  onToggle={() => toggleSection(section.id)}
+                />
+              )
+            )}
           </nav>
         </ScrollArea>
 
-        {/* Footer */}
         <div className="border-t border-sidebar-border px-4 py-3">
           {!collapsed && (
             <p className="text-[11px] text-sidebar-foreground/40">v1.0.0</p>

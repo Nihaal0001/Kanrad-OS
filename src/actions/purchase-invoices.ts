@@ -96,6 +96,59 @@ export async function createPurchaseInvoice(formData: PurchaseInvoiceFormData) {
       invoice_date: validated.invoice_date,
       due_date: validated.due_date || null,
       notes: validated.notes || null,
+      document_path: validated.document_path || null,
+      document_url: validated.document_url || null,
+    })
+    .select()
+    .single()
+
+  if (invErr) return { error: invErr.message }
+
+  const items = validated.items.map((item) => ({
+    purchase_invoice_id: invoice.id,
+    description: item.description,
+    quantity: item.quantity,
+    unit_price: item.unit_price,
+    hsn_code: item.hsn_code || null,
+  }))
+
+  const { error: itemsErr } = await supabase
+    .from("purchase_invoice_items")
+    .insert(items)
+
+  if (itemsErr) return { error: itemsErr.message }
+
+  revalidatePath("/finance/purchases")
+  return { data: invoice }
+}
+
+export async function createImportedPurchaseInvoice(
+  formData: PurchaseInvoiceFormData & {
+    document_path?: string
+    document_url?: string
+  }
+) {
+  const validated = purchaseInvoiceSchema.parse(formData)
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
+  const { data: invoice, error: invErr } = await supabase
+    .from("purchase_invoices")
+    .insert({
+      purchase_order_id: validated.purchase_order_id || null,
+      supplier_name: validated.supplier_name,
+      supplier_gst: validated.supplier_gst || null,
+      invoice_number: validated.invoice_number || null,
+      tax_rate: validated.tax_rate,
+      place_of_supply: validated.place_of_supply || null,
+      is_igst: validated.is_igst ?? false,
+      invoice_date: validated.invoice_date,
+      due_date: validated.due_date || null,
+      notes: validated.notes || null,
+      document_path: formData.document_path || null,
+      document_url: formData.document_url || null,
     })
     .select()
     .single()
