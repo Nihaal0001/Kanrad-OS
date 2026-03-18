@@ -201,21 +201,30 @@ export function AIChatWidget() {
   async function startRecording() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      const mediaRecorder = new MediaRecorder(stream, { mimeType: "audio/webm" })
+      // Pick the best MIME type Sarvam accepts
+      const mimeType = ["audio/mp4", "audio/webm;codecs=opus", "audio/webm", "audio/ogg"].find(
+        (m) => MediaRecorder.isTypeSupported(m)
+      ) ?? ""
+      const mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined)
       mediaRecorderRef.current = mediaRecorder
       audioChunksRef.current = []
       mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data) }
       mediaRecorder.onstop = async () => {
         stream.getTracks().forEach((t) => t.stop())
-        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" })
+        const blob = new Blob(audioChunksRef.current, { type: mediaRecorder.mimeType || "audio/webm" })
+        const ext = blob.type.includes("mp4") ? "recording.mp4"
+          : blob.type.includes("ogg") ? "recording.ogg"
+          : "recording.webm"
         setTranscribing(true)
-        const arrayBuffer = await audioBlob.arrayBuffer()
+        const arrayBuffer = await blob.arrayBuffer()
         const base64 = btoa(new Uint8Array(arrayBuffer).reduce((d, b) => d + String.fromCharCode(b), ""))
-        const result = await transcribeAudio(base64)
+        const result = await transcribeAudio(base64, ext)
         setTranscribing(false)
         if ("transcript" in result && result.transcript) {
           setDetectedLang(result.languageCode)
           handleSend(result.transcript)
+        } else if ("error" in result) {
+          toast.error(`Transcription failed: ${result.error}`)
         }
       }
       mediaRecorder.start()

@@ -302,7 +302,8 @@ function toTTSLang(sttLang: string | null): string {
 }
 
 export async function transcribeAudio(
-  base64Audio: string
+  base64Audio: string,
+  filename = "recording.webm"
 ): Promise<{ transcript: string; languageCode: string } | { error: string }> {
   try {
     const supabase = await createClient()
@@ -313,7 +314,7 @@ export async function transcribeAudio(
     }
 
     const buffer = Buffer.from(base64Audio, "base64")
-    const result = await speechToText(buffer, "recording.webm")
+    const result = await speechToText(buffer, filename)
     return {
       transcript: result.transcript,
       languageCode: result.language_code ?? "en-IN",
