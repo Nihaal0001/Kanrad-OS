@@ -115,7 +115,7 @@ export const navigation: NavSection[] = [
       { title: "Costing", href: "/finance/costing", icon: Calculator, permission: "finance" },
       { title: "Reports", href: "/finance/reports", icon: BarChart3, permission: "finance" },
       { title: "Credit Notes", href: "/finance/credit-notes", icon: Undo2, permission: "finance" },
-      { title: "Bank Recon", href: "/finance/bank-recon", icon: Landmark, permission: "finance" },
+      { title: "Reconciliation", href: "/finance/bank-recon", icon: Landmark, permission: "finance" },
       { title: "Journal", href: "/finance/journal", icon: BookOpen, permission: "finance" },
       { title: "Ledger", href: "/finance/ledger", icon: Scale, permission: "finance" },
       { title: "Trial Balance", href: "/finance/trial-balance", icon: BarChart3, permission: "finance" },

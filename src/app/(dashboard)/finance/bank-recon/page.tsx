@@ -48,7 +48,7 @@ export default async function BankReconPage() {
       <PageHeader
         title="Bank Reconciliation"
         description="Import your bank statement CSV and match with recorded payments"
-        breadcrumbs={[{ label: "Finance", href: "/finance" }, { label: "Bank Recon" }]}
+        breadcrumbs={[{ label: "Finance", href: "/finance" }, { label: "Reconciliation" }]}
       />
       <BankReconClient payments={allPayments} />
     </>
