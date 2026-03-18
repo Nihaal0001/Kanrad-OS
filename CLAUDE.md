@@ -9,7 +9,7 @@ Full production cycle: Fabric Sourcing → Cutting → Stitching → Quality Che
 - **UI**: shadcn/ui + Tailwind CSS
 - **Database & Auth**: Supabase (PostgreSQL + RLS + Auth + Realtime + Storage)
 - **Deployment**: Vercel
-- **Key Libraries**: @tanstack/react-table, react-hook-form, zod, lucide-react
+- **Key Libraries**: @tanstack/react-table, react-hook-form, zod, lucide-react, react-day-picker, date-fns, recharts, @react-pdf/renderer, exceljs, resend, twilio
 
 ## Design System
 - **Style**: Minimal + warm/crafted — clean whitespace (Linear/Notion-inspired) with earthy tones
@@ -27,18 +27,23 @@ Full production cycle: Fabric Sourcing → Cutting → Stitching → Quality Che
 - **Realtime**: Supabase Realtime subscriptions for notifications, production, dashboard
 - **State**: No global store. React Context for user profile + sidebar toggle only
 - **Filters**: URL search params (bookmarkable)
+- **Double-entry accounting**: DB triggers auto-create journal entries from invoices, payments, expenses, purchase invoices
 
 ## Modules
 1. Dashboard (KPIs, recent orders, production overview, activity feed)
-2. Orders + Buyers (CRUD, size/color breakdown, BOM)
-3. Inventory (materials, stock ledger, purchase orders, low-stock alerts)
-4. Production Tracking (7-stage pipeline, stage updates, bottleneck detection)
-5. Quality (QC inspections, defect tracking, image upload)
-6. Tasks (kanban board, assignment, order/stage linking)
-7. Notifications (realtime, polymorphic, multi-type alerts)
-8. Finance (invoices, payments, per-order costing)
-9. HR (attendance, leaves, shifts, payroll)
-10. User Management (roles, permissions, RLS)
+2. Orders + Buyers (CRUD, size/color breakdown, BOM, dispatch details, duplicate order)
+3. Customers & Suppliers (CRUD, GSTIN, bank details, payment terms, credit limit)
+4. Inventory (materials, stock ledger, purchase orders, low-stock alerts)
+5. Production Tracking (7-stage pipeline, stage updates, wastage tracking, bottleneck detection)
+6. Quality (QC inspections, defect tracking, image upload)
+7. Tasks (kanban board, assignment, order/stage linking)
+8. Notifications (realtime, polymorphic, multi-type alerts)
+9. Finance (invoices, payments, per-order costing, expenses, purchase invoices, cash flow, P&L, GST reports, journal/ledger/trial balance)
+10. HR (attendance with date nav + status grouping, leaves, shifts, payroll, payslip PDF, QR kiosk)
+11. Audit Trail (entity-level logging, filters by module/action/date)
+12. User Management (roles, permissions, RLS)
+13. AI — KYRE (Sarvam voice chat + Gemini agent with 12 tools, confirmation cards for write ops)
+14. Notifications — Email (Resend) + WhatsApp daily digest (Twilio)
 
 ## User Roles
 Admin/Owner, Production Manager, Inventory Manager, QC Head, Floor Supervisor, Worker
@@ -46,9 +51,10 @@ Admin/Owner, Production Manager, Inventory Manager, QC Head, Floor Supervisor, W
 ## Key Conventions
 - Append-only ledger pattern for stock transactions
 - Auto-generated order numbers: JC-ORD-YYMMDD-NNN (via DB trigger)
-- Database triggers for: order confirmation → production rows, stock changes → alerts, stage completion → order status
+- Database triggers for: order confirmation → production rows, stock changes → alerts, stage completion → order status, financial transactions → journal entries
 - All list pages use shared `data-table.tsx` component
-- Forms use react-hook-form + zod validation
+- Forms use react-hook-form + zod validation + `<Controller>` for custom DatePicker/TimePicker
+- Custom DatePicker (calendar popover) and TimePicker (dual Select) replace ALL native date/time inputs
 - Mobile: sidebar collapses to Sheet overlay
 - Server Actions go in `src/actions/<module>.ts`
 - Zod validators go in `src/lib/validators/<module>.ts`
@@ -57,179 +63,62 @@ Admin/Owner, Production Manager, Inventory Manager, QC Head, Floor Supervisor, W
 - Use `z.number()` with `valueAsNumber: true` in form register (NOT `z.coerce.number()` — broken in Zod v4)
 - shadcn components were manually created (CLI unreachable) — they live in `src/components/ui/`
 - Migrations are in `supabase/migrations/` — user runs them manually in Supabase SQL Editor
-- RLS policies require authenticated users (`auth.uid() IS NOT NULL`) — updated in Phase 8
+- RLS policies require authenticated users (`auth.uid() IS NOT NULL`)
 - Sidebar is collapsible: 260px expanded, 68px collapsed, with tooltips when collapsed
 - Auth: `src/lib/supabase/admin.ts` exports `createAdminClient()` using service role key (server-side only)
 - Login auto-confirms unconfirmed users on first sign-in (via admin API in login action)
 - User profile is fetched in dashboard layout via `profiles.auth_id = auth.uid()` and passed as prop to shell/topbar
-
-## Build Order
-Phase 1: Foundation (layout, shared components, theme)
-Phase 2: Orders + Buyers
-Phase 3: Inventory
-Phase 4: Production + Quality
-Phase 5: Tasks + Notifications + Dashboard (live)
-Phase 6: Finance
-Phase 7: HR
-Phase 8: Auth + RLS + Roles
-Phase 9: Polish + Deploy
-
-## Current Status
-- **Phase 1**: COMPLETE — layout shell, sidebar, topbar, mobile nav, 19 UI primitives, 6 shared components, warm theme, 14 placeholder pages
-- **Phase 2**: COMPLETE — buyers CRUD, orders CRUD with size/color breakdown, order detail/edit, status transitions, delete. Migration: `00001_core_tables.sql`
-- **Phase 3**: COMPLETE — materials CRUD with stock level bars, stock adjustment form (append-only ledger), purchase orders CRUD with item receiving workflow, low-stock filter. Migration: `00002_inventory_tables.sql`
-- **Phase 4**: COMPLETE — 7-stage production pipeline, per-order stage updates, QC inspections with pass/fail tracking. Migration: `00003_production_tables.sql`
-- **Phase 5**: COMPLETE — task kanban board, notifications list + bell badge, live dashboard KPIs + recent orders/activity. Migration: `00004_tasks_notifications.sql`
-- **Phase 6**: COMPLETE — invoice creation from orders (auto-fills items/buyer), invoice detail with print layout, payment recording (auto-updates paid status), order costing with computed material cost. Migration: `00005_finance_tables.sql`
-- **Phase 7**: COMPLETE — attendance marking (with status/check-in/check-out/OT), leave requests + approve/reject workflow, shift CRUD, payroll generation (auto-fills from attendance summary), mark paid. Migration: `00006_hr_tables.sql`
-- **Phase 8**: COMPLETE — Supabase Auth (email/password), middleware route protection, login page, auto-confirm on first login, user profile in topbar (name + role + initials), working logout. Migration: `00007_auth_rls.sql` (⚠️ must still be run in Supabase SQL Editor)
-- **Phase 9**: COMPLETE — Toast notifications (sonner, all 16 forms), breadcrumbs (all detail pages), command palette (⌘K, searches orders/materials/workers), dashboard clickable KPIs + Quick Actions, HR date filters (attendance by date, payroll by month), settings page (org info, DB details, module status)
-- **Phase 10**: COMPLETE — AI integration (Sarvam voice chat widget, Gemini insights on dashboard, smart suggestions in command palette). AI keys: `GEMINI_API_KEY`, `SARVAM_API_KEY` in `.env.local`
-- **Phase 11**: NOT STARTED — Deploy to Vercel
-
-## Roadmap Phases (from docs/ROADMAP.md)
-- **Phase 1 — Trust & Compliance**: COMPLETE — Audit trail (`audit_logs`), double-entry accounting (chart of accounts, journal entries, triggers), HSN/SAC master + hsn_code on order_items, data export (18 modules to Excel). Migration: `00014_phase1_trust_compliance.sql`
-- **Phase 2 — Daily Operations**: COMPLETE — Customers & Suppliers CRUD (with GSTIN, bank details, payment terms, credit limit), sidebar nav, dispatch details card on order detail, duplicateOrder() action, delivery challan PDF + packing slip PDF (download buttons on completed/dispatched orders). Migration: `00015_phases2_3.sql`
-- **Phase 3 — Smarter Inventory & Costing**: COMPLETE — Wastage tracking (quantity_input + waste_notes + waste % per stage, total waste summary), PO ↔ purchase invoice matching (comparison table with variance), enhanced order costing (P&L summary card with gross margin from invoices). Migration: `00015_phases2_3.sql` (quantity_input, waste_notes columns)
-- **Phase 4 — Notifications & Communication**: COMPLETE — Email via Resend (`src/lib/email.ts`: low stock, overdue invoices, leave request templates), WhatsApp owner daily digest via Twilio (`src/lib/whatsapp.ts`), cron jobs: `/api/cron/low-stock-alert` (9am daily), `/api/cron/overdue-invoices` (Monday 9am), `/api/cron/whatsapp-digest` (8am daily), payslip PDF (`src/components/hr/payslip-pdf.tsx` + `/api/payslip/[id]/pdf` + download icon on payroll list)
-- **Finance Upgrade**: IN PROGRESS — see Finance Upgrade section below
+- `logAudit()` is fire-and-forget — never blocks main operation, errors are swallowed
+- Auth guards (`getUser()`) on all server actions; `requireAdmin()` for admin-only ops
+- `EmptyState` action prop takes `{ label, href }` object — NOT JSX elements
+- Purchase invoice numbers = supplier's own number (plain text, NOT auto-generated)
+- Dark mode in recharts: always use `useTheme` + explicit hex, never CSS variables in SVG attributes
+- Dark mode in dynamic badge strings: use border-only Tailwind classes (no `dark:` prefix in JS object values)
+- Cron jobs secured with `CRON_SECRET` bearer token
 
 ## Supabase
 - Project ref: `spwighzxkaeibutmijus`
 - Migration files must be run manually by the user in the Supabase SQL Editor
-- Migrations run: `00001` through `00007`, `00010`, `00013` confirmed. `00014_phase1_trust_compliance.sql` written but **not yet run**
-- Tables: profiles, buyers, orders, order_items, order_materials, material_categories, materials, stock_transactions, purchase_orders, purchase_order_items, production_stages, production_tracking, quality_checks, tasks, notifications, invoices, invoice_items, payments, order_costings, shifts, worker_shifts, attendance, leaves, payroll, expense_categories, expenses, purchase_invoices, purchase_invoice_items, purchase_payments
-- Phase 1 tables (pending migration 00014): audit_logs, hsn_master, chart_of_accounts, journal_entries, journal_entry_lines
+- Migrations run: `00001` through `00007`, `00010`, `00013`, `00014`, `00015`
+- Tables: profiles, buyers, orders, order_items, order_materials, material_categories, materials, stock_transactions, purchase_orders, purchase_order_items, production_stages, production_tracking, quality_checks, tasks, notifications, invoices, invoice_items, payments, order_costings, shifts, worker_shifts, attendance, leaves, payroll, expense_categories, expenses, purchase_invoices, purchase_invoice_items, purchase_payments, audit_logs, hsn_master, chart_of_accounts, journal_entries, journal_entry_lines, customers, suppliers
 
 ## Known Issues & Quirks
 - **Turbopack cache corruption**: If you get `ENOENT: build-manifest.json` errors, run `rm -rf .next && npm run dev`
 - **Radix Select**: Never use `value=""` on `<SelectItem>` — use `"none"` as sentinel and map it back
 - **Zod v4**: Don't use `required_error` on `z.number()` — it's not valid in Zod v4
 - **Supabase joins**: `leaves` table has two FKs to `profiles` (worker_id, approved_by) — must use `profiles!worker_id` hint
-- **Dev diagnostic route**: `src/app/api/dev/auth-status/route.ts` exists for debugging — delete before deploying to production
-- **Production trigger fires on UPDATE only**: The `on_order_confirmed` trigger only fires on status UPDATE, not INSERT. Orders created directly as "confirmed" won't auto-get tracking rows from the trigger. Fixed in code: `getOrderProduction` now auto-creates tracking rows on first load if none exist.
+- **Production trigger fires on UPDATE only**: The `on_order_confirmed` trigger only fires on status UPDATE, not INSERT. Fixed in code: `getOrderProduction` auto-creates tracking rows on first load if none exist.
+- **Trial balance**: Uses JS-side date filtering (Supabase limitation: can't filter on joined table columns in nested select)
 
-## Post-Phase 10 Fixes (session 3)
-- **Security audit**: Auth guards (`getUser()`) added to all server actions — orders, buyers, production, tasks, finance, hr, notifications, inventory, ai, users
-- **Admin guard**: `requireAdmin()` helper in `users.ts` checks `profiles.role === "admin"` via `auth_id`
-- **Status allowlists**: `VALID_ORDER_STATUSES`, `VALID_TASK_STATUSES`, `VALID_INVOICE_STATUSES`, `VALID_PO_STATUSES` added
-- **CSP header**: Content-Security-Policy added to `next.config.ts` allowlisting Supabase, Gemini, Sarvam
-- **Hydration fix**: `suppressHydrationWarning` on `<html>` in `layout.tsx` fixes next-themes mismatch
-- **Order redirect**: After creating an order, redirects to `/orders` list (not detail page)
-- **Quick Actions UI**: "New Purchase Order" button label no longer overflows its grid cell
-- **Inventory seed**: `supabase/seeds/inventory_seed.sql` — 25 materials across 5 categories (Fabric, Trims, Thread, Labels, Packaging)
-- **AI insights visibility**: Card now has solid amber tint + border; insight rows on white with colour borders
-- **AI insights 404**: Links from AI insights validated against known routes before rendering — invalid hrefs hidden
-- **Production — auto-init**: `getOrderProduction` auto-creates 7 tracking rows on first load if order has none
-- **Production — inline forms**: Production detail page rebuilt with summary stats, progress bar, and inline per-stage update forms (no dialogs)
-- **Production — Log Production button**: Pipeline list view now has a "Log Production" button per order row
-- **Sidebar**: Quality removed from nav; accessible at `/quality` directly
+## Current Status
+- **Core ERP (Phases 1-10)**: COMPLETE — all modules built and functional
+- **Finance Upgrade**: COMPLETE — expenses, purchase invoices, cash flow, P&L, GST reports, journal/ledger/trial balance, Excel exports
+- **Roadmap Phase 1 (Trust & Compliance)**: COMPLETE — audit trail, HSN codes, data export, double-entry accounting
+- **Roadmap Phase 2 (Daily Operations)**: COMPLETE — customers/suppliers, delivery challan, packing slip, dispatch details, duplicate order
+- **Roadmap Phase 3 (Inventory & Costing)**: COMPLETE — wastage tracking, PO↔purchase invoice matching, enhanced order costing with margin
+- **Roadmap Phase 4 (Notifications)**: COMPLETE — email (Resend), WhatsApp digest (Twilio), payslip PDF
+- **Roadmap Phase 5 (Demo Polish)**: NOT STARTED — buyer portal
+- **Roadmap Phase 6 (Financial Maturity)**: NOT STARTED — credit notes, Tally XML, e-invoice, bank reconciliation
+- **Deploy to Vercel**: NOT STARTED
 
-## Post-Phase 10 Fixes (session 4)
-
-### QR Kiosk improvements
-- **Back button**: Kiosk page has a back button (top-left, `router.back()`)
-- **Pause when hidden**: `visibilitychange` event stops QR token polling + clears stale QR when tab is hidden; resumes immediately on visibility
-
-### KYRE — AI Agent Mode
-- **Agent Mode toggle**: Wand icon in chat widget header switches between KYRE chat (Sarvam) and KYRE Agent (Gemini function calling)
-- **New files**: `src/lib/ai/agent.ts` (Gemini tool declarations + multi-turn loop), `src/actions/ai-agent.ts` (`askAgent`, `executeAgentTool`)
-- **12 tools**: 6 read (attendance, orders, production, leaves, stock, workers) + 6 write (mark_attendance, approve/reject_leave, create_task, update_task_status, update_production_stage)
-- **Confirmation cards**: Write tools show a blue confirmation card before executing; read tools execute immediately and feed results back to Gemini in a loop
-- **Conversation history**: Agent passes last 6 messages as Gemini chat history for multi-turn context
-- **Naming**: Assistant renamed to **KYRE** throughout (chat header, system prompts, aria labels)
-- **Cost**: Runs on Gemini free tier (1,500 req/day) — $0 additional cost
-
-### Invoice PDF export
-- **Direct download**: "Save as PDF" button generates a real PDF server-side via `@react-pdf/renderer` and downloads it directly — no print dialog
-- **API route**: `GET /api/invoice/[id]/pdf` — auth-gated, streams PDF buffer
-- **Template**: `src/components/finance/invoice-pdf.tsx` — A4, professional layout with terracotta branding, org details from Settings, itemized table, GST breakdown, footer
-- **Dedicated print route**: `src/app/print/invoice/[id]/` also exists for browser-based print fallback
-
-### Auth fix (from friend's commit)
-- `getUserByEmail` doesn't exist in Supabase Admin API — replaced with `listUsers()` + `.find()` in `src/app/auth/login/actions.ts`
+## Env Vars Required
+```
+NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY
+GEMINI_API_KEY, SARVAM_API_KEY
+RESEND_API_KEY, EMAIL_FROM, OWNER_EMAIL
+TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_WHATSAPP_FROM, OWNER_WHATSAPP
+CRON_SECRET
+```
 
 ## Next Steps
-1. **Run migration `00014_phase1_trust_compliance.sql`** in Supabase SQL Editor (audit_logs, hsn_master, chart_of_accounts, journal_entries, journal_entry_lines + 5 DB triggers)
-2. **Run migration `00015_phases2_3.sql`** in Supabase SQL Editor (customers, suppliers, dispatch fields on orders, quantity_input + waste_notes on production_tracking)
-3. **Add env vars** to `.env.local` (and Vercel dashboard for prod): `RESEND_API_KEY`, `EMAIL_FROM`, `OWNER_EMAIL`, `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_FROM`, `OWNER_WHATSAPP`, `CRON_SECRET`
-4. **Delete** `src/app/api/dev/auth-status/route.ts` before production deploy
-5. **Phase 11** — Deploy to Vercel
+1. **Delete** `src/app/api/dev/auth-status/route.ts` before production deploy
+2. **Roadmap Phase 5** — Buyer portal (token-based read-only order status)
+3. **Deploy to Vercel** — connect repo, set env vars, add cron config
 
-## Finance Upgrade (In Progress)
-Goal: full financial visibility for owner + CA-ready exports + AI expense anomaly detection. NOT a full accounting system — no general ledger, no double-entry.
-
-### Completed
-- **Migration** `supabase/migrations/00013_finance_upgrade.sql` — 5 new tables with RLS, triggers, 8 default expense categories
-- **Expense tracking** — validator, actions (`src/actions/expenses.ts`), components (expense-form, expense-category-dialog, expense-actions), pages (`/finance/expenses`, `/finance/expenses/new`). Order-wise expense tagging supported.
-- **Purchase invoices** — validator, actions (`src/actions/purchase-invoices.ts`), components (purchase-invoice-form with full GST/IGST support, purchase-invoice-actions, purchase-payment-form), pages (`/finance/purchases`, `/finance/purchases/new`, `/finance/purchases/[id]`), cron (`/api/cron/purchase-invoice-overdue`)
-- **Finance dashboard** (`/finance`) — Revenue/Outstanding/Expenses/Net Profit (this month) stat cards, Receivables + Payables aging buckets (drafts excluded), Cash Flow chart (recharts), Inventory valuation, Audit readiness progress bar. Actions: `src/actions/finance-reports.ts`
-- **Finance reports** (`/finance/reports`) — 4 tabs (P&L, GST Summary, Receivables, Payables), month + Financial Year selectors (Indian FY Apr–Mar, last 4 FYs, mutually exclusive URL params), per-tab CSV/Excel export. `getProfitLoss` and `getGSTSummary` take `start`/`end` strings (not `month`)
-- **Cash flow page** (`/finance/cash-flow`) — 12-month statement with stat cards, area chart, detailed table (sales receipts / purchase payments / expenses / net / running total). Each row links to month detail.
-- **Cash flow month detail** (`/finance/cash-flow/[month]`) — per-transaction breakdown: Sales Receipts, Purchase Payments, Expenses cards with individual line items, payment method badges (border-only for dark mode compatibility)
-- **Export utilities** — `src/lib/export.ts` (arrayToCSV, downloadCSV, downloadExcel, downloadExcelStyled with exceljs), `src/components/finance/export-button.tsx`. `xlsx@0.18.5` + `exceljs@4.4.0` installed.
-- **Sidebar** — Finance group has 8 items: Overview, Sales, Purchases, Expenses, Payments, Cash Flow, Costing, Reports
-
-### Bug fixes applied
-- Cash flow chart: `useTheme` hook for explicit hex colors in dark mode (recharts SVG doesn't inherit CSS variables)
-- Payment method badges: border-only styling (`border border-blue-500 text-blue-500`) — no `dark:` in dynamic JS strings
-- `revalidatePath("/finance")` and `revalidatePath("/finance/cash-flow")` added to all payment/expense mutations
-- Receivables aging excludes draft invoices (both Overview and Reports)
-- COGS in `getProfitLoss` filtered by `created_at` within selected period (was all-time)
-- Net profit card on Overview labelled "This month" and uses current-month invoiced revenue (matches P&L report)
-
-### Remaining
-- **Phase 5 (partial)**: Add ExportButton to invoices, payments, expenses, purchases list pages
-- **Phase 6**: 5 KYRE read-only finance tools in `agent.ts` (get_invoices, get_receivables_summary, get_expenses_summary, get_gst_summary, get_profit_loss) + execute cases + TOOL_PERMISSIONS; expense anomaly detection in `context.ts`
-- **Phase 7**: `notifications-list.tsx` add `purchase_invoice_overdue` type; `vercel.json` add purchase-invoice-overdue cron; `types.ts` new finance types
-
-### Key Conventions for Finance Upgrade
-- Purchase invoice numbers = supplier's own number (plain text, NOT auto-generated)
-- Expense categories: 8 seeded defaults (`is_default=true`) + admin can add custom; `ON DELETE RESTRICT` prevents deleting categories with expenses
-- IGST auto-detection: compare first 2 digits of buyer/supplier GSTIN with org state code
-- Audit readiness = % of expenses + purchase invoices that have receipt/document URLs
-- `xlsx` lazy-imported in `downloadExcel`; `exceljs` used in `downloadExcelStyled` for styled multi-sheet exports
-- Dark mode in recharts: always use `useTheme` + explicit hex, never CSS variables in SVG attributes
-- Dark mode in dynamic badge strings: use border-only Tailwind classes (no `dark:` prefix in JS object values)
-
-## Feature Roadmap (20 features, 6 phases)
-Full details in `docs/ROADMAP.md`. Summary:
-
-- **Phase 1 — Trust & Compliance**: COMPLETE — see Phase 1 section below
-- **Phase 2 — Daily Operations**: Customers & Suppliers directory, delivery challan, packing slip, dispatch details, copy/repeat order
-- **Phase 3 — Inventory & Costing**: Wastage/scrap tracking, PO↔purchase invoice matching, enhanced order costing
-- **Phase 4 — Notifications**: Email notifications, WhatsApp integration, worker payslip delivery
+## Feature Roadmap
+Full details in `docs/ROADMAP.md`. Remaining:
 - **Phase 5 — Demo Polish**: Buyer portal (token-based read-only order status)
 - **Phase 6 — Financial Maturity**: Credit notes/returns, Tally XML export, e-invoice (GST portal), bank reconciliation
-
-## Phase 1 — Trust & Compliance (COMPLETE)
-
-### Features Delivered
-1. **Audit Trail** — `audit_logs` table (entity_type, entity_id, entity_label, action, old_values, new_values, changed_by, changed_by_name). Hooked into orders, invoices, and payments server actions. UI at `/audit` with filters by module, action, and date range.
-2. **HSN/SAC Codes** — `hsn_master` table seeded with 27 common garment HSN/SAC codes. `hsn_code` column added to `order_items` and `materials`. HSN field added to order form per line item. Invoice items already had `hsn_code`.
-3. **Full Data Export** — Settings page → "Export All Data" exports 18 sheets (Orders, Buyers, Invoice, Payments, Materials, Production, HR, Audit Log, etc.) as styled Excel via `exportAllData()` → `downloadExcelStyled()`.
-4. **Journal & Ledger** — Double-entry accounting: `chart_of_accounts` (26 accounts, 6 types), `journal_entries`, `journal_entry_lines`. DB triggers auto-create journal entries from invoices (sent→), payments, expenses, purchase invoices (received→), purchase payments. UI:
-   - `/finance/journal` — all journal entries, expandable per-entry line view
-   - `/finance/ledger` — account-level ledger with running balance (Dr/Cr)
-   - `/finance/trial-balance` — grouped trial balance, balanced check
-
-### New Files
-- `supabase/migrations/00014_phase1_trust_compliance.sql`
-- `src/actions/audit.ts`, `src/actions/accounting.ts`, `src/actions/export-all.ts`
-- `src/components/audit/audit-log-table.tsx`
-- `src/components/finance/journal-entries-table.tsx`, `ledger-display.tsx`, `trial-balance-table.tsx`
-- `src/components/settings/export-all-button.tsx`
-- `src/app/(dashboard)/audit/page.tsx` + `audit-filters.tsx`
-- `src/app/(dashboard)/finance/journal/page.tsx` + `journal-filters.tsx`
-- `src/app/(dashboard)/finance/ledger/page.tsx` + `ledger-account-selector.tsx`
-- `src/app/(dashboard)/finance/trial-balance/page.tsx` + `trial-balance-filters.tsx`
-
-### Key Conventions (Phase 1)
-- `logAudit()` is fire-and-forget — never blocks main operation, errors are swallowed
-- Journal entries are created by DB triggers (not application code) — automatic and consistent
-- HSN codes on order items are optional — no validation enforced
-- Trial balance uses JS-side date filtering (Supabase limitation: can't filter on joined table columns in nested select)
-- Chart of accounts seeded with 26 accounts across 6 types — admin can add custom via SQL for now
 
 ## Multi-Client Strategy
 - "Just Clothing" = demo/template for garment manufacturing

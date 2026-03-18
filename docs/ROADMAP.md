@@ -10,7 +10,7 @@ All pending migrations (00007, 00010, 00013) have been run.
 
 ---
 
-## Phase 1: Trust & Compliance
+## Phase 1: Trust & Compliance ✅ COMPLETE
 
 | # | Feature | Details |
 |---|---------|---------|
@@ -19,7 +19,7 @@ All pending migrations (00007, 00010, 00013) have been run.
 | 3 | **Full data export** | Settings page → "Export All Data" → ZIP of all tables as Excel files. |
 | 4 | **Journal & ledger entries** | Double-entry accounting: `journal_entries` + `ledger` tables. Every financial transaction auto-creates journal entries. Ledger view with debits/credits. Chart of accounts (configurable). Trial balance report. |
 
-## Phase 2: Daily Operations
+## Phase 2: Daily Operations ✅ COMPLETE
 
 | # | Feature | Details |
 |---|---------|---------|
@@ -29,7 +29,7 @@ All pending migrations (00007, 00010, 00013) have been run.
 | 8 | **Order dispatch details** | New fields on orders: transporter name, LR #, vehicle #, dispatch date, expected delivery date. |
 | 9 | **Copy/repeat order** | "Duplicate" button on order detail → pre-fills new order form with same buyer, items, breakdown. |
 
-## Phase 3: Smarter Inventory & Costing
+## Phase 3: Smarter Inventory & Costing ✅ COMPLETE
 
 | # | Feature | Details |
 |---|---------|---------|
@@ -37,7 +37,7 @@ All pending migrations (00007, 00010, 00013) have been run.
 | 11 | **PO ↔ Purchase invoice matching** | Link purchase invoices to POs. Highlight quantity/price mismatches (3-way matching). |
 | 12 | **Enhanced order costing** | Auto-pull material cost + labor + overhead → per-order profit margin on order detail page. |
 
-## Phase 4: Notifications & Communication
+## Phase 4: Notifications & Communication ✅ COMPLETE
 
 | # | Feature | Details |
 |---|---------|---------|
