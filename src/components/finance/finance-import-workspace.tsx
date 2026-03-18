@@ -173,8 +173,8 @@ function ImportUploader({
           <div className="rounded-2xl border border-sidebar-border/70 bg-background p-4">
             <p className="mb-3 text-sm font-medium">Selected files</p>
             <div className="space-y-2">
-              {files.map((file) => (
-                <div key={file.name} className="flex items-center justify-between rounded-xl bg-muted/40 px-3 py-2 text-sm">
+              {files.map((file, index) => (
+                <div key={`${file.name}-${file.size}-${index}`} className="flex items-center justify-between rounded-xl bg-muted/40 px-3 py-2 text-sm">
                   <span className="truncate">{file.name}</span>
                   <span className="text-muted-foreground">{Math.round(file.size / 1024)} KB</span>
                 </div>
@@ -462,8 +462,8 @@ export function FinanceImportWorkspace({
                       Extraction Warnings
                     </div>
                     <ul className="space-y-1 text-sm text-warning/90">
-                      {selectedItem.extraction_warnings.map((warning) => (
-                        <li key={warning}>{warning}</li>
+                      {selectedItem.extraction_warnings.map((warning, index) => (
+                        <li key={`${selectedItem.id}-warning-${index}`}>{warning}</li>
                       ))}
                     </ul>
                   </div>
