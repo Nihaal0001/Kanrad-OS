@@ -56,6 +56,9 @@ export default async function ProductionDetailPage({
 
   const totalProduced = tracking.reduce((s: number, t: { quantity_completed: number }) => s + (t.quantity_completed ?? 0), 0)
   const totalRejected = tracking.reduce((s: number, t: { quantity_rejected: number }) => s + (t.quantity_rejected ?? 0), 0)
+  const totalInput = tracking.reduce((s: number, t: { quantity_input?: number }) => s + (t.quantity_input ?? 0), 0)
+  const totalWaste = Math.max(0, totalInput - totalProduced)
+  const wastePct = totalInput > 0 ? Math.round((totalWaste / totalInput) * 100) : 0
   const currentStage = tracking.find((t: { status: string }) => t.status === "in_progress")
     ?? tracking.find((t: { status: string }) => t.status === "pending")
 
@@ -88,12 +91,13 @@ export default async function ProductionDetailPage({
         <div className="lg:col-span-2 space-y-4">
 
           {/* Summary stats */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
             {[
               { label: "Total Order", value: order.total_quantity, unit: "pcs", color: "" },
               { label: "Produced", value: totalProduced, unit: "pcs", color: "text-emerald-600" },
               { label: "Remaining", value: Math.max(0, order.total_quantity - totalProduced), unit: "pcs", color: "text-amber-600" },
               { label: "Rejected", value: totalRejected, unit: "pcs", color: "text-red-500" },
+              { label: "Waste %", value: totalInput > 0 ? `${wastePct}%` : "—", unit: totalInput > 0 ? `${totalWaste} pcs wasted` : "no input logged", color: wastePct > 10 ? "text-red-500" : wastePct > 0 ? "text-amber-600" : "text-muted-foreground" },
             ].map((stat) => (
               <Card key={stat.label} className="text-center py-3">
                 <p className="text-xs text-muted-foreground">{stat.label}</p>
@@ -137,6 +141,8 @@ export default async function ProductionDetailPage({
               status: string
               quantity_completed: number
               quantity_rejected: number
+              quantity_input?: number
+              waste_notes?: string | null
               notes: string | null
               started_at: string | null
               completed_at: string | null
@@ -173,10 +179,17 @@ export default async function ProductionDetailPage({
 
                     {/* Quick stats row (if any data) */}
                     {t.quantity_completed > 0 && (
-                      <div className="ml-11 mt-2 flex gap-4 text-xs text-muted-foreground">
+                      <div className="ml-11 mt-2 flex flex-wrap gap-4 text-xs text-muted-foreground">
                         <span><span className="font-semibold text-foreground">{t.quantity_completed}</span> produced ({pct}%)</span>
                         {t.quantity_rejected > 0 && (
                           <span><span className="font-semibold text-red-500">{t.quantity_rejected}</span> rejected</span>
+                        )}
+                        {t.quantity_input != null && t.quantity_input > 0 && (
+                          <span>
+                            <span className="font-semibold text-amber-600">
+                              {Math.round(((t.quantity_input - t.quantity_completed) / t.quantity_input) * 100)}%
+                            </span> waste ({t.quantity_input - t.quantity_completed} pcs)
+                          </span>
                         )}
                         {t.started_at && (
                           <span>Started {formatDate(t.started_at)}</span>
@@ -185,6 +198,9 @@ export default async function ProductionDetailPage({
                           <span>Done {formatDate(t.completed_at)}</span>
                         )}
                       </div>
+                    )}
+                    {t.waste_notes && (
+                      <p className="ml-11 mt-1 text-xs text-amber-700 dark:text-amber-400">Waste: {t.waste_notes}</p>
                     )}
                     {t.notes && (
                       <p className="ml-11 mt-1 text-xs italic text-muted-foreground">{t.notes}</p>
@@ -202,6 +218,8 @@ export default async function ProductionDetailPage({
                           currentStatus={t.status}
                           currentQtyCompleted={t.quantity_completed}
                           currentQtyRejected={t.quantity_rejected}
+                          currentQtyInput={t.quantity_input}
+                          currentWasteNotes={t.waste_notes}
                           currentNotes={t.notes}
                           totalQuantity={order.total_quantity}
                         />
@@ -220,6 +238,8 @@ export default async function ProductionDetailPage({
                           currentStatus={t.status}
                           currentQtyCompleted={t.quantity_completed}
                           currentQtyRejected={t.quantity_rejected}
+                          currentQtyInput={t.quantity_input}
+                          currentWasteNotes={t.waste_notes}
                           currentNotes={t.notes}
                           totalQuantity={order.total_quantity}
                           collapsed

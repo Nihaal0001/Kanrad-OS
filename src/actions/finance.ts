@@ -326,7 +326,25 @@ export async function getOrderCosting(orderId: string) {
     0
   )
 
-  return { order: normalizedOrder, costing, computedMaterialCost: materialCost }
+  // Fetch revenue from paid/sent invoices for this order
+  const { data: invoices } = await supabase
+    .from("invoices")
+    .select("total_amount, amount_paid, status")
+    .eq("order_id", orderId)
+    .in("status", ["sent", "paid", "partially_paid"])
+
+  const totalRevenue = (invoices ?? []).reduce(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (sum: number, inv: any) => sum + (inv.total_amount ?? 0),
+    0
+  )
+  const totalReceived = (invoices ?? []).reduce(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (sum: number, inv: any) => sum + (inv.amount_paid ?? 0),
+    0
+  )
+
+  return { order: normalizedOrder, costing, computedMaterialCost: materialCost, totalRevenue, totalReceived }
 }
 
 // ===== Invoice Export =====

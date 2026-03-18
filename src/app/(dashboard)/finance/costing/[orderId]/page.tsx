@@ -1,12 +1,13 @@
 import { notFound } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, TrendingUp, TrendingDown } from "lucide-react"
 
 import { getOrderCosting } from "@/actions/finance"
 import { PageHeader } from "@/components/shared/page-header"
 import { CostingForm } from "@/components/finance/costing-form"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Separator } from "@/components/ui/separator"
 
 interface Props {
   params: Promise<{ orderId: string }>
@@ -26,7 +27,13 @@ export default async function OrderCostingPage({ params }: Props) {
     notFound()
   }
 
-  const { order, costing, computedMaterialCost } = result!
+  const { order, costing, computedMaterialCost, totalRevenue, totalReceived } = result!
+
+  const totalCost = costing
+    ? (costing.material_cost ?? 0) + (costing.labor_cost ?? 0) + (costing.overhead_cost ?? 0)
+    : computedMaterialCost
+  const margin = totalRevenue > 0 ? totalRevenue - totalCost : null
+  const marginPct = totalRevenue > 0 && totalCost > 0 ? Math.round((margin! / totalRevenue) * 100) : null
 
   return (
     <>
@@ -63,8 +70,48 @@ export default async function OrderCostingPage({ params }: Props) {
           </Card>
         </div>
 
-        {/* Materials sidebar */}
-        <div>
+        {/* Right sidebar */}
+        <div className="space-y-6">
+
+          {/* Margin Summary */}
+          {totalRevenue > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  {margin !== null && margin >= 0
+                    ? <TrendingUp className="h-4 w-4 text-emerald-600" />
+                    : <TrendingDown className="h-4 w-4 text-red-500" />
+                  }
+                  P&amp;L Summary
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Revenue (invoiced)</span>
+                  <span className="font-medium">₹{formatCurrency(totalRevenue)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Received</span>
+                  <span className="text-emerald-600 font-medium">₹{formatCurrency(totalReceived)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Total Cost</span>
+                  <span className="font-medium">₹{formatCurrency(totalCost)}</span>
+                </div>
+                <Separator />
+                <div className="flex justify-between font-semibold">
+                  <span className={margin !== null && margin < 0 ? "text-red-500" : "text-emerald-700"}>
+                    Gross Margin
+                  </span>
+                  <span className={margin !== null && margin < 0 ? "text-red-500" : "text-emerald-700"}>
+                    ₹{formatCurrency(margin ?? 0)}
+                    {marginPct !== null && <span className="ml-1 text-xs font-normal">({marginPct}%)</span>}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Allocated Materials</CardTitle>
@@ -96,6 +143,7 @@ export default async function OrderCostingPage({ params }: Props) {
               )}
             </CardContent>
           </Card>
+        </div>
         </div>
       </div>
     </>

@@ -314,6 +314,24 @@ export async function getPayrolls(filters?: { status?: string; month?: string })
   }))
 }
 
+export async function getPayroll(id: string) {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from("payroll")
+    .select(`*, worker:profiles(id, full_name, department, role, phone)`)
+    .eq("id", id)
+    .single()
+
+  if (error) throw new Error(error.message)
+
+  return {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ...(data as any),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    worker: Array.isArray((data as any).worker) ? (data as any).worker[0] ?? null : (data as any).worker,
+  }
+}
+
 export async function createPayroll(formData: PayrollFormData) {
   const validated = payrollSchema.parse(formData)
   const supabase = await createClient()

@@ -34,6 +34,8 @@ interface StageInlineFormProps {
   currentStatus: string
   currentQtyCompleted: number
   currentQtyRejected: number
+  currentQtyInput?: number
+  currentWasteNotes?: string | null
   currentNotes: string | null
   totalQuantity: number
   collapsed?: boolean
@@ -46,6 +48,8 @@ export function StageInlineForm({
   currentStatus,
   currentQtyCompleted,
   currentQtyRejected,
+  currentQtyInput,
+  currentWasteNotes,
   currentNotes,
   totalQuantity,
   collapsed = false,
@@ -60,14 +64,18 @@ export function StageInlineForm({
       status: currentStatus as StageUpdateFormData["status"],
       quantity_completed: currentQtyCompleted,
       quantity_rejected: currentQtyRejected,
+      quantity_input: currentQtyInput ?? 0,
+      waste_notes: currentWasteNotes ?? "",
       notes: currentNotes ?? "",
     },
   })
 
   const watchCompleted = Number(form.watch("quantity_completed")) || 0
   const watchRejected = Number(form.watch("quantity_rejected")) || 0
+  const watchInput = Number(form.watch("quantity_input")) || 0
   const remaining = Math.max(0, totalQuantity - watchCompleted)
   const goodPieces = Math.max(0, watchCompleted - watchRejected)
+  const wastePct = watchInput > 0 ? Math.round(((watchInput - watchCompleted) / watchInput) * 100) : 0
 
   async function onSubmit(data: StageUpdateFormData) {
     setIsSubmitting(true)
@@ -103,7 +111,7 @@ export function StageInlineForm({
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
       {/* Live counters */}
-      <div className="grid grid-cols-3 gap-2 rounded-lg bg-muted/50 p-3 text-center text-xs">
+      <div className="grid grid-cols-4 gap-2 rounded-lg bg-muted/50 p-3 text-center text-xs">
         <div>
           <p className="text-muted-foreground mb-0.5">Total</p>
           <p className="text-base font-bold tabular-nums">{totalQuantity}</p>
@@ -117,6 +125,12 @@ export function StageInlineForm({
         <div>
           <p className="text-muted-foreground mb-0.5">Good Pieces</p>
           <p className="text-base font-bold tabular-nums text-emerald-600">{goodPieces}</p>
+        </div>
+        <div>
+          <p className="text-muted-foreground mb-0.5">Waste %</p>
+          <p className={`text-base font-bold tabular-nums ${wastePct > 10 ? "text-red-500" : wastePct > 0 ? "text-amber-600" : "text-muted-foreground"}`}>
+            {watchInput > 0 ? `${wastePct}%` : "—"}
+          </p>
         </div>
       </div>
 
@@ -137,6 +151,19 @@ export function StageInlineForm({
               ))}
             </SelectContent>
           </Select>
+        </div>
+
+        {/* Qty Input (raw material input for this stage) */}
+        <div className="space-y-1.5">
+          <Label htmlFor={`input-${trackingId}`} className="text-xs">Qty Input <span className="text-muted-foreground">(raw)</span></Label>
+          <Input
+            id={`input-${trackingId}`}
+            type="number"
+            min={0}
+            className="h-9"
+            placeholder="0"
+            {...form.register("quantity_input", { valueAsNumber: true })}
+          />
         </div>
 
         {/* Qty Completed */}
@@ -167,6 +194,17 @@ export function StageInlineForm({
             {...form.register("quantity_rejected", { valueAsNumber: true })}
           />
         </div>
+      </div>
+
+      {/* Waste Notes */}
+      <div className="space-y-1.5">
+        <Label htmlFor={`waste-${trackingId}`} className="text-xs">Wastage Notes <span className="text-muted-foreground">(optional)</span></Label>
+        <Input
+          id={`waste-${trackingId}`}
+          className="h-9"
+          placeholder="e.g. Fabric defect, cutting error..."
+          {...form.register("waste_notes")}
+        />
       </div>
 
       {/* Notes */}

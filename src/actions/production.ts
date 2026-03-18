@@ -62,7 +62,7 @@ export async function getOrderProduction(orderId: string) {
       id, order_number, style_name, total_quantity, status, deadline, priority,
       buyer:buyers(id, name, company),
       production_tracking(
-        id, status, quantity_completed, quantity_rejected, notes, started_at, completed_at, stage_id, assigned_to,
+        id, status, quantity_completed, quantity_rejected, quantity_input, waste_notes, notes, started_at, completed_at, stage_id, assigned_to,
         stage:production_stages(id, name, sequence, description)
       )
     `)
@@ -92,7 +92,7 @@ export async function getOrderProduction(orderId: string) {
           id, order_number, style_name, total_quantity, status, deadline, priority,
           buyer:buyers(id, name, company),
           production_tracking(
-            id, status, quantity_completed, quantity_rejected, notes, started_at, completed_at, stage_id, assigned_to,
+            id, status, quantity_completed, quantity_rejected, quantity_input, waste_notes, notes, started_at, completed_at, stage_id, assigned_to,
             stage:production_stages(id, name, sequence, description)
           )
         `)
@@ -140,6 +140,8 @@ export async function updateProductionStage(
       status: validated.status,
       quantity_completed: validated.quantity_completed,
       quantity_rejected: validated.quantity_rejected,
+      quantity_input: validated.quantity_input ?? null,
+      waste_notes: validated.waste_notes || null,
       notes: validated.notes || null,
     })
     .eq("id", trackingId)

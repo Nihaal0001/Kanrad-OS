@@ -241,6 +241,60 @@ export default async function PurchaseInvoiceDetailPage({ params }: Props) {
         </CardContent>
       </Card>
 
+      {/* PO Comparison Card */}
+      {invoice.linked_po && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="text-base">
+              Linked Purchase Order — {invoice.linked_po.po_number}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-[1fr_80px_100px_100px_100px] gap-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide pb-2 border-b">
+              <span>Item</span>
+              <span className="text-right">Ordered Qty</span>
+              <span className="text-right">Ordered Price</span>
+              <span className="text-right">Invoiced Qty</span>
+              <span className="text-right">Invoiced Price</span>
+            </div>
+            <div className="divide-y divide-border/50">
+              {(invoice.linked_po.purchase_order_items ?? []).map((poi: {
+                id: string; material_name: string; quantity: number; unit_price: number
+              }) => {
+                // Match to invoice item by description (best-effort)
+                const matchedItem = invoice.purchase_invoice_items.find((ii: { description: string }) =>
+                  ii.description.toLowerCase().includes(poi.material_name?.toLowerCase() ?? "")
+                )
+                const qtyMatch = matchedItem ? matchedItem.quantity === poi.quantity : null
+                const priceMatch = matchedItem ? matchedItem.unit_price === poi.unit_price : null
+                return (
+                  <div key={poi.id} className="grid grid-cols-[1fr_80px_100px_100px_100px] gap-3 py-3 text-sm">
+                    <span className="font-medium">{poi.material_name}</span>
+                    <span className="text-right text-muted-foreground">{poi.quantity}</span>
+                    <span className="text-right text-muted-foreground">₹{formatCurrency(poi.unit_price)}</span>
+                    <span className={`text-right font-medium ${matchedItem && !qtyMatch ? "text-amber-600" : ""}`}>
+                      {matchedItem ? matchedItem.quantity : <span className="text-muted-foreground">—</span>}
+                    </span>
+                    <span className={`text-right font-medium ${matchedItem && !priceMatch ? "text-amber-600" : ""}`}>
+                      {matchedItem ? `₹${formatCurrency(matchedItem.unit_price)}` : <span className="text-muted-foreground">—</span>}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+            <div className="mt-3 pt-3 border-t flex gap-6 text-xs text-muted-foreground">
+              <span>PO Total: <strong>₹{formatCurrency(invoice.linked_po.total_amount ?? 0)}</strong></span>
+              <span>Invoice Total: <strong>₹{formatCurrency(invoice.total_amount ?? 0)}</strong></span>
+              {Math.abs((invoice.linked_po.total_amount ?? 0) - (invoice.total_amount ?? 0)) > 0.01 && (
+                <span className="text-amber-600 font-medium">
+                  Δ ₹{formatCurrency(Math.abs((invoice.linked_po.total_amount ?? 0) - (invoice.total_amount ?? 0)))} variance
+                </span>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Payment History */}
       {invoice.purchase_payments.length > 0 && (
         <Card>

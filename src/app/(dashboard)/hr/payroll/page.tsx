@@ -1,4 +1,4 @@
-import { Wallet } from "lucide-react"
+import { FileDown, Wallet } from "lucide-react"
 
 import { getPayrolls, getWorkers, updatePayrollStatus, deletePayroll } from "@/actions/hr"
 import { PageHeader } from "@/components/shared/page-header"
@@ -50,19 +50,19 @@ export default async function PayrollPage({ searchParams }: Props) {
         />
       ) : (
         <div className="space-y-2">
-          <div className="hidden grid-cols-[1.5fr_1fr_1fr_1fr_1fr_1fr_100px] gap-4 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide sm:grid">
+          <div className="hidden grid-cols-[1.5fr_1fr_1fr_1fr_1fr_1fr_120px] gap-4 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide sm:grid">
             <span>Worker</span>
             <span>Period</span>
             <span>Days</span>
             <span>OT Hrs</span>
             <span>Deductions</span>
             <span>Total</span>
-            <span>Status</span>
+            <span>Actions</span>
           </div>
 
           {payrolls.map((p) => (
             <Card key={p.id}>
-              <CardContent className="grid grid-cols-[1.5fr_1fr_1fr_1fr_1fr_1fr_100px] items-center gap-4 p-4">
+              <CardContent className="grid grid-cols-[1.5fr_1fr_1fr_1fr_1fr_1fr_120px] items-center gap-4 p-4">
                 <div>
                   <p className="text-sm font-medium">{p.worker?.full_name ?? "—"}</p>
                   {p.worker?.department && (
@@ -77,7 +77,7 @@ export default async function PayrollPage({ searchParams }: Props) {
                 <p className="text-sm text-muted-foreground">{p.overtime_hours}h</p>
                 <p className="text-sm text-muted-foreground">₹{formatCurrency(p.deductions)}</p>
                 <p className="text-sm font-semibold">₹{formatCurrency(p.total_wage)}</p>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1 flex-wrap">
                   {p.status === "draft" ? (
                     <form
                       action={async () => {
@@ -92,6 +92,11 @@ export default async function PayrollPage({ searchParams }: Props) {
                   ) : (
                     <Badge className="bg-emerald-100 text-emerald-700 text-xs font-medium">Paid</Badge>
                   )}
+                  <a href={`/api/payslip/${p.id}/pdf`} target="_blank" rel="noreferrer">
+                    <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-muted-foreground">
+                      <FileDown className="h-3.5 w-3.5" />
+                    </Button>
+                  </a>
                   {p.status === "draft" && (
                     <DeleteButton
                       title="Delete Payroll Record"

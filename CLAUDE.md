@@ -86,6 +86,12 @@ Phase 9: Polish + Deploy
 - **Phase 9**: COMPLETE — Toast notifications (sonner, all 16 forms), breadcrumbs (all detail pages), command palette (⌘K, searches orders/materials/workers), dashboard clickable KPIs + Quick Actions, HR date filters (attendance by date, payroll by month), settings page (org info, DB details, module status)
 - **Phase 10**: COMPLETE — AI integration (Sarvam voice chat widget, Gemini insights on dashboard, smart suggestions in command palette). AI keys: `GEMINI_API_KEY`, `SARVAM_API_KEY` in `.env.local`
 - **Phase 11**: NOT STARTED — Deploy to Vercel
+
+## Roadmap Phases (from docs/ROADMAP.md)
+- **Phase 1 — Trust & Compliance**: COMPLETE — Audit trail (`audit_logs`), double-entry accounting (chart of accounts, journal entries, triggers), HSN/SAC master + hsn_code on order_items, data export (18 modules to Excel). Migration: `00014_phase1_trust_compliance.sql`
+- **Phase 2 — Daily Operations**: COMPLETE — Customers & Suppliers CRUD (with GSTIN, bank details, payment terms, credit limit), sidebar nav, dispatch details card on order detail, duplicateOrder() action, delivery challan PDF + packing slip PDF (download buttons on completed/dispatched orders). Migration: `00015_phases2_3.sql`
+- **Phase 3 — Smarter Inventory & Costing**: COMPLETE — Wastage tracking (quantity_input + waste_notes + waste % per stage, total waste summary), PO ↔ purchase invoice matching (comparison table with variance), enhanced order costing (P&L summary card with gross margin from invoices). Migration: `00015_phases2_3.sql` (quantity_input, waste_notes columns)
+- **Phase 4 — Notifications & Communication**: COMPLETE — Email via Resend (`src/lib/email.ts`: low stock, overdue invoices, leave request templates), WhatsApp owner daily digest via Twilio (`src/lib/whatsapp.ts`), cron jobs: `/api/cron/low-stock-alert` (9am daily), `/api/cron/overdue-invoices` (Monday 9am), `/api/cron/whatsapp-digest` (8am daily), payslip PDF (`src/components/hr/payslip-pdf.tsx` + `/api/payslip/[id]/pdf` + download icon on payroll list)
 - **Finance Upgrade**: IN PROGRESS — see Finance Upgrade section below
 
 ## Supabase
@@ -145,11 +151,10 @@ Phase 9: Polish + Deploy
 
 ## Next Steps
 1. **Run migration `00014_phase1_trust_compliance.sql`** in Supabase SQL Editor (audit_logs, hsn_master, chart_of_accounts, journal_entries, journal_entry_lines + 5 DB triggers)
-2. **Create `receipts` storage bucket** in Supabase dashboard (for expense receipt uploads)
-3. **Delete** `src/app/api/dev/auth-status/route.ts` before production deploy
-4. **Finance Upgrade remaining** — ExportButton on list pages, KYRE finance tools in `agent.ts`, `purchase_invoice_overdue` notification type
-5. **Roadmap Phase 2** — Customers & Suppliers directory, delivery challan, packing slip, dispatch details, copy/repeat order
-6. **Phase 11** — Deploy to Vercel
+2. **Run migration `00015_phases2_3.sql`** in Supabase SQL Editor (customers, suppliers, dispatch fields on orders, quantity_input + waste_notes on production_tracking)
+3. **Add env vars** to `.env.local` (and Vercel dashboard for prod): `RESEND_API_KEY`, `EMAIL_FROM`, `OWNER_EMAIL`, `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_FROM`, `OWNER_WHATSAPP`, `CRON_SECRET`
+4. **Delete** `src/app/api/dev/auth-status/route.ts` before production deploy
+5. **Phase 11** — Deploy to Vercel
 
 ## Finance Upgrade (In Progress)
 Goal: full financial visibility for owner + CA-ready exports + AI expense anomaly detection. NOT a full accounting system — no general ledger, no double-entry.

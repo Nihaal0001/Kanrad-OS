@@ -45,8 +45,26 @@ export async function getPurchaseInvoice(id: string) {
 
   if (error) throw new Error(error.message)
 
+  // If linked to a PO, fetch PO + items for matching
+  let linkedPO = null
+  if (data.purchase_order_id) {
+    const { data: po } = await supabase
+      .from("purchase_orders")
+      .select(`*, purchase_order_items(*)`)
+      .eq("id", data.purchase_order_id)
+      .single()
+    if (po) {
+      linkedPO = {
+        ...po,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        purchase_order_items: (po.purchase_order_items ?? []).sort((a: any, b: any) => a.created_at.localeCompare(b.created_at)),
+      }
+    }
+  }
+
   return {
     ...data,
+    linked_po: linkedPO,
     purchase_invoice_items: (data.purchase_invoice_items ?? []).sort(
       (a: { created_at: string }, b: { created_at: string }) =>
         a.created_at.localeCompare(b.created_at)
