@@ -158,6 +158,13 @@ CRON_SECRET
 - `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_FROM`, `OWNER_WHATSAPP` — WhatsApp digest
 - `CRON_SECRET` — Bearer token for Vercel cron security
 
+### Session 7 fixes
+- **Mobile bottom nav colors**: Fixed backdrop-blur rgba background rendering poorly on mobile Safari (appeared dark/black). Switched `mobile-bottom-nav.tsx` nav container to solid `bg-card border-border shadow-lg` and simplified active/inactive tab classes to `bg-primary/10 text-primary` / `text-muted-foreground`.
+- **Topbar hydration mismatch**: Extracted shared `UserMenu` component — two separate `DropdownMenu` instances (desktop + mobile) caused Radix to generate mismatched sequential IDs on server vs client. Now one `UserMenu` component with `size: "sm" | "lg"` prop used in both layouts.
+- **Row list content sticking to top**: Fixed `CardContent` default from `p-5 pt-0 sm:p-6 sm:pt-0` → `p-5 sm:p-6`; `CardHeader` from `p-5 sm:p-6` → `p-5 pb-0 sm:p-6 sm:pb-0`. Single change in `card.tsx` fixed all 14+ list pages.
+- **KYRE mic fix**: `MediaRecorder` was hardcoded to `audio/webm` (fails on Safari). Now detects supported MIME type via `isTypeSupported()` and passes correct file extension to Sarvam STT.
+- **Mobile dev access**: Run `npm run dev -- --hostname 0.0.0.0` to access on local network at `http://192.168.1.101:3000`.
+
 ## Next Steps
 1. **Add env vars** to `.env.local` and Vercel dashboard: `PORTAL_SECRET`, `RESEND_API_KEY`, `EMAIL_FROM`, `OWNER_EMAIL`, `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_FROM`, `OWNER_WHATSAPP`, `CRON_SECRET`
 2. **Delete** `src/app/api/dev/auth-status/route.ts` before production deploy
