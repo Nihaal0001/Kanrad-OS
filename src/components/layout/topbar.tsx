@@ -48,6 +48,66 @@ function getInitials(name: string) {
     .toUpperCase()
 }
 
+function UserMenu({
+  userProfile,
+  nextThemeLabel,
+  setTheme,
+  startTransition,
+  size,
+}: {
+  userProfile: UserProfile
+  nextThemeLabel: string
+  setTheme: (theme: string) => void
+  startTransition: (fn: () => void) => void
+  size: "sm" | "lg"
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          className={size === "sm"
+            ? "relative ml-1 h-8 w-8 rounded-full"
+            : "h-10 w-10 shrink-0 rounded-full border border-border/70 bg-background/70 p-0"
+          }
+          aria-label="User menu"
+        >
+          <Avatar className={size === "sm" ? "h-8 w-8" : "h-9 w-9"}>
+            <AvatarImage src={userProfile.avatar_url ?? ""} alt={userProfile.full_name} />
+            <AvatarFallback className="bg-sidebar-accent text-sidebar-accent-foreground text-xs font-semibold">
+              {getInitials(userProfile.full_name)}
+            </AvatarFallback>
+          </Avatar>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align={size === "sm" ? "end" : "start"} className="w-52">
+        <div className="px-2 py-1.5">
+          <p className="text-sm font-medium text-foreground">{userProfile.full_name}</p>
+          <p className="text-xs text-muted-foreground">{ROLE_LABELS[userProfile.role] ?? userProfile.role}</p>
+        </div>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link href="/settings">Settings</Link>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          className="cursor-pointer"
+          onSelect={() => setTheme(nextThemeLabel === "Dark Mode" ? "dark" : "light")}
+        >
+          {nextThemeLabel}
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          className="text-destructive focus:text-destructive cursor-pointer"
+          onSelect={() => startTransition(() => { logout() })}
+        >
+          Log out
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
 export function Topbar({ onMenuClick, onSearchClick, unreadCount = 0, userProfile }: TopbarProps) {
   const { theme, setTheme } = useTheme()
   const [, startTransition] = useTransition()
@@ -98,89 +158,12 @@ export function Topbar({ onMenuClick, onSearchClick, unreadCount = 0, userProfil
             </Link>
           </Button>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                className="relative ml-1 h-8 w-8 rounded-full"
-                aria-label="User menu"
-              >
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src={userProfile.avatar_url ?? ""} alt={userProfile.full_name} />
-                  <AvatarFallback className="bg-sidebar-accent text-sidebar-accent-foreground text-xs font-semibold">
-                    {getInitials(userProfile.full_name)}
-                  </AvatarFallback>
-                </Avatar>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-52">
-              <div className="px-2 py-1.5">
-                <p className="text-sm font-medium text-foreground">{userProfile.full_name}</p>
-                <p className="text-xs text-muted-foreground">{ROLE_LABELS[userProfile.role] ?? userProfile.role}</p>
-              </div>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link href="/settings">Settings</Link>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="cursor-pointer"
-                onSelect={() => setTheme(theme === "dark" ? "light" : "dark")}
-              >
-                {nextThemeLabel}
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="text-destructive focus:text-destructive cursor-pointer"
-                onSelect={() => startTransition(() => { logout() })}
-              >
-                Log out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <UserMenu userProfile={userProfile} nextThemeLabel={nextThemeLabel} setTheme={setTheme} startTransition={startTransition} size="sm" />
         </div>
       </div>
 
       <div className="flex items-center gap-3 lg:hidden">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              className="h-10 w-10 shrink-0 rounded-full border border-border/70 bg-background/70 p-0"
-              aria-label="User menu"
-            >
-              <Avatar className="h-9 w-9">
-                <AvatarImage src={userProfile.avatar_url ?? ""} alt={userProfile.full_name} />
-                <AvatarFallback className="bg-sidebar-accent text-sidebar-accent-foreground text-xs font-semibold">
-                  {getInitials(userProfile.full_name)}
-                </AvatarFallback>
-              </Avatar>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-56">
-            <div className="px-2 py-1.5">
-              <p className="text-sm font-medium text-foreground">{userProfile.full_name}</p>
-              <p className="text-xs text-muted-foreground">{ROLE_LABELS[userProfile.role] ?? userProfile.role}</p>
-            </div>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <Link href="/settings">Settings</Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              className="cursor-pointer"
-              onSelect={() => setTheme(theme === "dark" ? "light" : "dark")}
-            >
-              {nextThemeLabel}
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              className="text-destructive focus:text-destructive cursor-pointer"
-              onSelect={() => startTransition(() => { logout() })}
-            >
-              Log out
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <UserMenu userProfile={userProfile} nextThemeLabel={nextThemeLabel} setTheme={setTheme} startTransition={startTransition} size="lg" />
 
         <Button
           variant="outline"
