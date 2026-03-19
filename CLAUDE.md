@@ -81,9 +81,9 @@ Admin/Owner, Production Manager, Inventory Manager, QC Head, Floor Supervisor, W
 ## Supabase
 - Project ref: `spwighzxkaeibutmijus`
 - Migration files must be run manually by the user in the Supabase SQL Editor
-- Migrations run: `00001` through `00007`, `00010`, `00013`, `00014`, `00015` (00016–00021 pending)
+- Migrations run: `00001` through `00007`, `00010`, `00013` through `00021`
 - Tables: profiles, orders, order_items, order_materials, material_categories, materials, stock_transactions, purchase_orders, purchase_order_items, production_stages, production_tracking, quality_checks, tasks, notifications, invoices, invoice_items, payments, order_costings, shifts, worker_shifts, attendance, leaves, payroll, expense_categories, expenses, purchase_invoices, purchase_invoice_items, purchase_payments, audit_logs, hsn_master, chart_of_accounts, journal_entries, journal_entry_lines, customers, suppliers, credit_notes, credit_note_items, bank_statement_rows, finance_import_batches, finance_import_items
-- NOTE: `buyers` table is legacy — fully replaced by `customers`. Migrations 00019–00021 handle backfill and schema drop
+- NOTE: `buyers` table has been retired from the live schema. `customers` is the canonical contact model
 
 ## Known Issues & Quirks
 - **Turbopack cache corruption**: If you get `ENOENT: build-manifest.json` errors, run `rm -rf .next && npm run dev`
@@ -100,7 +100,7 @@ Admin/Owner, Production Manager, Inventory Manager, QC Head, Floor Supervisor, W
 - **Roadmap Phase 2 (Daily Operations)**: COMPLETE — customers/suppliers, delivery challan, packing slip, dispatch details, duplicate order
 - **Roadmap Phase 3 (Inventory & Costing)**: COMPLETE — wastage tracking, PO↔purchase invoice matching, enhanced order costing with margin
 - **Roadmap Phase 4 (Notifications)**: COMPLETE — email (Resend), WhatsApp digest (Twilio), payslip PDF
-- **Roadmap Phase 5 (Demo Polish)**: COMPLETE — buyer portal
+- **Roadmap Phase 5 (Demo Polish)**: COMPLETE — customer portal
 - **Roadmap Phase 6 (Financial Maturity)**: COMPLETE — credit notes, Tally XML, e-invoice, bank reconciliation
 - **AI Finance Import**: COMPLETE — Gemini-powered document intake at `/finance/import`
 - **Deploy to Vercel**: NOT STARTED
@@ -129,7 +129,7 @@ CRON_SECRET
 - **WhatsApp digest (Twilio)**: Daily owner digest via `src/lib/whatsapp.ts`
 - **Payslip PDF**: `GET /api/payslip/[id]/pdf` — downloadable from payroll list
 - **Cron jobs**: `/api/cron/low-stock-alert`, `/api/cron/overdue-invoices`, `/api/cron/whatsapp-digest` (defined in `vercel.json`)
-- **Buyer Portal**: `/portal/[orderId]/[token]` — public HMAC-signed read-only order tracker. Token via `src/lib/portal.ts`
+- **Customer Portal**: `/portal/[orderId]/[token]` — public HMAC-signed read-only order tracker. Token via `src/lib/portal.ts`
 - **Credit Notes**: Full CRUD at `/finance/credit-notes` with auto-numbering (CN-YYMMDD-NNN) and invoice linking
 - **Tally XML Export**: `GET /api/export/tally-xml?from=&to=` — Tally Prime–compatible voucher XML. Button in Settings
 - **E-Invoice JSON (GST IRP)**: `GET /api/einvoice/[id]/json` — GST IRP schema v1.1 payload. Button on invoice detail
@@ -148,30 +148,23 @@ CRON_SECRET
 - `00016_phase5_6.sql` — credit_notes, credit_note_items, bank_statement_rows tables
 - `00017_finance_import_ai.sql` — finance_import_batches, finance_import_items tables; adds document_path/document_url to purchase_invoices; creates finance-documents storage bucket
 - `00018_order_item_styles.sql` — adds `style_name` to order_items; DB trigger to auto-recompute `orders.style_name`
-- `00019_customer_backfill_from_buyers.sql` — copies buyers → customers, attaches orders to new customer rows
+- `00019_customer_backfill_from_buyers.sql` — backfills buyers → customers and attaches orders to customer rows
 - `00020_finance_customer_columns.sql` — adds customer_id/customer_name/customer_address/customer_gst to invoices + credit_notes
-- `00021_drop_legacy_buyer_schema.sql` — drops buyer_id from orders and invoices, drops buyers table
+- `00021_drop_legacy_buyer_schema.sql` — drops buyer-linked legacy schema and retires the buyers table
 
 ### New env vars needed
-- `PORTAL_SECRET` — 32+ char random string for HMAC buyer portal tokens
+- `PORTAL_SECRET` — 32+ char random string for HMAC customer portal tokens
 - `RESEND_API_KEY`, `EMAIL_FROM`, `OWNER_EMAIL` — Resend email alerts
 - `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_FROM`, `OWNER_WHATSAPP` — WhatsApp digest
 - `CRON_SECRET` — Bearer token for Vercel cron security
 
 ## Next Steps
-1. **Run migrations in order** in Supabase SQL Editor:
-   - `00016_phase5_6.sql`
-   - `00017_finance_import_ai.sql`
-   - `00018_order_item_styles.sql`
-   - `00019_customer_backfill_from_buyers.sql`
-   - `00020_finance_customer_columns.sql`
-   - `00021_drop_legacy_buyer_schema.sql`
-2. **Add env vars** to `.env.local` and Vercel dashboard: `PORTAL_SECRET`, `RESEND_API_KEY`, `EMAIL_FROM`, `OWNER_EMAIL`, `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_FROM`, `OWNER_WHATSAPP`, `CRON_SECRET`
-3. **Delete** `src/app/api/dev/auth-status/route.ts` before production deploy
-4. **Deploy to Vercel** — connect repo, set env vars, add cron config
+1. **Add env vars** to `.env.local` and Vercel dashboard: `PORTAL_SECRET`, `RESEND_API_KEY`, `EMAIL_FROM`, `OWNER_EMAIL`, `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_FROM`, `OWNER_WHATSAPP`, `CRON_SECRET`
+2. **Delete** `src/app/api/dev/auth-status/route.ts` before production deploy
+3. **Deploy to Vercel** — connect repo, set env vars, add cron config
 
 ## Feature Roadmap
-All roadmap phases complete. AI Finance Import (Gemini-powered document intake), buyer portal, credit notes, Tally XML, e-invoice JSON, and bank reconciliation are all live.
+All roadmap phases complete. AI Finance Import (Gemini-powered document intake), customer portal, credit notes, Tally XML, e-invoice JSON, and bank reconciliation are all live.
 
 ## Multi-Client Strategy
 - "Just Clothing" = demo/template for garment manufacturing
