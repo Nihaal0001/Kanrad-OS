@@ -31,8 +31,8 @@ Full production cycle: Fabric Sourcing → Cutting → Stitching → Quality Che
 
 ## Modules
 1. Dashboard (KPIs, recent orders, production overview, activity feed)
-2. Orders + Buyers (CRUD, size/color breakdown, BOM, dispatch details, duplicate order)
-3. Customers & Suppliers (CRUD, GSTIN, bank details, payment terms, credit limit)
+2. Orders + Customers (CRUD, per-item style names, size/color breakdown, BOM, dispatch details, duplicate order)
+3. Customers & Suppliers (CRUD, GSTIN, bank details, payment terms, credit limit — buyers fully migrated to customers)
 4. Inventory (materials, stock ledger, purchase orders, low-stock alerts)
 5. Production Tracking (7-stage pipeline, stage updates, wastage tracking, bottleneck detection)
 6. Quality (QC inspections, defect tracking, image upload)
@@ -55,7 +55,9 @@ Admin/Owner, Production Manager, Inventory Manager, QC Head, Floor Supervisor, W
 - All list pages use shared `data-table.tsx` component
 - Forms use react-hook-form + zod validation + `<Controller>` for custom DatePicker/TimePicker
 - Custom DatePicker (calendar popover) and TimePicker (dual Select) replace ALL native date/time inputs
-- Mobile: sidebar collapses to Sheet overlay
+- Mobile: bottom tab bar with 4 tabs (Home, Production, Finance, More). Sidebar collapses to Sheet overlay on mobile
+- Mobile bottom nav defined in `src/components/layout/mobile-bottom-nav.tsx`; "More" tab renders `/more` page with all remaining nav sections
+- `mobilePrimaryTabs` and `getMobileMoreSections()` exported from `src/lib/constants.ts`
 - Server Actions go in `src/actions/<module>.ts`
 - Zod validators go in `src/lib/validators/<module>.ts`
 - Supabase types go in `src/lib/supabase/types.ts`
@@ -79,8 +81,9 @@ Admin/Owner, Production Manager, Inventory Manager, QC Head, Floor Supervisor, W
 ## Supabase
 - Project ref: `spwighzxkaeibutmijus`
 - Migration files must be run manually by the user in the Supabase SQL Editor
-- Migrations run: `00001` through `00007`, `00010`, `00013`, `00014`, `00015` (00016 and 00017 pending)
-- Tables: profiles, buyers, orders, order_items, order_materials, material_categories, materials, stock_transactions, purchase_orders, purchase_order_items, production_stages, production_tracking, quality_checks, tasks, notifications, invoices, invoice_items, payments, order_costings, shifts, worker_shifts, attendance, leaves, payroll, expense_categories, expenses, purchase_invoices, purchase_invoice_items, purchase_payments, audit_logs, hsn_master, chart_of_accounts, journal_entries, journal_entry_lines, customers, suppliers, credit_notes, credit_note_items, bank_statement_rows, finance_import_batches, finance_import_items
+- Migrations run: `00001` through `00007`, `00010`, `00013`, `00014`, `00015` (00016–00021 pending)
+- Tables: profiles, orders, order_items, order_materials, material_categories, materials, stock_transactions, purchase_orders, purchase_order_items, production_stages, production_tracking, quality_checks, tasks, notifications, invoices, invoice_items, payments, order_costings, shifts, worker_shifts, attendance, leaves, payroll, expense_categories, expenses, purchase_invoices, purchase_invoice_items, purchase_payments, audit_logs, hsn_master, chart_of_accounts, journal_entries, journal_entry_lines, customers, suppliers, credit_notes, credit_note_items, bank_statement_rows, finance_import_batches, finance_import_items
+- NOTE: `buyers` table is legacy — fully replaced by `customers`. Migrations 00019–00021 handle backfill and schema drop
 
 ## Known Issues & Quirks
 - **Turbopack cache corruption**: If you get `ENOENT: build-manifest.json` errors, run `rm -rf .next && npm run dev`
@@ -135,9 +138,19 @@ CRON_SECRET
 - **Audit coverage expanded**: `logAudit()` added to credit note, expense, and purchase invoice mutations
 - **Sidebar/mobile nav**: updated to include AI Import link under Finance group
 
+### Sanjeev's additions (session 6)
+- **Buyers → Customers migration**: `buyers` table/actions/components fully replaced by `customers`. `src/actions/buyers.ts`, `buyer-form.tsx`, `buyer-select.tsx`, `buyers-table.tsx`, `validators/buyer.ts` all deleted. New: `customer-form.tsx`, `customer-select.tsx`. Orders and finance docs now reference `customer_id` / `customer_name` instead of `buyer_id` / `buyer_name`.
+- **Per-item style names**: `order_items.style_name` column added. `orders.style_name` is now auto-computed by DB trigger as a comma-joined distinct list of item style names. `src/lib/order-styles.ts` provides `getOrderStyleSummary()` helper.
+- **Mobile bottom navigation**: `mobile-bottom-nav.tsx` — 4-tab bottom bar (Home, Production, Finance, More). "More" tab routes to `/more` page listing all remaining nav sections. `mobilePrimaryTabs`, `getActiveMobileTab()`, `getMobileMoreSections()` added to `src/lib/constants.ts`.
+- **AI chat widget**: updated for mobile positioning; `create_buyer` renamed to `create_customer` in WRITE_TOOLS.
+
 ### New migrations needed
 - `00016_phase5_6.sql` — credit_notes, credit_note_items, bank_statement_rows tables
 - `00017_finance_import_ai.sql` — finance_import_batches, finance_import_items tables; adds document_path/document_url to purchase_invoices; creates finance-documents storage bucket
+- `00018_order_item_styles.sql` — adds `style_name` to order_items; DB trigger to auto-recompute `orders.style_name`
+- `00019_customer_backfill_from_buyers.sql` — copies buyers → customers, attaches orders to new customer rows
+- `00020_finance_customer_columns.sql` — adds customer_id/customer_name/customer_address/customer_gst to invoices + credit_notes
+- `00021_drop_legacy_buyer_schema.sql` — drops buyer_id from orders and invoices, drops buyers table
 
 ### New env vars needed
 - `PORTAL_SECRET` — 32+ char random string for HMAC buyer portal tokens
@@ -146,11 +159,16 @@ CRON_SECRET
 - `CRON_SECRET` — Bearer token for Vercel cron security
 
 ## Next Steps
-1. **Run migration `00016_phase5_6.sql`** in Supabase SQL Editor (credit_notes, credit_note_items, bank_statement_rows)
-2. **Run migration `00017_finance_import_ai.sql`** in Supabase SQL Editor (finance_import_batches, finance_import_items, storage bucket)
-3. **Add env vars** to `.env.local` and Vercel dashboard: `PORTAL_SECRET`, `RESEND_API_KEY`, `EMAIL_FROM`, `OWNER_EMAIL`, `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_FROM`, `OWNER_WHATSAPP`, `CRON_SECRET`
-4. **Delete** `src/app/api/dev/auth-status/route.ts` before production deploy
-5. **Deploy to Vercel** — connect repo, set env vars, add cron config
+1. **Run migrations in order** in Supabase SQL Editor:
+   - `00016_phase5_6.sql`
+   - `00017_finance_import_ai.sql`
+   - `00018_order_item_styles.sql`
+   - `00019_customer_backfill_from_buyers.sql`
+   - `00020_finance_customer_columns.sql`
+   - `00021_drop_legacy_buyer_schema.sql`
+2. **Add env vars** to `.env.local` and Vercel dashboard: `PORTAL_SECRET`, `RESEND_API_KEY`, `EMAIL_FROM`, `OWNER_EMAIL`, `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_FROM`, `OWNER_WHATSAPP`, `CRON_SECRET`
+3. **Delete** `src/app/api/dev/auth-status/route.ts` before production deploy
+4. **Deploy to Vercel** — connect repo, set env vars, add cron config
 
 ## Feature Roadmap
 All roadmap phases complete. AI Finance Import (Gemini-powered document intake), buyer portal, credit notes, Tally XML, e-invoice JSON, and bank reconciliation are all live.
