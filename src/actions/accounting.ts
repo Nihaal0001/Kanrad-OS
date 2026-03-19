@@ -34,6 +34,18 @@ export async function getChartOfAccounts() {
   return data ?? []
 }
 
+export async function getLedgerActiveAccountCodes() {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from("journal_entry_lines")
+    .select("account_code")
+    .order("created_at", { ascending: false })
+
+  if (error) throw new Error(error.message)
+
+  return [...new Set((data ?? []).map((row) => row.account_code))]
+}
+
 // ===== Journal Entries =====
 
 export async function getJournalEntries(filters?: {
@@ -124,22 +136,14 @@ export async function getLedger(accountCode: string, filters?: { from?: string; 
 
   if (accErr) throw new Error("Account not found")
 
-  let query = supabase
+  const query = supabase
     .from("journal_entry_lines")
     .select(`
       *,
       journal_entry:journal_entries(id, entry_date, description, reference_type)
     `)
     .eq("account_code", accountCode)
-    .order("journal_entries.entry_date", { ascending: true })
     .order("created_at", { ascending: true })
-
-  if (filters?.from) {
-    query = query.gte("journal_entries.entry_date", filters.from)
-  }
-  if (filters?.to) {
-    query = query.lte("journal_entries.entry_date", filters.to)
-  }
 
   const { data, error } = await query
   if (error) throw new Error(error.message)
@@ -147,7 +151,20 @@ export async function getLedger(accountCode: string, filters?: { from?: string; 
   const lines = (data ?? []).map((line: Record<string, unknown>) => ({
     ...line,
     journal_entry: Array.isArray(line.journal_entry) ? (line.journal_entry[0] ?? null) : line.journal_entry,
-  }))
+  })).filter((line) => {
+    const je = line.journal_entry as { entry_date: string } | null
+    const entryDate = je?.entry_date ?? ""
+    if (filters?.from && entryDate < filters.from) return false
+    if (filters?.to && entryDate > filters.to) return false
+    return true
+  }).sort((a, b) => {
+    const aDate = (a.journal_entry as { entry_date: string } | null)?.entry_date ?? ""
+    const bDate = (b.journal_entry as { entry_date: string } | null)?.entry_date ?? ""
+    if (aDate !== bDate) return aDate.localeCompare(bDate)
+    const aCreatedAt = String(a.created_at ?? "")
+    const bCreatedAt = String(b.created_at ?? "")
+    return aCreatedAt.localeCompare(bCreatedAt)
+  })
 
   // Compute running balance
   // For asset/cogs/expense accounts: balance = debits - credits (debit-normal)

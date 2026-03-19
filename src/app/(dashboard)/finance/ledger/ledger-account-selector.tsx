@@ -26,7 +26,13 @@ const TYPE_GROUP_LABELS: Record<string, string> = {
 
 const TYPE_ORDER = ["asset", "liability", "equity", "revenue", "cogs", "expense"]
 
-export function LedgerAccountSelector({ accounts }: { accounts: ChartOfAccount[] }) {
+export function LedgerAccountSelector({
+  accounts,
+  selectedCode,
+}: {
+  accounts: ChartOfAccount[]
+  selectedCode: string
+}) {
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -52,7 +58,7 @@ export function LedgerAccountSelector({ accounts }: { accounts: ChartOfAccount[]
   return (
     <div className="flex flex-wrap gap-3 items-center">
       <Select
-        value={searchParams.get("account") ?? "1100"}
+        value={searchParams.get("account") ?? selectedCode}
         onValueChange={(v) => update("account", v)}
       >
         <SelectTrigger className="w-72">

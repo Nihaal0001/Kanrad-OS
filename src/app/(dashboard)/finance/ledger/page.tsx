@@ -1,7 +1,7 @@
 import { PageHeader } from "@/components/shared/page-header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { getChartOfAccounts, getLedger } from "@/actions/accounting"
+import { getChartOfAccounts, getLedger, getLedgerActiveAccountCodes } from "@/actions/accounting"
 import { LedgerDisplay } from "@/components/finance/ledger-display"
 import { LedgerAccountSelector } from "./ledger-account-selector"
 
@@ -20,10 +20,15 @@ export default async function LedgerPage({
   searchParams: Promise<{ account?: string; from?: string; to?: string }>
 }) {
   const params = await searchParams
-  const accounts = await getChartOfAccounts()
+  const [accounts, activeAccountCodes] = await Promise.all([
+    getChartOfAccounts(),
+    getLedgerActiveAccountCodes(),
+  ])
   const nonHeaderAccounts = accounts.filter((a) => !a.is_header)
 
-  const selectedCode = params.account ?? "1100"
+  const selectedCode = params.account
+    ?? nonHeaderAccounts.find((account) => activeAccountCodes.includes(account.account_code))?.account_code
+    ?? "1100"
 
   let ledgerData: Awaited<ReturnType<typeof getLedger>> | null = null
   try {
@@ -41,7 +46,7 @@ export default async function LedgerPage({
       />
 
       <div className="space-y-4">
-        <LedgerAccountSelector accounts={nonHeaderAccounts} />
+        <LedgerAccountSelector accounts={nonHeaderAccounts} selectedCode={selectedCode} />
 
         {ledgerData && (
           <>
