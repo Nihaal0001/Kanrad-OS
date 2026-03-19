@@ -1,3 +1,5 @@
+import { Fragment } from "react"
+
 import {
   Table,
   TableBody,
@@ -59,7 +61,7 @@ export function TrialBalanceTable({ rows, totalDebits, totalCredits }: TrialBala
       </TableHeader>
       <TableBody>
         {grouped.map((group) => (
-          <>
+          <Fragment key={group.type}>
             {group.rows.map((row) => (
               <TableRow key={row.account_code}>
                 <TableCell className="font-mono text-xs text-muted-foreground">{row.account_code}</TableCell>
@@ -86,7 +88,7 @@ export function TrialBalanceTable({ rows, totalDebits, totalCredits }: TrialBala
                 </TableCell>
               </TableRow>
             ))}
-          </>
+          </Fragment>
         ))}
 
         {/* Totals row */}
