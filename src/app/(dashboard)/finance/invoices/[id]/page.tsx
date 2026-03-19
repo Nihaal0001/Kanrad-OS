@@ -4,6 +4,7 @@ import { ArrowLeft, Plus } from "lucide-react"
 
 import { getInvoice, updateInvoiceStatus } from "@/actions/finance"
 import { getCreditNotes } from "@/actions/credit-notes"
+import { createClient } from "@/lib/supabase/server"
 import { PageHeader } from "@/components/shared/page-header"
 import { PaymentForm } from "@/components/finance/payment-form"
 import { PrintButton } from "@/components/finance/print-button"
@@ -27,7 +28,7 @@ const STATUS_LABELS: Record<string, string> = {
   draft: "Draft",
   sent: "Sent",
   paid: "Paid",
-  partially_paid: "Partial",
+  partially_paid: "Partially Paid",
   cancelled: "Cancelled",
 }
 
@@ -41,6 +42,12 @@ interface Props {
 
 export default async function InvoiceDetailPage({ params }: Props) {
   const { id } = await params
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const { data: profile } = user
+    ? await supabase.from("profiles").select("role").eq("auth_id", user.id).maybeSingle()
+    : { data: null }
+  const canDeletePaid = profile?.role === "admin"
 
   let invoice
   try {
@@ -108,7 +115,7 @@ export default async function InvoiceDetailPage({ params }: Props) {
           )}
 
           <EInvoiceButton invoiceId={id} invoiceNumber={invoice.invoice_number} status={invoice.status} />
-          <InvoiceActions invoiceId={id} status={invoice.status} redirectAfterDelete />
+          <InvoiceActions invoiceId={id} status={invoice.status} redirectAfterDelete canDeletePaid={canDeletePaid} />
         </div>
       </PageHeader>
 

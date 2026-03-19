@@ -14,6 +14,12 @@ const STATUS_STYLES: Record<string, string> = {
   cancelled: "bg-red-100 text-red-600",
 }
 
+const STATUS_LABELS: Record<string, string> = {
+  draft: "Draft",
+  issued: "Issued",
+  cancelled: "Cancelled",
+}
+
 function fmt(n: number) {
   return n.toLocaleString("en-IN", { minimumFractionDigits: 2 })
 }
@@ -60,7 +66,9 @@ export default async function CreditNotesPage() {
                   <p className="text-sm">{note.buyer_name}</p>
                   <p className="text-sm text-muted-foreground truncate">{note.reason || "—"}</p>
                   <p className="text-sm font-semibold text-[hsl(16,65%,55%)]">₹{fmt(note.total_amount)}</p>
-                  <Badge className={cn(STATUS_STYLES[note.status], "text-xs")}>{note.status}</Badge>
+                  <Badge className={cn(STATUS_STYLES[note.status], "text-xs")}>
+                    {STATUS_LABELS[note.status] ?? note.status}
+                  </Badge>
                 </CardContent>
               </Card>
             </Link>

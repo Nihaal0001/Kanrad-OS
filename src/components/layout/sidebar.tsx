@@ -155,7 +155,7 @@ function ExpandedSection({
 
       {isOpen && (
         <div className="overflow-hidden">
-          <div className="space-y-1 px-6 pb-4 pl-[5.25rem] animate-in fade-in-0 slide-in-from-top-1 duration-200">
+          <div className="space-y-1 px-4 pb-4 pt-1 animate-in fade-in-0 slide-in-from-top-1 duration-200">
             {section.items.map((item) => (
               <NavChildLink
                 key={item.href}

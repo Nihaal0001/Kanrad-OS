@@ -14,6 +14,31 @@ const VALID_PURCHASE_INVOICE_STATUSES = [
   "draft", "received", "paid", "partially_paid", "overdue", "cancelled",
 ] as const
 
+async function validateLinkedPurchaseOrder(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  purchaseOrderId: string
+) {
+  const { data: purchaseOrder, error } = await supabase
+    .from("purchase_orders")
+    .select("id, approval_status")
+    .eq("id", purchaseOrderId)
+    .maybeSingle()
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  if (!purchaseOrder) {
+    return { error: "Linked purchase order was not found" }
+  }
+
+  if (purchaseOrder.approval_status !== "approved") {
+    return { error: "Only approved purchase orders can be linked to a purchase invoice" }
+  }
+
+  return { data: purchaseOrder }
+}
+
 // ===== Purchase Invoices =====
 
 export async function getPurchaseInvoices(filters?: { status?: string }) {
@@ -84,6 +109,11 @@ export async function createPurchaseInvoice(formData: PurchaseInvoiceFormData) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: "Not authenticated" }
 
+  if (validated.purchase_order_id) {
+    const poCheck = await validateLinkedPurchaseOrder(supabase, validated.purchase_order_id)
+    if ("error" in poCheck && poCheck.error) return { error: poCheck.error }
+  }
+
   const { data: invoice, error: invErr } = await supabase
     .from("purchase_invoices")
     .insert({
@@ -148,6 +178,11 @@ export async function createImportedPurchaseInvoice(
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: "Not authenticated" }
+
+  if (validated.purchase_order_id) {
+    const poCheck = await validateLinkedPurchaseOrder(supabase, validated.purchase_order_id)
+    if ("error" in poCheck && poCheck.error) return { error: poCheck.error }
+  }
 
   const { data: invoice, error: invErr } = await supabase
     .from("purchase_invoices")
@@ -234,10 +269,65 @@ export async function deletePurchaseInvoice(id: string) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: "Not authenticated" }
 
+  const { data: invoice, error: invoiceError } = await supabase
+    .from("purchase_invoices")
+    .select("id, status")
+    .eq("id", id)
+    .single()
+
+  if (invoiceError || !invoice) return { error: invoiceError?.message ?? "Purchase invoice not found" }
+
+  if (invoice.status === "paid") {
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("auth_id", user.id)
+      .maybeSingle()
+
+    if (profileError) return { error: profileError.message }
+    if (profile?.role !== "admin") {
+      return { error: "Only the owner can delete a paid purchase invoice" }
+    }
+  }
+
+  const { data: payments, error: paymentsError } = await supabase
+    .from("purchase_payments")
+    .select("id")
+    .eq("purchase_invoice_id", id)
+
+  if (paymentsError) return { error: paymentsError.message }
+
+  const paymentIds = (payments ?? []).map((payment) => payment.id)
+
+  if (paymentIds.length > 0) {
+    const { error: paymentJournalError } = await supabase
+      .from("journal_entries")
+      .delete()
+      .eq("reference_type", "purchase_payment")
+      .in("reference_id", paymentIds)
+
+    if (paymentJournalError) return { error: paymentJournalError.message }
+  }
+
+  const { error: invoiceJournalError } = await supabase
+    .from("journal_entries")
+    .delete()
+    .eq("reference_type", "purchase_invoice")
+    .eq("reference_id", id)
+
+  if (invoiceJournalError) return { error: invoiceJournalError.message }
+
   const { error } = await supabase.from("purchase_invoices").delete().eq("id", id)
   if (error) return { error: error.message }
 
   revalidatePath("/finance/purchases")
+  revalidatePath("/finance/cash-flow")
+  revalidatePath("/finance/journal")
+  revalidatePath("/finance/ledger")
+  revalidatePath("/finance/trial-balance")
+  revalidatePath("/finance/reports")
+  revalidatePath("/finance/bank-recon")
+  revalidatePath("/finance")
   await logAudit({ entityType: "purchase_invoice", entityId: id, action: "deleted" })
   return { success: true }
 }
@@ -391,6 +481,7 @@ export async function getPurchaseOrdersForInvoice() {
     .from("purchase_orders")
     .select("id, po_number, supplier_name, total_amount")
     .in("status", ["received", "partial", "sent"])
+    .eq("approval_status", "approved")
     .order("created_at", { ascending: false })
 
   return data ?? []

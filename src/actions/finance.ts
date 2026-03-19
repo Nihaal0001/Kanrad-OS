@@ -131,10 +131,66 @@ export async function deleteInvoice(id: string) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: "Not authenticated" }
 
+  const { data: invoice, error: invoiceError } = await supabase
+    .from("invoices")
+    .select("id, status")
+    .eq("id", id)
+    .single()
+
+  if (invoiceError || !invoice) return { error: invoiceError?.message ?? "Invoice not found" }
+
+  if (invoice.status === "paid") {
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("auth_id", user.id)
+      .maybeSingle()
+
+    if (profileError) return { error: profileError.message }
+    if (profile?.role !== "admin") {
+      return { error: "Only the owner can delete a paid invoice" }
+    }
+  }
+
+  const { data: payments, error: paymentsError } = await supabase
+    .from("payments")
+    .select("id")
+    .eq("invoice_id", id)
+
+  if (paymentsError) return { error: paymentsError.message }
+
+  const paymentIds = (payments ?? []).map((payment) => payment.id)
+
+  if (paymentIds.length > 0) {
+    const { error: paymentJournalError } = await supabase
+      .from("journal_entries")
+      .delete()
+      .eq("reference_type", "payment")
+      .in("reference_id", paymentIds)
+
+    if (paymentJournalError) return { error: paymentJournalError.message }
+  }
+
+  const { error: invoiceJournalError } = await supabase
+    .from("journal_entries")
+    .delete()
+    .eq("reference_type", "invoice")
+    .eq("reference_id", id)
+
+  if (invoiceJournalError) return { error: invoiceJournalError.message }
+
   const { error } = await supabase.from("invoices").delete().eq("id", id)
   if (error) return { error: error.message }
 
   revalidatePath("/finance/invoices")
+  revalidatePath("/finance/payments")
+  revalidatePath("/finance/cash-flow")
+  revalidatePath("/finance/journal")
+  revalidatePath("/finance/ledger")
+  revalidatePath("/finance/trial-balance")
+  revalidatePath("/finance/reports")
+  revalidatePath("/finance/bank-recon")
+  revalidatePath("/finance")
   await logAudit({ entityType: "invoice", entityId: id, action: "deleted" })
   return { success: true }
 }
@@ -464,4 +520,3 @@ export async function upsertOrderCosting(orderId: string, formData: CostingFormD
   revalidatePath(`/finance/costing/${orderId}`)
   return { data }
 }
-

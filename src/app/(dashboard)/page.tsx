@@ -58,8 +58,8 @@ export default async function DashboardPage() {
     <div className="space-y-8">
       {/* Greeting header */}
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">{getGreeting()}, {firstName}</h1>
-        <p className="mt-1 text-muted-foreground text-sm">Here&apos;s what&apos;s happening at JUST CLOTHING today.</p>
+        <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{getGreeting()}, {firstName}</h1>
+        <p className="mt-1 max-w-2xl text-sm text-muted-foreground sm:text-base">Here&apos;s what&apos;s happening at JUST CLOTHING today.</p>
       </div>
 
       {/* KPI Cards */}
@@ -102,7 +102,7 @@ export default async function DashboardPage() {
             <Button
               key={action.href}
               variant="outline"
-              className="h-auto justify-start gap-3 px-4 py-3 text-left"
+              className="h-auto min-h-14 justify-start gap-3 px-4 py-3 text-left"
               asChild
             >
               <Link href={action.href}>
@@ -123,7 +123,7 @@ export default async function DashboardPage() {
       <div className="grid gap-6 lg:grid-cols-5">
         {/* Recent Orders */}
         <Card className="lg:col-span-3">
-          <CardHeader className="flex flex-row items-center justify-between">
+          <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <CardTitle className="text-lg">Recent Orders</CardTitle>
             <Button variant="ghost" size="sm" asChild>
               <Link href="/orders">
@@ -145,10 +145,10 @@ export default async function DashboardPage() {
                   <Link
                     key={order.id}
                     href={`/orders/${order.id}`}
-                    className="flex items-center justify-between rounded-lg border border-border/50 p-3 transition-colors hover:bg-accent/30"
+                    className="flex flex-col gap-3 rounded-lg border border-border/50 p-3 transition-colors hover:bg-accent/30 sm:flex-row sm:items-center sm:justify-between"
                   >
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <p className="font-medium text-sm">{order.order_number}</p>
                         <PriorityIndicator priority={order.priority} />
                       </div>
@@ -161,7 +161,9 @@ export default async function DashboardPage() {
                         {formatDate(order.deadline)}
                       </p>
                     </div>
-                    <StatusBadge status={order.status} />
+                    <div className="self-start sm:self-auto">
+                      <StatusBadge status={order.status} />
+                    </div>
                   </Link>
                 ))}
               </div>
@@ -171,7 +173,7 @@ export default async function DashboardPage() {
 
         {/* Recent Activity (Notifications) */}
         <Card className="lg:col-span-2">
-          <CardHeader className="flex flex-row items-center justify-between">
+          <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <CardTitle className="text-lg">Recent Activity</CardTitle>
             <Button variant="ghost" size="sm" asChild>
               <Link href="/notifications">

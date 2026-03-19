@@ -25,14 +25,14 @@ export function StatCard({
   const card = (
     <Card
       className={cn(
-        "transition-shadow duration-200 hover:shadow-md",
+        "h-full transition-shadow duration-200 hover:shadow-md",
         href && "cursor-pointer hover:border-primary/30",
         className
       )}
     >
-      <CardContent className="p-6">
-        <div className="flex items-start justify-between">
-          <div className="space-y-1">
+      <CardContent className="flex h-full p-6">
+        <div className="flex w-full items-start justify-between gap-4">
+          <div className="flex min-h-[128px] flex-1 flex-col">
             <p className="text-sm font-medium text-muted-foreground">{title}</p>
             <p className="text-3xl font-bold">{value}</p>
             {description && (
@@ -63,7 +63,7 @@ export function StatCard({
   )
 
   if (href) {
-    return <Link href={href}>{card}</Link>
+    return <Link href={href} className="block h-full">{card}</Link>
   }
   return card
 }

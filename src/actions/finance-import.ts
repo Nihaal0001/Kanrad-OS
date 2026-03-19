@@ -57,7 +57,13 @@ async function requireFinanceUser() {
 async function getExtractionContext(supabase: Awaited<ReturnType<typeof createClient>>) {
   const [suppliersRes, posRes, categoriesRes, ordersRes] = await Promise.all([
     supabase.from("suppliers").select("id, name").order("name"),
-    supabase.from("purchase_orders").select("id, po_number, supplier_name").order("created_at", { ascending: false }).limit(100),
+    supabase
+      .from("purchase_orders")
+      .select("id, po_number, supplier_name")
+      .eq("approval_status", "approved")
+      .in("status", ["received", "partial", "sent"])
+      .order("created_at", { ascending: false })
+      .limit(100),
     supabase.from("expense_categories").select("id, name").eq("is_active", true).order("name"),
     supabase.from("orders").select("id, order_number, style_name").order("created_at", { ascending: false }).limit(100),
   ])

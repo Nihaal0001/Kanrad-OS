@@ -20,9 +20,10 @@ interface InvoiceActionsProps {
   invoiceId: string
   status: string
   redirectAfterDelete?: boolean
+  canDeletePaid?: boolean
 }
 
-export function InvoiceActions({ invoiceId, status, redirectAfterDelete }: InvoiceActionsProps) {
+export function InvoiceActions({ invoiceId, status, redirectAfterDelete, canDeletePaid = false }: InvoiceActionsProps) {
   const router = useRouter()
   const [deleting, setDeleting] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
@@ -46,7 +47,7 @@ export function InvoiceActions({ invoiceId, status, redirectAfterDelete }: Invoi
     }
   }
 
-  if (status === "paid") return null
+  if (status === "paid" && !canDeletePaid) return null
 
   return (
     <>

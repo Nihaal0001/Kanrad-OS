@@ -20,12 +20,14 @@ interface PurchaseInvoiceActionsProps {
   invoiceId: string
   status: string
   redirectAfterDelete?: boolean
+  canDeletePaid?: boolean
 }
 
 export function PurchaseInvoiceActions({
   invoiceId,
   status,
   redirectAfterDelete,
+  canDeletePaid = false,
 }: PurchaseInvoiceActionsProps) {
   const router = useRouter()
   const [deleting, setDeleting] = useState(false)
@@ -50,7 +52,7 @@ export function PurchaseInvoiceActions({
     }
   }
 
-  if (status === "paid") return null
+  if (status === "paid" && !canDeletePaid) return null
 
   return (
     <>

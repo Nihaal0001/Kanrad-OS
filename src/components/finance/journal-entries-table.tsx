@@ -2,9 +2,13 @@
 
 import { useState } from "react"
 import { format } from "date-fns"
-import { ChevronDown, ChevronRight } from "lucide-react"
+import { ChevronDown, ChevronRight, Loader2, Trash2 } from "lucide-react"
+import { toast } from "sonner"
+
+import { deleteJournalEntry } from "@/actions/accounting"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { ConfirmDialog } from "@/components/shared/confirm-dialog"
 import {
   Table,
   TableBody,
@@ -34,11 +38,27 @@ const REF_LABELS: Record<string, string> = {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function EntryRow({ entry }: { entry: any }) {
+function EntryRow({ entry, canDeleteEntries }: { entry: any; canDeleteEntries: boolean }) {
   const [expanded, setExpanded] = useState(false)
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const lines = entry.journal_entry_lines ?? []
   const totalDebit = lines.reduce((s: number, l: { debit: number }) => s + Number(l.debit), 0)
   const totalCredit = lines.reduce((s: number, l: { credit: number }) => s + Number(l.credit), 0)
+
+  async function handleDelete() {
+    setDeleting(true)
+    const result = await deleteJournalEntry(entry.id)
+    setDeleting(false)
+    setConfirmOpen(false)
+
+    if (result && "error" in result && result.error) {
+      toast.error(result.error)
+      return
+    }
+
+    toast.success("Journal entry deleted")
+  }
 
   return (
     <>
@@ -67,11 +87,24 @@ function EntryRow({ entry }: { entry: any }) {
         <TableCell className="text-right text-sm font-mono">
           {formatCurrency(totalCredit)}
         </TableCell>
+        {canDeleteEntries && (
+          <TableCell className="w-12" onClick={(e) => e.stopPropagation()}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              disabled={deleting}
+              onClick={() => setConfirmOpen(true)}
+            >
+              {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4 text-destructive" />}
+            </Button>
+          </TableCell>
+        )}
       </TableRow>
       {expanded && (
         <TableRow className="bg-muted/20">
           <TableCell />
-          <TableCell colSpan={5} className="py-3">
+          <TableCell colSpan={canDeleteEntries ? 6 : 5} className="py-3">
             <table className="w-full text-xs">
               <thead>
                 <tr className="text-muted-foreground">
@@ -107,12 +140,21 @@ function EntryRow({ entry }: { entry: any }) {
           </TableCell>
         </TableRow>
       )}
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title="Delete Journal Entry"
+        description="Are you sure you want to delete this journal entry? This only removes the accounting entry and does not delete the original invoice, payment, or expense."
+        confirmLabel="Delete"
+        onConfirm={handleDelete}
+        loading={deleting}
+      />
     </>
   )
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function JournalEntriesTable({ entries }: { entries: any[] }) {
+export function JournalEntriesTable({ entries, canDeleteEntries = false }: { entries: any[]; canDeleteEntries?: boolean }) {
   if (entries.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -135,11 +177,12 @@ export function JournalEntriesTable({ entries }: { entries: any[] }) {
             <TableHead className="text-xs">Type</TableHead>
             <TableHead className="text-xs text-right">Debit</TableHead>
             <TableHead className="text-xs text-right">Credit</TableHead>
+            {canDeleteEntries && <TableHead className="w-12" />}
           </TableRow>
         </TableHeader>
         <TableBody>
           {entries.map((entry) => (
-            <EntryRow key={entry.id} entry={entry} />
+            <EntryRow key={entry.id} entry={entry} canDeleteEntries={canDeleteEntries} />
           ))}
         </TableBody>
       </Table>

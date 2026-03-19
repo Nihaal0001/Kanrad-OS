@@ -1,6 +1,7 @@
 import { PageHeader } from "@/components/shared/page-header"
 import { Card, CardContent } from "@/components/ui/card"
 import { getJournalEntries } from "@/actions/accounting"
+import { createClient } from "@/lib/supabase/server"
 import { JournalEntriesTable } from "@/components/finance/journal-entries-table"
 import { JournalFilters } from "./journal-filters"
 
@@ -10,6 +11,13 @@ export default async function JournalPage({
   searchParams: Promise<{ referenceType?: string; from?: string; to?: string; search?: string }>
 }) {
   const params = await searchParams
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const { data: profile } = user
+    ? await supabase.from("profiles").select("role").eq("auth_id", user.id).maybeSingle()
+    : { data: null }
+  const canDeleteEntries = profile?.role === "admin"
+
   const entries = await getJournalEntries({
     referenceType: params.referenceType,
     from: params.from,
@@ -69,7 +77,7 @@ export default async function JournalPage({
 
         <Card>
           <CardContent className="p-0">
-            <JournalEntriesTable entries={entries} />
+            <JournalEntriesTable entries={entries} canDeleteEntries={canDeleteEntries} />
           </CardContent>
         </Card>
       </div>

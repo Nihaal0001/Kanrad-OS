@@ -140,8 +140,8 @@ function ImportUploader({
   }
 
   return (
-    <Card className="border-dashed border-sidebar-border/80 bg-sidebar-foreground/[0.02]">
-      <CardContent className="space-y-4 p-5">
+      <Card className="border-dashed border-sidebar-border/80 bg-sidebar-foreground/[0.02]">
+      <CardContent className="space-y-4 p-4 sm:p-5">
         <div className="flex items-start gap-3">
           <div className="rounded-2xl bg-sidebar-accent/70 p-3 text-sidebar-accent-foreground">
             <Upload className="h-5 w-5" />
@@ -156,7 +156,7 @@ function ImportUploader({
           </div>
         </div>
 
-        <label className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-sidebar-border/80 bg-background px-6 py-8 text-center transition-colors hover:border-sidebar-accent/40 hover:bg-sidebar-accent/5">
+        <label className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-sidebar-border/80 bg-background px-4 py-7 text-center transition-colors hover:border-sidebar-accent/40 hover:bg-sidebar-accent/5 sm:px-6 sm:py-8">
           <FileUp className="mb-3 h-8 w-8 text-sidebar-accent-foreground" />
           <span className="font-medium">Drag and drop documents here</span>
           <span className="mt-1 text-sm text-muted-foreground">or click to choose files</span>
@@ -183,7 +183,7 @@ function ImportUploader({
           </div>
         )}
 
-        <div className="flex items-center justify-end gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
           <Button onClick={handleUpload} disabled={isPending || files.length === 0}>
             {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
             {isPending ? "Extracting..." : existingBatchId ? "Add to Batch" : "Extract"}
@@ -354,7 +354,7 @@ export function FinanceImportWorkspace({
       {activeBatch && (
         <Card className="overflow-hidden">
           <CardHeader className="border-b border-sidebar-border/70 bg-sidebar-foreground/[0.02] pb-4">
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <CardTitle className="text-base">Review Queue</CardTitle>
               <Badge variant="outline">Batch {activeBatch.id.slice(0, 8)}</Badge>
             </div>
@@ -379,14 +379,14 @@ export function FinanceImportWorkspace({
                       : "border-sidebar-border/70 hover:border-sidebar-accent/30 hover:bg-sidebar-foreground/[0.02] hover:translate-y-[-1px]"
                   )}
                 >
-                  <div className="flex items-start justify-between gap-3">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">
-                      <p className="truncate text-lg font-medium">{item.file_name}</p>
+                      <p className="break-all text-base font-medium sm:text-lg">{item.file_name}</p>
                       <p className="mt-1 text-sm text-muted-foreground">
                         {formatTargetType(item.target_type)} · {formatPercent(item.extraction_confidence)}
                       </p>
                     </div>
-                    <Badge className={STATUS_STYLES[item.status] ?? "bg-muted text-muted-foreground"}>
+                    <Badge className={cn("w-fit", STATUS_STYLES[item.status] ?? "bg-muted text-muted-foreground")}>
                       {STATUS_LABELS[item.status] ?? item.status}
                     </Badge>
                   </div>
@@ -407,7 +407,7 @@ export function FinanceImportWorkspace({
 
       {!selectedItem || !draft ? (
         <Card>
-          <CardContent className="flex min-h-[520px] flex-col items-center justify-center text-center">
+          <CardContent className="flex min-h-[360px] flex-col items-center justify-center p-6 text-center sm:min-h-[520px]">
             <div className="rounded-2xl bg-sidebar-accent/10 p-4 text-sidebar-accent-foreground">
               <Receipt className="h-8 w-8" />
             </div>
@@ -425,17 +425,17 @@ export function FinanceImportWorkspace({
             isSwitchingDocument ? "translate-y-1 opacity-80" : "translate-y-0 opacity-100"
           )}
         >
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="min-w-0">
               <p className="text-sm font-medium text-muted-foreground">Document Review</p>
-              <h2 className="text-xl font-semibold tracking-tight">{selectedItem.file_name}</h2>
+              <h2 className="break-all text-lg font-semibold tracking-tight sm:text-xl">{selectedItem.file_name}</h2>
             </div>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" onClick={persistReviewed} disabled={isPending}>
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap lg:justify-end">
+              <Button variant="outline" onClick={persistReviewed} disabled={isPending} className="w-full sm:w-auto">
                 {activeAction === "review" ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
                 Mark Reviewed
               </Button>
-              <Button onClick={createDrafts} disabled={isPending || !activeBatch}>
+              <Button onClick={createDrafts} disabled={isPending || !activeBatch} className="w-full sm:w-auto">
                 {activeAction === "submit" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                 Create Reviewed Drafts
               </Button>
@@ -461,7 +461,7 @@ export function FinanceImportWorkspace({
                       <AlertTriangle className="h-4 w-4" />
                       Extraction Warnings
                     </div>
-                    <ul className="space-y-1 text-sm text-warning/90">
+                    <ul className="space-y-1 break-words text-sm text-warning/90">
                       {selectedItem.extraction_warnings.map((warning, index) => (
                         <li key={`${selectedItem.id}-warning-${index}`}>{warning}</li>
                       ))}
@@ -627,12 +627,12 @@ export function FinanceImportWorkspace({
                           <div className="rounded-2xl border border-sidebar-border/70 bg-sidebar-foreground/[0.02] p-4 text-sm">
                             <p className="font-medium">Suggested Matches</p>
                             {draft.supplier_suggestions.length > 0 ? (
-                              <p className="mt-2 text-muted-foreground">
+                              <p className="mt-2 break-words text-muted-foreground">
                                 Supplier: {draft.supplier_suggestions.map((item) => item.label).join(" · ")}
                               </p>
                             ) : null}
                             {draft.purchase_order_suggestions.length > 0 ? (
-                              <p className="mt-1 text-muted-foreground">
+                              <p className="mt-1 break-words text-muted-foreground">
                                 Purchase orders: {draft.purchase_order_suggestions.map((item) => item.label).join(" · ")}
                               </p>
                             ) : null}
@@ -640,12 +640,13 @@ export function FinanceImportWorkspace({
                         ) : null}
 
                         <div className="space-y-3">
-                          <div className="flex items-center justify-between">
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                             <Label>Line Items</Label>
                             <Button
                               type="button"
                               variant="outline"
                               size="sm"
+                              className="w-full sm:w-auto"
                               onClick={() =>
                                 updateDraft((current) => ({
                                   ...current,
@@ -660,9 +661,9 @@ export function FinanceImportWorkspace({
                           <div className="space-y-3">
                             {draft.items.map((line, index) => (
                               <div key={`${selectedItem.id}-${index}`} className="rounded-2xl border border-sidebar-border/70 p-3">
-                                <div className="mb-3 flex items-center justify-between gap-3">
+                                <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                                   <p className="text-sm font-medium text-foreground">Line Item {index + 1}</p>
-                                  <div className="rounded-full border border-sidebar-border/70 bg-sidebar-foreground/[0.02] px-3 py-1 text-sm font-medium text-foreground">
+                                  <div className="w-fit rounded-full border border-sidebar-border/70 bg-sidebar-foreground/[0.02] px-3 py-1 text-sm font-medium text-foreground">
                                     {formatCurrency(line.quantity * line.unit_price)}
                                   </div>
                                 </div>
@@ -742,14 +743,14 @@ export function FinanceImportWorkspace({
 
                         {purchaseTotals ? (
                           <div className="rounded-2xl border border-sidebar-border/70 bg-sidebar-foreground/[0.02] p-4">
-                            <div className="flex items-center justify-between gap-3">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                               <div>
                                 <p className="text-sm font-medium">Verification Summary</p>
                                 <p className="mt-1 text-xs text-muted-foreground">
                                   Cross-check the extracted line values against the source document before marking it as reviewed.
                                 </p>
                               </div>
-                              <Badge variant="outline">{draft.items.length} Line Items</Badge>
+                              <Badge variant="outline" className="w-fit">{draft.items.length} Line Items</Badge>
                             </div>
                             <div className="mt-4 grid gap-3 sm:grid-cols-3">
                               <div className="rounded-xl border border-sidebar-border/60 bg-background/60 p-3">

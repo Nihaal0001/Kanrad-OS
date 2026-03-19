@@ -7,12 +7,17 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
-import { cn } from "@/lib/utils"
 
 const STATUS_STYLES: Record<string, string> = {
   draft: "bg-muted text-muted-foreground",
   issued: "bg-blue-100 text-blue-700",
   cancelled: "bg-red-100 text-red-600",
+}
+
+const STATUS_LABELS: Record<string, string> = {
+  draft: "Draft",
+  issued: "Issued",
+  cancelled: "Cancelled",
 }
 
 function fmt(n: number) {
@@ -61,7 +66,7 @@ export default async function CreditNoteDetailPage({ params }: Props) {
       >
         <div className="flex items-center gap-2">
           <Badge className={cn(STATUS_STYLES[cn.status ?? "draft"], "text-xs font-medium")}>
-            {cn.status}
+            {STATUS_LABELS[cn.status] ?? cn.status}
           </Badge>
           {cn.status === "draft" && (
             <form action={issue}>

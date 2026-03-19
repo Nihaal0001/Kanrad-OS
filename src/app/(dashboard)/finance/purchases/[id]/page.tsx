@@ -3,6 +3,7 @@ import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
 
 import { getPurchaseInvoice, updatePurchaseInvoiceStatus } from "@/actions/purchase-invoices"
+import { createClient } from "@/lib/supabase/server"
 import { PageHeader } from "@/components/shared/page-header"
 import { PurchasePaymentForm } from "@/components/finance/purchase-payment-form"
 import { PurchaseInvoiceActions } from "@/components/finance/purchase-invoice-actions"
@@ -19,6 +20,15 @@ const STATUS_STYLES: Record<string, string> = {
   partially_paid: "bg-amber-100 text-amber-700",
   overdue: "bg-red-100 text-red-700",
   cancelled: "bg-gray-100 text-gray-500",
+}
+
+const STATUS_LABELS: Record<string, string> = {
+  draft: "Draft",
+  received: "Received",
+  paid: "Paid",
+  partially_paid: "Partially Paid",
+  overdue: "Overdue",
+  cancelled: "Cancelled",
 }
 
 const METHOD_LABELS: Record<string, string> = {
@@ -39,6 +49,12 @@ interface Props {
 
 export default async function PurchaseInvoiceDetailPage({ params }: Props) {
   const { id } = await params
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const { data: profile } = user
+    ? await supabase.from("profiles").select("role").eq("auth_id", user.id).maybeSingle()
+    : { data: null }
+  const canDeletePaid = profile?.role === "admin"
 
   let invoice
   try {
@@ -72,7 +88,7 @@ export default async function PurchaseInvoiceDetailPage({ params }: Props) {
       >
         <div className="flex items-center gap-2">
           <Badge className={cn("text-xs font-medium", STATUS_STYLES[invoice.status])}>
-            {invoice.status.replace("_", " ")}
+            {STATUS_LABELS[invoice.status] ?? invoice.status}
           </Badge>
 
           {invoice.status === "draft" && (
@@ -108,6 +124,7 @@ export default async function PurchaseInvoiceDetailPage({ params }: Props) {
             invoiceId={id}
             status={invoice.status}
             redirectAfterDelete
+            canDeletePaid={canDeletePaid}
           />
         </div>
       </PageHeader>

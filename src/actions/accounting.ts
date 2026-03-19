@@ -1,6 +1,24 @@
 "use server"
 
+import { revalidatePath } from "next/cache"
+
 import { createClient } from "@/lib/supabase/server"
+import { logAudit } from "@/actions/audit"
+
+async function requireAdmin() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" as const }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("auth_id", user.id)
+    .maybeSingle()
+
+  if (profile?.role !== "admin") return { error: "Forbidden: admin only" as const }
+  return { supabase, user }
+}
 
 // ===== Chart of Accounts =====
 
@@ -56,6 +74,40 @@ export async function getJournalEntries(filters?: {
       account: Array.isArray(line.account) ? (line.account[0] ?? null) : line.account,
     })),
   }))
+}
+
+export async function deleteJournalEntry(id: string) {
+  const auth = await requireAdmin()
+  if ("error" in auth) return auth
+
+  const { supabase } = auth
+  const { data: entry, error: entryError } = await supabase
+    .from("journal_entries")
+    .select("id, description, reference_type, reference_id")
+    .eq("id", id)
+    .single()
+
+  if (entryError || !entry) return { error: entryError?.message ?? "Journal entry not found" }
+
+  const { error } = await supabase.from("journal_entries").delete().eq("id", id)
+  if (error) return { error: error.message }
+
+  revalidatePath("/finance/journal")
+  revalidatePath("/finance/ledger")
+  revalidatePath("/finance/trial-balance")
+  revalidatePath("/finance/reports")
+  revalidatePath("/finance")
+  await logAudit({
+    entityType: "journal_entry",
+    entityId: id,
+    entityLabel: entry.description,
+    action: "deleted",
+    newValues: {
+      reference_type: entry.reference_type,
+      reference_id: entry.reference_id,
+    },
+  })
+  return { success: true }
 }
 
 // ===== Ledger (account-level view) =====
@@ -139,7 +191,7 @@ export async function getTrialBalance(filters?: { from?: string; to?: string }) 
   if (accErr) throw new Error(accErr.message)
 
   // Aggregate journal entry lines per account
-  let linesQuery = supabase
+  const linesQuery = supabase
     .from("journal_entry_lines")
     .select(`
       account_code,

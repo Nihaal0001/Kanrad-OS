@@ -1,5 +1,6 @@
 import {
   LayoutDashboard,
+  Grid2x2,
   ShoppingBag,
   Package,
   Factory,
@@ -48,6 +49,13 @@ export type NavSection = {
   items: NavItem[]
 }
 
+export type MobilePrimaryTab = {
+  id: "home" | "production" | "finance" | "more"
+  title: string
+  href: string
+  icon: LucideIcon
+}
+
 export function isNavItemActive(pathname: string, href: string) {
   if (href === "/") {
     return pathname === href
@@ -67,6 +75,19 @@ export function getActiveNavItem(
 
 export function isNavSectionActive(pathname: string, section: NavSection) {
   return getActiveNavItem(pathname, section.items) !== null
+}
+
+export function filterNavigationByPermissions(allowedPermissions?: string[]) {
+  const allowed = new Set(allowedPermissions ?? [])
+
+  return navigation
+    .map((section) => ({
+      ...section,
+      items: section.items.filter(
+        (item) => !item.permission || allowed.has(item.permission)
+      ),
+    }))
+    .filter((section) => section.items.length > 0)
 }
 
 export const navigation: NavSection[] = [
@@ -146,6 +167,32 @@ export const navigation: NavSection[] = [
     ],
   },
 ]
+
+export const mobilePrimaryTabs: MobilePrimaryTab[] = [
+  { id: "home", title: "Home", href: "/", icon: LayoutDashboard },
+  { id: "production", title: "Production", href: "/production", icon: Factory },
+  { id: "finance", title: "Finance", href: "/finance", icon: IndianRupee },
+  { id: "more", title: "More", href: "/more", icon: Grid2x2 },
+]
+
+export function getActiveMobileTab(pathname: string) {
+  if (pathname === "/") return "home"
+  if (pathname === "/production" || pathname.startsWith("/production/")) return "production"
+  if (pathname === "/finance" || pathname.startsWith("/finance/")) return "finance"
+
+  return "more"
+}
+
+export function getMobileMoreSections(allowedPermissions?: string[]) {
+  const primaryTabHrefs = new Set(["/", "/production", "/finance"])
+
+  return filterNavigationByPermissions(allowedPermissions)
+    .map((section) => ({
+      ...section,
+      items: section.items.filter((item) => !primaryTabHrefs.has(item.href)),
+    }))
+    .filter((section) => section.items.length > 0)
+}
 
 export const productionStages = [
   "Fabric Sourcing",

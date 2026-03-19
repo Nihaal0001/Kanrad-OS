@@ -2,6 +2,7 @@ import Link from "next/link"
 import { Plus, FileInput, Sparkles } from "lucide-react"
 
 import { getPurchaseInvoices } from "@/actions/purchase-invoices"
+import { createClient } from "@/lib/supabase/server"
 import { PageHeader } from "@/components/shared/page-header"
 import { EmptyState } from "@/components/shared/empty-state"
 import { PurchaseInvoiceActions } from "@/components/finance/purchase-invoice-actions"
@@ -19,11 +20,27 @@ const STATUS_COLORS: Record<string, string> = {
   cancelled: "bg-gray-100 text-gray-500",
 }
 
+const STATUS_LABELS: Record<string, string> = {
+  draft: "Draft",
+  received: "Received",
+  paid: "Paid",
+  partially_paid: "Partially Paid",
+  overdue: "Overdue",
+  cancelled: "Cancelled",
+}
+
 function formatCurrency(n: number) {
   return n.toLocaleString("en-IN", { minimumFractionDigits: 2 })
 }
 
 export default async function PurchaseInvoicesPage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const { data: profile } = user
+    ? await supabase.from("profiles").select("role").eq("auth_id", user.id).maybeSingle()
+    : { data: null }
+  const canDeletePaid = profile?.role === "admin"
+
   const invoices = await getPurchaseInvoices()
 
   const totalAmount = invoices.reduce((sum, i) => sum + (i.total_amount ?? 0), 0)
@@ -97,9 +114,9 @@ export default async function PurchaseInvoicesPage() {
                       ₹{formatCurrency(outstanding)}
                     </p>
                     <Badge className={`w-fit text-xs ${STATUS_COLORS[inv.status] ?? ""}`}>
-                      {inv.status.replace("_", " ")}
+                      {STATUS_LABELS[inv.status] ?? inv.status}
                     </Badge>
-                    <PurchaseInvoiceActions invoiceId={inv.id} status={inv.status} />
+                    <PurchaseInvoiceActions invoiceId={inv.id} status={inv.status} canDeletePaid={canDeletePaid} />
                   </CardContent>
                 </Card>
               </Link>

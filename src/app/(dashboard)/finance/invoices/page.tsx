@@ -2,6 +2,7 @@ import Link from "next/link"
 import { Plus, FileText } from "lucide-react"
 
 import { getInvoices } from "@/actions/finance"
+import { createClient } from "@/lib/supabase/server"
 import { PageHeader } from "@/components/shared/page-header"
 import { EmptyState } from "@/components/shared/empty-state"
 import { InvoiceActions } from "@/components/finance/invoice-actions"
@@ -23,7 +24,7 @@ const STATUS_LABELS: Record<string, string> = {
   draft: "Draft",
   sent: "Sent",
   paid: "Paid",
-  partially_paid: "Partial",
+  partially_paid: "Partially Paid",
   cancelled: "Cancelled",
 }
 
@@ -32,6 +33,13 @@ function formatCurrency(n: number) {
 }
 
 export default async function InvoicesPage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const { data: profile } = user
+    ? await supabase.from("profiles").select("role").eq("auth_id", user.id).maybeSingle()
+    : { data: null }
+  const canDeletePaid = profile?.role === "admin"
+
   const invoices = await getInvoices()
 
   return (
@@ -86,7 +94,7 @@ export default async function InvoicesPage() {
                   <Badge className={cn("w-fit text-xs font-medium", STATUS_STYLES[inv.status])}>
                     {STATUS_LABELS[inv.status] ?? inv.status}
                   </Badge>
-                  <InvoiceActions invoiceId={inv.id} status={inv.status} />
+                  <InvoiceActions invoiceId={inv.id} status={inv.status} canDeletePaid={canDeletePaid} />
                 </CardContent>
               </Card>
             )

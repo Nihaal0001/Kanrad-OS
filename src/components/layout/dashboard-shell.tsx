@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { Sidebar } from "@/components/layout/sidebar"
 import { Topbar } from "@/components/layout/topbar"
-import { MobileNav } from "@/components/layout/mobile-nav"
+import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav"
 import { CommandPalette } from "@/components/command-palette"
 import { AIChatWidget } from "@/components/shared/ai-chat-widget"
 import { cn } from "@/lib/utils"
@@ -23,7 +23,6 @@ interface DashboardShellProps {
 }
 
 export function DashboardShell({ children, unreadCount, userProfile, allowedPermissions }: DashboardShellProps) {
-  const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [paletteOpen, setPaletteOpen] = useState(false)
 
@@ -47,11 +46,6 @@ export function DashboardShell({ children, unreadCount, userProfile, allowedPerm
         className="hidden lg:flex"
         allowedPermissions={allowedPermissions}
       />
-      <MobileNav
-        open={mobileNavOpen}
-        onOpenChange={setMobileNavOpen}
-        allowedPermissions={allowedPermissions}
-      />
       <div
         className={cn(
           "flex flex-1 flex-col overflow-hidden transition-[margin] duration-300",
@@ -59,17 +53,18 @@ export function DashboardShell({ children, unreadCount, userProfile, allowedPerm
         )}
       >
         <Topbar
-          onMenuClick={() => setMobileNavOpen(true)}
+          onMenuClick={() => undefined}
           onSearchClick={() => setPaletteOpen(true)}
           unreadCount={unreadCount}
           userProfile={userProfile}
         />
-        <main className="flex-1 overflow-y-auto p-6 lg:p-8">
+        <main className="flex-1 overflow-y-auto px-4 py-5 pb-[calc(env(safe-area-inset-bottom)+6.5rem)] sm:px-5 sm:py-6 sm:pb-28 lg:p-8">
           <div className="animate-page-in">
             {children}
           </div>
         </main>
       </div>
+      <MobileBottomNav />
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
       <AIChatWidget />
     </div>

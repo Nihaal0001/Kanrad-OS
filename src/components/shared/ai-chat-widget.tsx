@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef, useCallback } from "react"
+import { useState, useEffect, useRef } from "react"
 import {
   X,
   Mic,
@@ -108,76 +108,73 @@ export function AIChatWidget() {
     setSpeaking(false)
   }
 
-  const handleSend = useCallback(
-    async (text?: string) => {
-      const msg = (text ?? query).trim()
-      if (!msg || loading) return
+  async function handleSend(text?: string) {
+    const msg = (text ?? query).trim()
+    if (!msg || loading) return
 
-      const userMsg: UIMessage = { role: "user", content: msg }
-      const newHistory = [...chatHistory, userMsg]
-      setChatHistory(newHistory)
-      setQuery("")
-      setLoading(true)
+    const userMsg: UIMessage = { role: "user", content: msg }
+    const newHistory = [...chatHistory, userMsg]
+    setChatHistory(newHistory)
+    setQuery("")
+    setLoading(true)
 
-      if (agentMode) {
-        // ── Agent mode: route through Gemini function calling ──
-        const agentHistory = chatHistory
-          .filter((m): m is { role: "user"; content: string } | { role: "assistant"; content: string } =>
-            m.role === "user" || m.role === "assistant")
-          .map((m) => ({ role: m.role, content: m.content }))
-        const result = await askAgent(msg, agentHistory)
-        setLoading(false)
+    if (agentMode) {
+      // ── Agent mode: route through Gemini function calling ──
+      const agentHistory = chatHistory
+        .filter((m): m is { role: "user"; content: string } | { role: "assistant"; content: string } =>
+          m.role === "user" || m.role === "assistant")
+        .map((m) => ({ role: m.role, content: m.content }))
+      const result = await askAgent(msg, agentHistory)
+      setLoading(false)
 
-        if ("error" in result) {
-          const errMsg = `Error: ${result.error}`
-          setChatHistory([...newHistory, { role: "assistant", content: errMsg }])
-          return
-        }
+      if ("error" in result) {
+        const errMsg = `Error: ${result.error}`
+        setChatHistory([...newHistory, { role: "assistant", content: errMsg }])
+        return
+      }
 
-        if (result.type === "text") {
-          setChatHistory([...newHistory, { role: "assistant", content: result.content }])
-          speakReply(result.content)
-          return
-        }
+      if (result.type === "text") {
+        setChatHistory([...newHistory, { role: "assistant", content: result.content }])
+        speakReply(result.content)
+        return
+      }
 
-        // tool_call
-        if (WRITE_TOOLS.has(result.name)) {
-          // Show confirmation card
-          setChatHistory([...newHistory, {
-            role: "confirmation",
-            displayText: result.displayText,
-            toolName: result.name,
-            toolArgs: result.args,
-            resolved: false,
-          }])
-        } else {
-          // Read tool — execute immediately and show result
-          const exec = await executeAgentTool(result.name, result.args)
-          const replyText = exec.success ? exec.message : `Could not complete: ${exec.message}`
-          setChatHistory([...newHistory, { role: "assistant", content: replyText }])
-          speakReply(replyText)
-        }
+      // tool_call
+      if (WRITE_TOOLS.has(result.name)) {
+        // Show confirmation card
+        setChatHistory([...newHistory, {
+          role: "confirmation",
+          displayText: result.displayText,
+          toolName: result.name,
+          toolArgs: result.args,
+          resolved: false,
+        }])
       } else {
-        // ── Normal mode: Sarvam chat ──
-        const chatMessages = chatHistory.filter(
-          (m): m is ChatMessage => m.role === "user" || m.role === "assistant"
-        )
-        const result = await askAI(msg, chatMessages)
-        setLoading(false)
-
-        let replyText: string
-        if ("reply" in result) {
-          replyText = result.reply
-          setChatHistory([...newHistory, { role: "assistant", content: replyText }])
-        } else {
-          replyText = `Sorry, I couldn't process that: ${result.error}`
-          setChatHistory([...newHistory, { role: "assistant", content: replyText }])
-        }
+        // Read tool — execute immediately and show result
+        const exec = await executeAgentTool(result.name, result.args)
+        const replyText = exec.success ? exec.message : `Could not complete: ${exec.message}`
+        setChatHistory([...newHistory, { role: "assistant", content: replyText }])
         speakReply(replyText)
       }
-    },
-    [query, loading, chatHistory, agentMode]
-  )
+    } else {
+      // ── Normal mode: Sarvam chat ──
+      const chatMessages = chatHistory.filter(
+        (m): m is ChatMessage => m.role === "user" || m.role === "assistant"
+      )
+      const result = await askAI(msg, chatMessages)
+      setLoading(false)
+
+      let replyText: string
+      if ("reply" in result) {
+        replyText = result.reply
+        setChatHistory([...newHistory, { role: "assistant", content: replyText }])
+      } else {
+        replyText = `Sorry, I couldn't process that: ${result.error}`
+        setChatHistory([...newHistory, { role: "assistant", content: replyText }])
+      }
+      speakReply(replyText)
+    }
+  }
 
   async function handleConfirm(index: number, toolName: string, toolArgs: Record<string, unknown>) {
     // Mark as resolved immediately to disable buttons
@@ -251,7 +248,7 @@ export function AIChatWidget() {
   }
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
+    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3 max-lg:bottom-[calc(env(safe-area-inset-bottom)+0.75rem)] max-lg:right-4">
       {/* Chat panel */}
       {open && (
         <div
@@ -373,7 +370,7 @@ export function AIChatWidget() {
                   return (
                     <div key={i} className="flex justify-start">
                       <div className="max-w-[92%] rounded-2xl rounded-bl-md border border-blue-400/30 bg-blue-500/10 px-4 py-3 space-y-2.5">
-                        <p className="text-[11px] font-semibold uppercase tracking-wide text-blue-400">I'll do the following</p>
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-blue-400">I&apos;ll do the following</p>
                         <p className="text-sm text-foreground leading-snug">
                           <BoldText text={msg.displayText} />
                         </p>
