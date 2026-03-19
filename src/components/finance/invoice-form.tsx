@@ -82,7 +82,7 @@ interface SelectableOrder {
   id: string
   order_number: string
   style_name: string
-  buyer: { id: string; name: string } | null
+  customer: { id: string; name: string } | null
 }
 
 interface InvoiceFormProps {
@@ -115,10 +115,10 @@ export function InvoiceForm({ orders, preloadedOrder, preloadedOrderId, orgGstin
     resolver: zodResolver(invoiceSchema),
     defaultValues: {
       order_id: preloadedOrderId ?? "",
-      buyer_id: preloadedOrder?.buyer?.id ?? "",
-      buyer_name: preloadedOrder?.buyer?.name ?? "",
-      buyer_address: "",
-      buyer_gst: "",
+      customer_id: preloadedOrder?.customer?.id ?? "",
+      customer_name: preloadedOrder?.customer?.name ?? "",
+      customer_address: preloadedOrder?.customer?.address ?? "",
+      customer_gst: preloadedOrder?.customer?.gst_number ?? "",
       tax_rate: 0,
       place_of_supply: "",
       reverse_charge: false,
@@ -127,7 +127,7 @@ export function InvoiceForm({ orders, preloadedOrder, preloadedOrderId, orgGstin
       due_date: "",
       notes: "",
       items: preloadedOrder?.order_items.map((oi) => ({
-        description: `${oi.size} / ${oi.color} — ${preloadedOrder.style_name}`,
+        description: `${oi.style_name} — ${oi.size} / ${oi.color}`,
         quantity: oi.quantity,
         unit_price: oi.unit_price,
         hsn_code: "",
@@ -140,7 +140,7 @@ export function InvoiceForm({ orders, preloadedOrder, preloadedOrderId, orgGstin
   const watchedItems = watch("items")
   const taxRate = watch("tax_rate") ?? 0
   const isIgst = watch("is_igst") ?? false
-  const buyerGst = watch("buyer_gst") ?? ""
+  const customerGst = watch("customer_gst") ?? ""
   const reverseCharge = watch("reverse_charge") ?? false
 
   const subtotal = watchedItems.reduce(
@@ -154,15 +154,15 @@ export function InvoiceForm({ orders, preloadedOrder, preloadedOrderId, orgGstin
 
   // Auto-detect IGST vs CGST+SGST from GSTIN state codes
   useEffect(() => {
-    if (orgGstin && buyerGst && buyerGst.length >= 2 && orgGstin.length >= 2) {
+    if (orgGstin && customerGst && customerGst.length >= 2 && orgGstin.length >= 2) {
       const orgState = orgGstin.slice(0, 2)
-      const buyerState = buyerGst.slice(0, 2)
-      setValue("is_igst", orgState !== buyerState)
-      // Auto-set Place of Supply from buyer GSTIN
-      const pos = GSTIN_STATE[buyerState]
+      const customerState = customerGst.slice(0, 2)
+      setValue("is_igst", orgState !== customerState)
+      // Auto-set Place of Supply from customer GSTIN
+      const pos = GSTIN_STATE[customerState]
       if (pos) setValue("place_of_supply", pos)
     }
-  }, [buyerGst, orgGstin, setValue])
+  }, [customerGst, orgGstin, setValue])
 
   const handleOrderChange = useCallback(
     async (orderId: string) => {
@@ -175,12 +175,14 @@ export function InvoiceForm({ orders, preloadedOrder, preloadedOrderId, orgGstin
 
       if (!order) return
 
-      setValue("buyer_id", order.buyer?.id ?? "")
-      setValue("buyer_name", order.buyer?.name ?? "")
+      setValue("customer_id", order.customer?.id ?? "")
+      setValue("customer_name", order.customer?.name ?? "")
+      setValue("customer_address", order.customer?.address ?? "")
+      setValue("customer_gst", order.customer?.gst_number ?? "")
 
       if (order.order_items.length > 0) {
         const items = order.order_items.map((oi) => ({
-          description: `${oi.size} / ${oi.color} — ${order.style_name}`,
+          description: `${oi.style_name} — ${oi.size} / ${oi.color}`,
           quantity: oi.quantity,
           unit_price: oi.unit_price,
           hsn_code: "",
@@ -242,7 +244,7 @@ export function InvoiceForm({ orders, preloadedOrder, preloadedOrderId, orgGstin
                   {orders.map((o) => (
                     <SelectItem key={o.id} value={o.id}>
                       {o.order_number} · {o.style_name}
-                      {o.buyer ? ` (${o.buyer.name})` : ""}
+                      {o.customer ? ` (${o.customer.name})` : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -256,31 +258,31 @@ export function InvoiceForm({ orders, preloadedOrder, preloadedOrderId, orgGstin
           </CardContent>
         </Card>
 
-        {/* Buyer Info */}
+        {/* Customer Info */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Buyer / Bill To</CardTitle>
+            <CardTitle className="text-base">Customer / Bill To</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-1.5">
-              <Label htmlFor="buyer_name">Buyer Name *</Label>
-              <Input id="buyer_name" {...register("buyer_name")} placeholder="Buyer name" />
-              {errors.buyer_name && (
-                <p className="text-xs text-destructive">{errors.buyer_name.message}</p>
+              <Label htmlFor="customer_name">Customer Name *</Label>
+              <Input id="customer_name" {...register("customer_name")} placeholder="Customer name" />
+              {errors.customer_name && (
+                <p className="text-xs text-destructive">{errors.customer_name.message}</p>
               )}
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="buyer_address">Address</Label>
+              <Label htmlFor="customer_address">Address</Label>
               <Textarea
-                id="buyer_address"
-                {...register("buyer_address")}
+                id="customer_address"
+                {...register("customer_address")}
                 placeholder="Billing address"
                 rows={2}
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="buyer_gst">GSTIN</Label>
-              <Input id="buyer_gst" {...register("buyer_gst")} placeholder="22AAAAA0000A1Z5" />
+              <Label htmlFor="customer_gst">GSTIN</Label>
+              <Input id="customer_gst" {...register("customer_gst")} placeholder="22AAAAA0000A1Z5" />
               <p className="text-xs text-muted-foreground">
                 IGST/CGST+SGST is auto-detected from state code when GSTIN is entered.
               </p>

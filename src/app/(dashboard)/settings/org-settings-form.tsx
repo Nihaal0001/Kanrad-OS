@@ -81,7 +81,7 @@ export function OrgSettingsForm({ defaults }: OrgSettingsFormProps) {
         </div>
       </div>
       <div className="flex justify-end pt-2">
-        <Button type="submit" disabled={isPending}>
+        <Button type="submit" disabled={isPending} className="max-sm:w-full">
           {isPending ? "Saving…" : "Save changes"}
         </Button>
       </div>

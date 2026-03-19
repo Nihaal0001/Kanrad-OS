@@ -31,14 +31,14 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
-import { BuyerSelect } from "@/components/orders/buyer-select"
+import { CustomerSelect } from "@/components/orders/customer-select"
 
 interface OrderFormProps {
   order?: OrderDetail
-  buyers: Array<{ id: string; name: string; company: string | null }>
+  customers: Array<{ id: string; name: string; company: string | null }>
 }
 
-export function OrderForm({ order, buyers }: OrderFormProps) {
+export function OrderForm({ order, customers }: OrderFormProps) {
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -48,21 +48,21 @@ export function OrderForm({ order, buyers }: OrderFormProps) {
   const form = useForm<OrderFormData>({
     resolver: zodResolver(orderSchema),
     defaultValues: {
-      buyer_id: order?.buyer_id ?? "",
-      style_name: order?.style_name ?? "",
+      customer_id: order?.customer_id ?? "",
       description: order?.description ?? "",
       deadline: order?.deadline ?? "",
       priority: order?.priority ?? "normal",
       notes: order?.notes ?? "",
       items: order?.order_items?.length
         ? order.order_items.map((item) => ({
+            style_name: item.style_name ?? order.style_name ?? "",
             size: item.size,
             color: item.color,
             quantity: item.quantity,
             unit_price: item.unit_price,
             hsn_code: item.hsn_code ?? "",
           }))
-        : [{ size: "", color: "", quantity: 1, unit_price: 0, hsn_code: "" }],
+        : [{ style_name: "", size: "", color: "", quantity: 1, unit_price: 0, hsn_code: "" }],
     },
   })
 
@@ -144,36 +144,21 @@ export function OrderForm({ order, buyers }: OrderFormProps) {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
-            {/* Buyer */}
-            <div className="space-y-2">
-              <Label htmlFor="buyer_id">Buyer</Label>
-              <BuyerSelect
-                value={form.watch("buyer_id")}
-                onChange={(value) => form.setValue("buyer_id", value, { shouldValidate: true })}
-                buyers={buyers}
-              />
-              {form.formState.errors.buyer_id && (
-                <p className="text-sm text-destructive">
-                  {form.formState.errors.buyer_id.message}
-                </p>
-              )}
-            </div>
-
-            {/* Style Name */}
-            <div className="space-y-2">
-              <Label htmlFor="style_name">Style Name</Label>
-              <Input
-                id="style_name"
-                placeholder="e.g., Summer Collection Polo"
-                {...form.register("style_name")}
-              />
-              {form.formState.errors.style_name && (
-                <p className="text-sm text-destructive">
-                  {form.formState.errors.style_name.message}
-                </p>
-              )}
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="customer_id">Customer</Label>
+            <CustomerSelect
+              value={form.watch("customer_id")}
+              onChange={(value) => form.setValue("customer_id", value, { shouldValidate: true })}
+              customers={customers}
+              placeholder="Select a customer"
+              addLabel="Manage Customers"
+              addHref="/customers"
+            />
+            {form.formState.errors.customer_id && (
+              <p className="text-sm text-destructive">
+                {form.formState.errors.customer_id.message}
+              </p>
+            )}
           </div>
 
           {/* Description */}
@@ -260,14 +245,15 @@ export function OrderForm({ order, buyers }: OrderFormProps) {
       {/* Size & Color Breakdown */}
       <Card>
         <CardHeader>
-          <CardTitle>Size & Color Breakdown</CardTitle>
+          <CardTitle>Order Line Items</CardTitle>
           <CardDescription>
-            Add the size, color, and quantity details for this order
+            Add style, size, color, and quantity details for each line item
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Column headers for desktop */}
-          <div className="hidden sm:grid sm:grid-cols-[1fr_1fr_90px_90px_120px_40px] sm:gap-3 sm:px-1">
+          <div className="hidden sm:grid sm:grid-cols-[1.3fr_0.9fr_0.9fr_90px_90px_120px_40px] sm:gap-3 sm:px-1">
+            <Label className="text-xs text-muted-foreground">Style</Label>
             <Label className="text-xs text-muted-foreground">Size</Label>
             <Label className="text-xs text-muted-foreground">Color</Label>
             <Label className="text-xs text-muted-foreground">HSN/SAC</Label>
@@ -279,8 +265,24 @@ export function OrderForm({ order, buyers }: OrderFormProps) {
           {fields.map((field, index) => (
             <div
               key={field.id}
-              className="grid gap-3 sm:grid-cols-[1fr_1fr_90px_90px_120px_40px] items-start"
+              className="grid gap-3 sm:grid-cols-[1.3fr_0.9fr_0.9fr_90px_90px_120px_40px] items-start"
             >
+              {/* Style */}
+              <div className="space-y-1">
+                <Label className="sm:hidden text-xs text-muted-foreground">
+                  Style
+                </Label>
+                <Input
+                  placeholder="e.g., Classic Polo"
+                  {...form.register(`items.${index}.style_name`)}
+                />
+                {form.formState.errors.items?.[index]?.style_name && (
+                  <p className="text-xs text-destructive">
+                    {form.formState.errors.items[index]?.style_name?.message}
+                  </p>
+                )}
+              </div>
+
               {/* Size */}
               <div className="space-y-1">
                 <Label className="sm:hidden text-xs text-muted-foreground">
@@ -406,7 +408,7 @@ export function OrderForm({ order, buyers }: OrderFormProps) {
             variant="outline"
             size="sm"
             onClick={() =>
-              append({ size: "", color: "", quantity: 1, unit_price: 0, hsn_code: "" })
+              append({ style_name: "", size: "", color: "", quantity: 1, unit_price: 0, hsn_code: "" })
             }
           >
             <Plus className="mr-2 h-4 w-4" />

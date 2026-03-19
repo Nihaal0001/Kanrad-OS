@@ -114,12 +114,12 @@ export default async function CashFlowMonthPage({
                   method: string
                   reference: string | null
                   payment_date: string
-                  invoice: { invoice_number: string; buyer_name: string } | null
+                  invoice: { invoice_number: string; customer_name: string } | null
                 }) => (
                   <div key={p.id} className="flex items-start justify-between py-2.5 border-b last:border-0">
                     <div className="min-w-0">
                       <p className="text-sm font-medium truncate">
-                        {p.invoice?.buyer_name ?? "Unknown buyer"}
+                        {p.invoice?.customer_name ?? "Unknown customer"}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {p.invoice?.invoice_number ?? "—"} · {p.payment_date}

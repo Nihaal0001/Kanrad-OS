@@ -9,13 +9,13 @@ export type AgentResult =
 
 // ── Tool → module permission mapping ──────────────────────────────────────
 export const TOOL_PERMISSIONS: Record<string, string> = {
-  // Orders & Buyers
+  // Orders & Customers
   get_orders: "orders",
   get_order_status: "orders",
   create_order: "orders",
   update_order_status: "orders",
-  get_buyers: "orders",
-  create_buyer: "orders",
+  get_customers: "orders",
+  create_customer: "orders",
   // Inventory
   get_materials: "inventory",
   get_low_stock: "inventory",
@@ -59,7 +59,7 @@ export const WRITE_TOOL_NAMES = [
   "update_production_stage",
   "create_order",
   "update_order_status",
-  "create_buyer",
+  "create_customer",
   "adjust_stock",
   "create_quality_check",
   "mark_notifications_read",
@@ -95,8 +95,8 @@ const toolDeclarations: FunctionDeclaration[] = [
     },
   },
   {
-    name: "get_buyers",
-    description: "List all buyers/clients.",
+    name: "get_customers",
+    description: "List all customers/clients.",
     parameters: { type: SchemaType.OBJECT, properties: {} },
   },
   {
@@ -276,8 +276,8 @@ const toolDeclarations: FunctionDeclaration[] = [
     parameters: {
       type: SchemaType.OBJECT,
       properties: {
-        style_name: { type: SchemaType.STRING, description: "Style/garment name, e.g. 'Polo T-Shirt'" },
-        buyer_name: { type: SchemaType.STRING, description: "Buyer name (must match an existing buyer)" },
+        style_name: { type: SchemaType.STRING, description: "Primary style/garment name for the default line item, e.g. 'Polo T-Shirt'" },
+        customer_name: { type: SchemaType.STRING, description: "Customer name (must match an existing customer)" },
         total_quantity: { type: SchemaType.NUMBER, description: "Total number of pieces to produce" },
         deadline: { type: SchemaType.STRING, description: "Deadline in YYYY-MM-DD format" },
         priority: { type: SchemaType.STRING, description: "low, normal, high, or urgent (optional, defaults to normal)" },
@@ -299,12 +299,12 @@ const toolDeclarations: FunctionDeclaration[] = [
     },
   },
   {
-    name: "create_buyer",
-    description: "Add a new buyer/client.",
+    name: "create_customer",
+    description: "Add a new customer/client.",
     parameters: {
       type: SchemaType.OBJECT,
       properties: {
-        name: { type: SchemaType.STRING, description: "Buyer name" },
+        name: { type: SchemaType.STRING, description: "Customer name" },
         company: { type: SchemaType.STRING, description: "Company name (optional)" },
         phone: { type: SchemaType.STRING, description: "Phone number (optional)" },
         email: { type: SchemaType.STRING, description: "Email address (optional)" },
@@ -366,11 +366,11 @@ function buildDisplayText(name: string, args: Record<string, unknown>): string {
     case "update_production_stage":
       return `Update **${args.stage_name}** stage for order **${args.order_number}** → **${args.status}**`
     case "create_order":
-      return `Create order: **${args.style_name}**, ${args.total_quantity} pcs, deadline ${args.deadline}${args.buyer_name ? `, buyer: ${args.buyer_name}` : ""}`
+      return `Create order: **${args.style_name}**, ${args.total_quantity} pcs, deadline ${args.deadline}${args.customer_name ? `, customer: ${args.customer_name}` : ""}`
     case "update_order_status":
       return `Update order **${args.order_number}** → **${args.status}**`
-    case "create_buyer":
-      return `Add buyer: **${args.name}**${args.company ? ` (${args.company})` : ""}`
+    case "create_customer":
+      return `Add customer: **${args.name}**${args.company ? ` (${args.company})` : ""}`
     case "adjust_stock":
       return `Adjust stock for **${args.material_name}**: ${Number(args.quantity) > 0 ? "+" : ""}${args.quantity} (${args.type})`
     case "create_quality_check":
@@ -407,14 +407,24 @@ async function executeReadTool(
 
     case "get_order_status": {
       const orderNumber = String(args.order_number ?? "")
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data } = await admin
         .from("orders")
-        .select("order_number, style_name, status, priority, deadline, total_quantity, buyer:buyers(name)")
+        .select("order_number, style_name, status, priority, deadline, total_quantity, customer:customers(name)")
         .ilike("order_number", `%${orderNumber}%`)
         .limit(1)
-        .maybeSingle() as { data: any }
+        .maybeSingle() as {
+          data: {
+            order_number: string
+            style_name: string
+            status: string
+            priority: string
+            deadline: string
+            total_quantity: number
+            customer: { name: string } | { name: string }[] | null
+          } | null
+        }
       if (!data) return { error: `Order "${orderNumber}" not found` }
+      const customer = Array.isArray(data.customer) ? data.customer[0] : data.customer
       return {
         order_number: data.order_number,
         style: data.style_name,
@@ -422,14 +432,14 @@ async function executeReadTool(
         priority: data.priority,
         deadline: data.deadline,
         quantity: data.total_quantity,
-        buyer: data.buyer?.name ?? "N/A",
+        customer: customer?.name ?? "N/A",
       }
     }
 
     case "get_orders": {
       let query = admin
         .from("orders")
-        .select("order_number, style_name, status, priority, deadline, total_quantity")
+        .select("order_number, style_name, status, priority, deadline, total_quantity, customer:customers(name)")
         .order("created_at", { ascending: false })
         .limit(20)
       if (args.status) query = query.eq("status", String(args.status))
@@ -443,17 +453,18 @@ async function executeReadTool(
           priority: o.priority,
           deadline: o.deadline,
           quantity: o.total_quantity,
+          customer: (Array.isArray(o.customer) ? o.customer[0]?.name : o.customer?.name) ?? "N/A",
         })),
       }
     }
 
-    case "get_buyers": {
+    case "get_customers": {
       const { data } = await admin
-        .from("buyers")
+        .from("customers")
         .select("name, company, phone, email")
         .order("name")
         .limit(50)
-      return { count: (data ?? []).length, buyers: data ?? [] }
+      return { count: (data ?? []).length, customers: data ?? [] }
     }
 
     case "get_production_status": {
@@ -483,13 +494,21 @@ async function executeReadTool(
     }
 
     case "get_pending_leaves": {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data } = await admin
         .from("leaves")
         .select("leave_type, from_date, to_date, days, reason, worker:profiles!worker_id(full_name)")
         .eq("status", "pending")
         .order("created_at", { ascending: false })
-        .limit(20) as { data: any[] | null }
+        .limit(20) as {
+          data: {
+            leave_type: string
+            from_date: string
+            to_date: string
+            days: number
+            reason: string | null
+            worker: { full_name: string } | { full_name: string }[] | null
+          }[] | null
+        }
       return {
         pending_count: (data ?? []).length,
         leaves: (data ?? []).map((l) => ({
@@ -633,7 +652,7 @@ async function executeReadTool(
     case "get_invoices": {
       let query = admin
         .from("invoices")
-        .select("invoice_number, buyer_name, total_amount, amount_paid, status, due_date, issue_date")
+        .select("invoice_number, customer_name, total_amount, amount_paid, status, due_date, issue_date")
         .order("created_at", { ascending: false })
         .limit(20)
       if (args.status) query = query.eq("status", String(args.status))
@@ -642,7 +661,7 @@ async function executeReadTool(
         count: (data ?? []).length,
         invoices: (data ?? []).map((inv) => ({
           invoice_number: inv.invoice_number,
-          buyer: inv.buyer_name,
+          customer: inv.customer_name,
           total: inv.total_amount,
           paid: inv.amount_paid,
           outstanding: (inv.total_amount ?? 0) - (inv.amount_paid ?? 0),
@@ -655,7 +674,7 @@ async function executeReadTool(
     case "get_receivables_summary": {
       const { data } = await admin
         .from("invoices")
-        .select("total_amount, amount_paid, due_date, status, buyer_name")
+        .select("total_amount, amount_paid, due_date, status, customer_name")
         .neq("status", "cancelled")
         .neq("status", "paid")
         .not("due_date", "is", null)

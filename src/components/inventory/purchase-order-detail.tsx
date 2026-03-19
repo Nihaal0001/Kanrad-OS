@@ -112,8 +112,8 @@ export function PurchaseOrderDetail({ po: initialPo }: PurchaseOrderDetailProps)
   )
 
   return (
-    <div className="grid gap-6 lg:grid-cols-3">
-      <div className="lg:col-span-2 space-y-6">
+    <div className="grid gap-4 sm:gap-6 lg:grid-cols-3">
+      <div className="space-y-4 sm:space-y-6 lg:col-span-2">
         {/* Status actions */}
         {(po.status === "draft" ||
           po.status === "sent" ||
@@ -226,7 +226,7 @@ export function PurchaseOrderDetail({ po: initialPo }: PurchaseOrderDetailProps)
       </div>
 
       {/* Sidebar */}
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         <Card>
           <CardHeader>
             <CardTitle>Order Summary</CardTitle>

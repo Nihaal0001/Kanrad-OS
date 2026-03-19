@@ -21,7 +21,7 @@ export default async function CustomersPage({
     <>
       <PageHeader
         title="Customers"
-        description="Sales contacts — buyers, brands, and garment clients"
+        description="Sales contacts for brands, businesses, and garment clients"
         breadcrumbs={[{ label: "Customers" }]}
       >
         <Link href="/customers/new">
@@ -36,7 +36,7 @@ export default async function CustomersPage({
         <EmptyState
           icon={Users}
           title="No customers yet"
-          description="Add your buyers, brands, and garment clients here"
+          description="Add your brands, businesses, and garment clients here"
           action={{ label: "Add Customer", href: "/customers/new" }}
         />
       ) : (

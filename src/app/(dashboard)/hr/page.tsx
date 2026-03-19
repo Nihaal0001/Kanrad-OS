@@ -75,10 +75,10 @@ export default async function HROverviewPage() {
       <PageHeader title="HR Overview" description={today} />
 
       {/* Stat cards */}
-      <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-5">
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-5 sm:gap-4">
         {statCards.map((card) => (
           <Card key={card.title}>
-            <CardContent className="p-4">
+            <CardContent className="p-4 sm:p-5">
               <div className="mb-1 flex items-center gap-2">
                 <card.icon className={cn("h-4 w-4 text-muted-foreground", card.color)} />
                 <span className="text-xs text-muted-foreground">{card.title}</span>
@@ -89,7 +89,7 @@ export default async function HROverviewPage() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2">
         {/* Today's attendance */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-3">
@@ -131,7 +131,7 @@ export default async function HROverviewPage() {
           </CardContent>
         </Card>
 
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           {/* Pending leaves */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-3">

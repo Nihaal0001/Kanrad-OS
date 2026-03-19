@@ -219,7 +219,7 @@ export async function getCashFlowMonthDetail(monthKey: string) {
   const [paymentsRes, expensesRes, purchasePaymentsRes] = await Promise.all([
     supabase
       .from("payments")
-      .select("id, amount, method, reference, payment_date, invoice:invoices(invoice_number, buyer_name)")
+      .select("id, amount, method, reference, payment_date, invoice:invoices(invoice_number, customer_name)")
       .gte("payment_date", start)
       .lt("payment_date", end)
       .order("payment_date"),
@@ -299,7 +299,7 @@ export async function getReceivablesAging() {
   const supabase = await createClient()
   const { data } = await supabase
     .from("invoices")
-    .select("id, invoice_number, buyer_name, total_amount, amount_paid, due_date, status")
+    .select("id, invoice_number, customer_name, total_amount, amount_paid, due_date, status")
     .neq("status", "cancelled")
     .neq("status", "paid")
     .neq("status", "draft")
@@ -308,7 +308,7 @@ export async function getReceivablesAging() {
 
   return (data ?? []).map((inv) => ({
     id: inv.id,
-    name: `${inv.invoice_number} — ${inv.buyer_name}`,
+    name: `${inv.invoice_number} — ${inv.customer_name}`,
     amount: (inv.total_amount ?? 0) - (inv.amount_paid ?? 0),
     due_date: inv.due_date!,
     status: inv.status,
@@ -406,7 +406,6 @@ export async function getProfitLoss(start: string, end: string) {
   const grossProfit = revenue - cogs
 
   // Group expenses by category
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const expensesByCategory: Record<string, number> = {}
   let totalExpenses = 0
   for (const exp of expensesRes.data ?? []) {

@@ -15,7 +15,7 @@ export async function GET(request: Request) {
   // Find invoices that are past due and still draft/sent
   const { data: overdue, error } = await admin
     .from("invoices")
-    .select("id, invoice_number, buyer_name, due_date")
+    .select("id, invoice_number, customer_name, due_date")
     .lt("due_date", today)
     .in("status", ["draft", "sent"])
 
@@ -46,7 +46,7 @@ export async function GET(request: Request) {
   const notifications = newOverdue.map((inv) => ({
     type: "invoice_overdue",
     title: "Invoice Overdue",
-    message: `${inv.invoice_number} to ${inv.buyer_name} is past due (${inv.due_date})`,
+    message: `${inv.invoice_number} for ${inv.customer_name} is past due (${inv.due_date})`,
     reference_type: "invoice",
     reference_id: inv.id,
     is_read: false,

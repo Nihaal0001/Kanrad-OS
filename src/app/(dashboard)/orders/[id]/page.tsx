@@ -1,11 +1,12 @@
 import { notFound } from "next/navigation"
 import Link from "next/link"
-import { Pencil, Trash2 } from "lucide-react"
+import { Pencil } from "lucide-react"
 
 import { getOrder } from "@/actions/orders"
 import { formatDate, formatCurrency } from "@/lib/utils"
 import { generatePortalToken } from "@/lib/portal"
 import type { OrderDetail } from "@/lib/supabase/types"
+import { getOrderStyleSummary, getUniqueOrderStyles } from "@/lib/order-styles"
 
 import { PageHeader } from "@/components/shared/page-header"
 import { StatusBadge } from "@/components/shared/status-badge"
@@ -56,6 +57,9 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
     (sum, item) => sum + item.quantity * item.unit_price,
     0
   ) ?? 0
+  const styleSummary = getOrderStyleSummary(order.order_items, order.style_name)
+  const uniqueStyles = getUniqueOrderStyles(order.order_items)
+  const salesContact = order.customer
 
   const portalToken = generatePortalToken(order.id)
 
@@ -77,9 +81,9 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
         </Link>
       </PageHeader>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-4 sm:gap-6 lg:grid-cols-3">
         {/* Left Column */}
-        <div className="space-y-6 lg:col-span-2">
+        <div className="space-y-4 sm:space-y-6 lg:col-span-2">
           {/* Order Info */}
           <Card>
             <CardHeader>
@@ -88,8 +92,8 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
             <CardContent className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
-                  <p className="text-sm text-muted-foreground">Style Name</p>
-                  <p className="font-medium">{order.style_name}</p>
+                  <p className="text-sm text-muted-foreground">Styles</p>
+                  <p className="font-medium">{styleSummary}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Priority</p>
@@ -109,39 +113,39 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
 
               <Separator />
 
-              {/* Buyer Info */}
+              {/* Customer Info */}
               <div>
                 <p className="text-sm font-medium text-muted-foreground mb-2">
-                  Buyer Information
+                  Customer Information
                 </p>
-                {order.buyer ? (
+                {salesContact ? (
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div>
                       <p className="text-sm text-muted-foreground">Name</p>
-                      <p className="font-medium">{order.buyer.name}</p>
+                      <p className="font-medium">{salesContact.name}</p>
                     </div>
-                    {order.buyer.company && (
+                    {salesContact.company && (
                       <div>
                         <p className="text-sm text-muted-foreground">Company</p>
-                        <p className="text-sm">{order.buyer.company}</p>
+                        <p className="text-sm">{salesContact.company}</p>
                       </div>
                     )}
-                    {order.buyer.phone && (
+                    {salesContact.phone && (
                       <div>
                         <p className="text-sm text-muted-foreground">Phone</p>
-                        <p className="text-sm">{order.buyer.phone}</p>
+                        <p className="text-sm">{salesContact.phone}</p>
                       </div>
                     )}
-                    {order.buyer.email && (
+                    {salesContact.email && (
                       <div>
                         <p className="text-sm text-muted-foreground">Email</p>
-                        <p className="text-sm">{order.buyer.email}</p>
+                        <p className="text-sm">{salesContact.email}</p>
                       </div>
                     )}
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground">
-                    No buyer assigned
+                    No customer assigned
                   </p>
                 )}
               </div>
@@ -213,13 +217,14 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
             <CardHeader>
               <CardTitle>Order Items</CardTitle>
               <CardDescription>
-                Size and color breakdown for this order
+                Style, size, and color breakdown for this order
               </CardDescription>
             </CardHeader>
             <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Style</TableHead>
                     <TableHead>Size</TableHead>
                     <TableHead>Color</TableHead>
                     <TableHead className="text-right">Quantity</TableHead>
@@ -230,6 +235,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
                 <TableBody>
                   {order.order_items?.map((item) => (
                     <TableRow key={item.id}>
+                      <TableCell className="font-medium">{item.style_name}</TableCell>
                       <TableCell className="font-medium">{item.size}</TableCell>
                       <TableCell>{item.color}</TableCell>
                       <TableCell className="text-right">
@@ -246,7 +252,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
                 </TableBody>
                 <TableFooter>
                   <TableRow>
-                    <TableCell colSpan={2} className="font-semibold">
+                    <TableCell colSpan={3} className="font-semibold">
                       Totals
                     </TableCell>
                     <TableCell className="text-right font-semibold">
@@ -264,7 +270,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
         </div>
 
         {/* Right Column */}
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           {/* Status Card */}
           <Card>
             <CardHeader>
@@ -294,6 +300,10 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
               <CardTitle className="text-base">Order Summary</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Styles</span>
+                <span className="font-medium">{uniqueStyles.length}</span>
+              </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Total Items</span>
                 <span className="font-medium">

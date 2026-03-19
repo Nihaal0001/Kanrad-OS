@@ -31,7 +31,7 @@ export async function getProductionOverview() {
     .from("orders")
     .select(`
       id, order_number, style_name, total_quantity, status, deadline, priority,
-      buyer:buyers(id, name, company),
+      customer:customers(id, name, company),
       production_tracking(
         id, status, quantity_completed, quantity_rejected, stage_id,
         stage:production_stages(id, name, sequence)
@@ -46,8 +46,10 @@ export async function getProductionOverview() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (data ?? []).map((order: any) => ({
     ...order,
-    buyer: Array.isArray(order.buyer) ? order.buyer[0] ?? null : order.buyer,
-    production_tracking: (order.production_tracking ?? []).map((t: any) => ({
+    customer: Array.isArray(order.customer) ? order.customer[0] ?? null : order.customer,
+    production_tracking: (order.production_tracking ?? []).map((t: {
+      stage: { id: string; name: string; sequence: number } | { id: string; name: string; sequence: number }[] | null
+    }) => ({
       ...t,
       stage: Array.isArray(t.stage) ? t.stage[0] ?? null : t.stage,
     })),
@@ -60,7 +62,7 @@ export async function getOrderProduction(orderId: string) {
     .from("orders")
     .select(`
       id, order_number, style_name, total_quantity, status, deadline, priority,
-      buyer:buyers(id, name, company),
+      customer:customers(id, name, company),
       production_tracking(
         id, status, quantity_completed, quantity_rejected, quantity_input, waste_notes, notes, started_at, completed_at, stage_id, assigned_to,
         stage:production_stages(id, name, sequence, description)
@@ -90,7 +92,7 @@ export async function getOrderProduction(orderId: string) {
         .from("orders")
         .select(`
           id, order_number, style_name, total_quantity, status, deadline, priority,
-          buyer:buyers(id, name, company),
+          customer:customers(id, name, company),
           production_tracking(
             id, status, quantity_completed, quantity_rejected, quantity_input, waste_notes, notes, started_at, completed_at, stage_id, assigned_to,
             stage:production_stages(id, name, sequence, description)
@@ -111,7 +113,7 @@ export async function getOrderProduction(orderId: string) {
 function normalizeOrder(data: any) {
   return {
     ...data,
-    buyer: Array.isArray(data.buyer) ? data.buyer[0] ?? null : data.buyer,
+    customer: Array.isArray(data.customer) ? data.customer[0] ?? null : data.customer,
     production_tracking: (data.production_tracking ?? [])
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .map((t: any) => ({

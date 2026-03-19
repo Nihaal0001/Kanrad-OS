@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server"
 import { orderSchema, type OrderFormData } from "@/lib/validators/order"
 import { logAudit } from "@/actions/audit"
 import type { OrderItem } from "@/lib/supabase/types"
+import { getOrderStyleSummary } from "@/lib/order-styles"
 
 export async function getOrders(filters?: {
   status?: string
@@ -14,7 +15,7 @@ export async function getOrders(filters?: {
   const supabase = await createClient()
   let query = supabase
     .from("orders")
-    .select("*, buyer:buyers(id, name, company)")
+    .select("*, customer:customers(id, name, company)")
     .order("created_at", { ascending: false })
 
   if (filters?.status) {
@@ -30,19 +31,27 @@ export async function getOrders(filters?: {
 
   const { data, error } = await query
   if (error) throw new Error(error.message)
-  return data
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (data ?? []).map((order: any) => ({
+    ...order,
+    customer: Array.isArray(order.customer) ? order.customer[0] ?? null : order.customer,
+  }))
 }
 
 export async function getOrder(id: string) {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from("orders")
-    .select("*, buyer:buyers(*), order_items(*)")
+    .select("*, customer:customers(*), order_items(*)")
     .eq("id", id)
     .single()
 
   if (error) throw new Error(error.message)
-  return data
+  return {
+    ...data,
+    customer: Array.isArray(data.customer) ? data.customer[0] ?? null : data.customer,
+    order_items: data.order_items ?? [],
+  }
 }
 
 const VALID_ORDER_STATUSES = ["draft", "confirmed", "in_production", "completed", "dispatched", "cancelled"] as const
@@ -56,6 +65,7 @@ export async function createOrder(formData: OrderFormData) {
   if (!user) return { error: "Not authenticated" }
 
   const { items, ...orderData } = validated
+  const styleSummary = getOrderStyleSummary(items)
 
   // Clean empty strings to null
   const cleaned = Object.fromEntries(
@@ -67,6 +77,7 @@ export async function createOrder(formData: OrderFormData) {
     .from("orders")
     .insert({
       ...cleaned,
+      style_name: styleSummary,
       order_number: "", // trigger will set this
     })
     .select()
@@ -77,6 +88,7 @@ export async function createOrder(formData: OrderFormData) {
   // Insert order items
   const orderItems = items.map((item) => ({
     order_id: order.id,
+    style_name: item.style_name,
     size: item.size,
     color: item.color,
     quantity: item.quantity,
@@ -108,6 +120,7 @@ export async function updateOrder(id: string, formData: OrderFormData) {
   if (!user) return { error: "Not authenticated" }
 
   const { items, ...orderData } = validated
+  const styleSummary = getOrderStyleSummary(items)
 
   const cleaned = Object.fromEntries(
     Object.entries(orderData).map(([k, v]) => [k, v === "" ? null : v])
@@ -116,7 +129,10 @@ export async function updateOrder(id: string, formData: OrderFormData) {
   // Update order
   const { error: orderError } = await supabase
     .from("orders")
-    .update(cleaned)
+    .update({
+      ...cleaned,
+      style_name: styleSummary,
+    })
     .eq("id", id)
 
   if (orderError) return { error: orderError.message }
@@ -131,6 +147,7 @@ export async function updateOrder(id: string, formData: OrderFormData) {
 
   const orderItems = items.map((item) => ({
     order_id: id,
+    style_name: item.style_name,
     size: item.size,
     color: item.color,
     quantity: item.quantity,
@@ -211,8 +228,7 @@ export async function duplicateOrder(id: string) {
   const { data: newOrder, error: createError } = await supabase
     .from("orders")
     .insert({
-      buyer_id: original.buyer_id,
-      style_name: original.style_name,
+      style_name: getOrderStyleSummary(original.order_items, original.style_name),
       description: original.description,
       total_quantity: original.total_quantity,
       deadline: original.deadline,
@@ -231,6 +247,7 @@ export async function duplicateOrder(id: string) {
   if (original.order_items?.length) {
     const items = original.order_items.map((item: OrderItem) => ({
       order_id: newOrder.id,
+      style_name: item.style_name,
       size: item.size,
       color: item.color,
       quantity: item.quantity,

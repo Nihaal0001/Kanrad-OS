@@ -113,14 +113,14 @@ export default async function PrintInvoicePage({ params }: Props) {
             <div style={{ fontSize: "10px", fontWeight: "700", letterSpacing: "1px", color: "#9ca3af", marginBottom: "8px" }}>
               BILL TO
             </div>
-            <div style={{ fontSize: "15px", fontWeight: "700", color: "#1a1a1a" }}>{invoice.buyer_name}</div>
-            {invoice.buyer_address && (
+            <div style={{ fontSize: "15px", fontWeight: "700", color: "#1a1a1a" }}>{invoice.customer_name}</div>
+            {invoice.customer_address && (
               <div style={{ fontSize: "12px", color: "#6b7280", marginTop: "4px", whiteSpace: "pre-line", lineHeight: "1.5", maxWidth: "240px" }}>
-                {invoice.buyer_address}
+                {invoice.customer_address}
               </div>
             )}
-            {invoice.buyer_gst && (
-              <div style={{ fontSize: "12px", color: "#6b7280", marginTop: "2px" }}>GSTIN: {invoice.buyer_gst}</div>
+            {invoice.customer_gst && (
+              <div style={{ fontSize: "12px", color: "#6b7280", marginTop: "2px" }}>GSTIN: {invoice.customer_gst}</div>
             )}
           </div>
 

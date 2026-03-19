@@ -112,10 +112,10 @@ export function PackingSlipPDFDocument({ order, org }: Props) {
         <View style={s.shipRow}>
           <View style={s.shipBox}>
             <Text style={s.sectionLabel}>SHIP TO</Text>
-            <Text style={s.shipName}>{order.buyer?.name ?? "—"}</Text>
-            {order.buyer?.company ? <Text style={s.shipText}>{order.buyer.company}</Text> : null}
-            {order.buyer?.phone ? <Text style={s.shipText}>Phone: {order.buyer.phone}</Text> : null}
-            {order.buyer?.address ? <Text style={s.shipText}>{order.buyer.address}</Text> : null}
+            <Text style={s.shipName}>{order.customer?.name ?? "—"}</Text>
+            {order.customer?.company ? <Text style={s.shipText}>{order.customer.company}</Text> : null}
+            {order.customer?.phone ? <Text style={s.shipText}>Phone: {order.customer.phone}</Text> : null}
+            {order.customer?.address ? <Text style={s.shipText}>{order.customer.address}</Text> : null}
           </View>
           <View style={[s.shipBox, { alignItems: "flex-end" }]}>
             <Text style={s.sectionLabel}>ORDER DETAILS</Text>

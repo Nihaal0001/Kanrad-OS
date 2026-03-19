@@ -5,6 +5,7 @@ import { askGemini } from "@/lib/ai/gemini"
 import { buildERPContext } from "@/lib/ai/context"
 import { createClient } from "@/lib/supabase/server"
 import { rateLimit } from "@/lib/rate-limit"
+import { getOrderStyleSummary } from "@/lib/order-styles"
 
 // ===== Types =====
 
@@ -229,7 +230,7 @@ export async function generateOrderSummary(
     const [orderRes, trackingRes, qcRes, costingRes] = await Promise.all([
       supabase
         .from("orders")
-        .select(`*, buyer:buyers(name), items:order_items(size, color, quantity, unit_price)`)
+        .select(`*, customer:customers(name), items:order_items(style_name, size, color, quantity, unit_price)`)
         .eq("id", orderId)
         .single(),
       supabase
@@ -255,14 +256,16 @@ export async function generateOrderSummary(
     }
 
     const order = orderRes.data
+    const customer = Array.isArray(order.customer) ? order.customer[0] : order.customer
+    const styleSummary = getOrderStyleSummary(order.items, order.style_name)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const tracking = (trackingRes.data ?? []) as any[]
     const qcChecks = qcRes.data ?? []
     const costing = costingRes.data
 
     const orderContext = [
-      `Order: ${order.order_number} — ${order.style_name}`,
-      `Buyer: ${Array.isArray(order.buyer) ? order.buyer[0]?.name : order.buyer?.name ?? "N/A"}`,
+      `Order: ${order.order_number} — ${styleSummary}`,
+      `Customer: ${customer?.name ?? "N/A"}`,
       `Quantity: ${order.total_quantity} pcs, Priority: ${order.priority}, Status: ${order.status}`,
       `Deadline: ${order.deadline}`,
       `Today: ${new Date().toISOString().split("T")[0]}`,

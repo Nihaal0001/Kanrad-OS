@@ -5,7 +5,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { MoreHorizontal, Search, Eye, Pencil, Trash2 } from "lucide-react"
 
-import type { OrderWithBuyer } from "@/lib/supabase/types"
+import type { OrderWithCustomer } from "@/lib/supabase/types"
 import { cn, formatDate, friendlyError, isOverdue } from "@/lib/utils"
 import { deleteOrder } from "@/actions/orders"
 import { toast } from "sonner"
@@ -40,7 +40,7 @@ const STATUS_FILTERS = [
 ] as const
 
 interface OrdersTableProps {
-  orders: OrderWithBuyer[]
+  orders: OrderWithCustomer[]
 }
 
 export function OrdersTable({ orders }: OrdersTableProps) {
@@ -65,7 +65,7 @@ export function OrdersTable({ orders }: OrdersTableProps) {
         (o) =>
           o.order_number.toLowerCase().includes(q) ||
           o.style_name.toLowerCase().includes(q) ||
-          o.buyer?.name.toLowerCase().includes(q)
+          o.customer?.name.toLowerCase().includes(q)
       )
     }
 
@@ -140,8 +140,8 @@ export function OrdersTable({ orders }: OrdersTableProps) {
             <TableHeader>
               <TableRow>
                 <TableHead>Order #</TableHead>
-                <TableHead>Style</TableHead>
-                <TableHead>Buyer</TableHead>
+                <TableHead>Styles</TableHead>
+                <TableHead>Customer</TableHead>
                 <TableHead className="text-right">Qty</TableHead>
                 <TableHead>Deadline</TableHead>
                 <TableHead>Priority</TableHead>
@@ -164,13 +164,13 @@ export function OrdersTable({ orders }: OrdersTableProps) {
                   </TableCell>
                   <TableCell>{order.style_name}</TableCell>
                   <TableCell>
-                    {order.buyer ? (
+                    {order.customer ? (
                       <span>
-                        {order.buyer.name}
-                        {order.buyer.company && (
+                        {order.customer.name}
+                        {order.customer.company && (
                           <span className="text-muted-foreground">
                             {" "}
-                            ({order.buyer.company})
+                            ({order.customer.company})
                           </span>
                         )}
                       </span>

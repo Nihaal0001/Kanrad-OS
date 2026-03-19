@@ -2,23 +2,22 @@ import Link from "next/link"
 import { ShoppingBag, Plus } from "lucide-react"
 
 import { getOrders } from "@/actions/orders"
-import { getBuyers } from "@/actions/buyers"
 import { PageHeader } from "@/components/shared/page-header"
 import { EmptyState } from "@/components/shared/empty-state"
 import { Button } from "@/components/ui/button"
 import { OrdersTable } from "@/components/orders/orders-table"
 
 export default async function OrdersPage() {
-  const [orders, buyers] = await Promise.all([getOrders(), getBuyers()])
+  const orders = await getOrders()
 
   return (
     <>
       <PageHeader
         title="Orders"
-        description="Manage buyer orders and track their progress"
+        description="Manage customer orders and track their progress"
       >
         <Button variant="outline" asChild>
-          <Link href="/orders/buyers">Manage Buyers</Link>
+          <Link href="/customers">Manage Customers</Link>
         </Button>
         <Button asChild>
           <Link href="/orders/new">

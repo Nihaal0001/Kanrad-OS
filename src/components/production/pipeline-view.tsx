@@ -29,7 +29,7 @@ interface OrderRow {
   status: string
   deadline: string
   priority: string
-  buyer: { id: string; name: string; company: string | null } | null
+  customer: { id: string; name: string; company: string | null } | null
   production_tracking: TrackingRow[]
 }
 
@@ -88,9 +88,9 @@ export function PipelineView({ orders, stageNames }: PipelineViewProps) {
                 <span className="text-sm text-muted-foreground">
                   {order.style_name}
                 </span>
-                {order.buyer && (
+                {order.customer && (
                   <span className="text-xs text-muted-foreground">
-                    · {order.buyer.name}
+                    · {order.customer.name}
                   </span>
                 )}
                 <PriorityIndicator priority={order.priority} />

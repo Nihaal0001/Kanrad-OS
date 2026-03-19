@@ -122,8 +122,8 @@ export function InvoicePDFDocument({ invoice, org }: Props) {
 
   // Use stored is_igst flag; fall back to GSTIN state-code comparison for older invoices
   const isIgst = invoice.is_igst ?? (() => {
-    if (!orgGstin || !invoice.buyer_gst) return false
-    return orgGstin.slice(0, 2) !== invoice.buyer_gst.slice(0, 2)
+    if (!orgGstin || !invoice.customer_gst) return false
+    return orgGstin.slice(0, 2) !== invoice.customer_gst.slice(0, 2)
   })()
 
   const halfRate = invoice.tax_rate / 2
@@ -158,9 +158,9 @@ export function InvoicePDFDocument({ invoice, org }: Props) {
         <View style={s.metaRow}>
           <View>
             <Text style={s.sectionLabel}>BILL TO</Text>
-            <Text style={s.buyerName}>{invoice.buyer_name}</Text>
-            {invoice.buyer_address ? <Text style={s.buyerMeta}>{invoice.buyer_address}</Text> : null}
-            {invoice.buyer_gst ? <Text style={s.buyerMeta}>GSTIN: {invoice.buyer_gst}</Text> : null}
+            <Text style={s.buyerName}>{invoice.customer_name}</Text>
+            {invoice.customer_address ? <Text style={s.buyerMeta}>{invoice.customer_address}</Text> : null}
+            {invoice.customer_gst ? <Text style={s.buyerMeta}>GSTIN: {invoice.customer_gst}</Text> : null}
           </View>
           <View style={s.metaTable}>
             <View style={s.metaRow2}>

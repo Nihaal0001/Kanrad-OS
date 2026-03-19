@@ -10,7 +10,7 @@ export async function exportAllData() {
 
   const [
     { data: orders },
-    { data: buyers },
+    { data: customers },
     { data: orderItems },
     { data: materials },
     { data: stockTx },
@@ -28,15 +28,15 @@ export async function exportAllData() {
     { data: tasks },
     { data: auditLogs },
   ] = await Promise.all([
-    supabase.from("orders").select("*, buyer:buyers(name, company)").order("created_at", { ascending: false }),
-    supabase.from("buyers").select("*").order("name"),
+    supabase.from("orders").select("*, customer:customers(name, company)").order("created_at", { ascending: false }),
+    supabase.from("customers").select("*").order("name"),
     supabase.from("order_items").select("*, order:orders(order_number)").order("created_at", { ascending: false }),
     supabase.from("materials").select("*, category:material_categories(name)").order("name"),
     supabase.from("stock_transactions").select("*, material:materials(name, sku)").order("created_at", { ascending: false }),
     supabase.from("purchase_orders").select("*").order("created_at", { ascending: false }),
     supabase.from("invoices").select("*").order("issue_date", { ascending: false }),
     supabase.from("invoice_items").select("*, invoice:invoices(invoice_number)").order("created_at", { ascending: false }),
-    supabase.from("payments").select("*, invoice:invoices(invoice_number, buyer_name)").order("payment_date", { ascending: false }),
+    supabase.from("payments").select("*, invoice:invoices(invoice_number, customer_name)").order("payment_date", { ascending: false }),
     supabase.from("expenses").select("*, category:expense_categories(name)").order("expense_date", { ascending: false }),
     supabase.from("purchase_invoices").select("*").order("invoice_date", { ascending: false }),
     supabase.from("purchase_payments").select("*").order("payment_date", { ascending: false }),
@@ -68,15 +68,21 @@ export async function exportAllData() {
 
   return {
     data: {
-      Orders: flatten(orders, ["buyer"]),
-      Buyers: buyers ?? [],
+      Orders: flatten(orders, ["customer"]),
+      Customers: customers ?? [],
       "Order Items": flatten(orderItems, ["order"]),
       Materials: flatten(materials, ["category"]),
       "Stock Transactions": flatten(stockTx, ["material"]),
       "Purchase Orders": purchaseOrders ?? [],
       Invoices: invoices ?? [],
       "Invoice Items": flatten(invoiceItems, ["invoice"]),
-      Payments: flatten(payments, ["invoice"]),
+      Payments: flatten(payments, ["invoice"]).map((row) => {
+        const { invoice_customer_name, ...rest } = row as Record<string, unknown>
+        return {
+          ...rest,
+          invoice_customer_name: invoice_customer_name ?? "",
+        }
+      }),
       Expenses: flatten(expenses, ["category"]),
       "Purchase Invoices": purchaseInvoices ?? [],
       "Purchase Payments": purchasePayments ?? [],

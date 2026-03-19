@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { useForm, useFieldArray } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -22,7 +22,7 @@ import {
 interface Invoice {
   id: string
   invoice_number: string
-  buyer_name: string
+  customer_name: string
   total_amount: number
 }
 
@@ -41,7 +41,7 @@ export function CreditNoteForm({ invoices, prefillInvoiceId }: Props) {
     resolver: zodResolver(creditNoteSchema),
     defaultValues: {
       invoice_id: prefillInvoiceId ?? "",
-      buyer_name: prefillInvoice?.buyer_name ?? "",
+      customer_name: prefillInvoice?.customer_name ?? "",
       issue_date: new Date().toISOString().slice(0, 10),
       tax_rate: 18,
       items: [{ description: "", quantity: 1, unit_price: 0, amount: 0 }],
@@ -64,7 +64,7 @@ export function CreditNoteForm({ invoices, prefillInvoiceId }: Props) {
     const inv = invoices.find((i) => i.id === invoiceId)
     if (inv) {
       form.setValue("invoice_id", invoiceId)
-      form.setValue("buyer_name", inv.buyer_name)
+      form.setValue("customer_name", inv.customer_name)
     }
   }
 
@@ -103,8 +103,8 @@ export function CreditNoteForm({ invoices, prefillInvoiceId }: Props) {
             <SelectContent>
               <SelectItem value="none">— None —</SelectItem>
               {invoices.map((inv) => (
-                <SelectItem key={inv.id} value={inv.id}>
-                  {inv.invoice_number} · {inv.buyer_name}
+                  <SelectItem key={inv.id} value={inv.id}>
+                  {inv.invoice_number} · {inv.customer_name}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -120,25 +120,25 @@ export function CreditNoteForm({ invoices, prefillInvoiceId }: Props) {
           )}
         </div>
 
-        {/* Buyer Name */}
+        {/* Customer Name */}
         <div className="space-y-1.5">
-          <Label className="text-sm">Buyer Name *</Label>
-          <Input placeholder="Buyer name" {...form.register("buyer_name")} />
-          {form.formState.errors.buyer_name && (
-            <p className="text-xs text-destructive">{form.formState.errors.buyer_name.message}</p>
+          <Label className="text-sm">Customer Name *</Label>
+          <Input placeholder="Customer name" {...form.register("customer_name")} />
+          {form.formState.errors.customer_name && (
+            <p className="text-xs text-destructive">{form.formState.errors.customer_name.message}</p>
           )}
         </div>
 
-        {/* Buyer GST */}
+        {/* Customer GST */}
         <div className="space-y-1.5">
-          <Label className="text-sm">Buyer GSTIN</Label>
-          <Input placeholder="22AAAAA0000A1Z5" className="font-mono" {...form.register("buyer_gst")} />
+          <Label className="text-sm">Customer GSTIN</Label>
+          <Input placeholder="22AAAAA0000A1Z5" className="font-mono" {...form.register("customer_gst")} />
         </div>
 
         {/* Reason */}
         <div className="col-span-2 space-y-1.5">
           <Label className="text-sm">Reason for Credit Note</Label>
-          <Input placeholder="e.g. Buyer returned 50 defective pieces from order JC-240115-001" {...form.register("reason")} />
+          <Input placeholder="e.g. Customer returned 50 defective pieces from order JC-240115-001" {...form.register("reason")} />
         </div>
       </div>
 

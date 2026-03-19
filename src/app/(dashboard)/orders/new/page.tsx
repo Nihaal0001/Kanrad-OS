@@ -1,9 +1,9 @@
-import { getBuyers } from "@/actions/buyers"
+import { getCustomers } from "@/actions/customers"
 import { PageHeader } from "@/components/shared/page-header"
 import { OrderForm } from "@/components/orders/order-form"
 
 export default async function NewOrderPage() {
-  const buyers = await getBuyers()
+  const customers = await getCustomers()
 
   return (
     <>
@@ -16,10 +16,10 @@ export default async function NewOrderPage() {
         ]}
       />
       <OrderForm
-        buyers={buyers.map((b) => ({
-          id: b.id,
-          name: b.name,
-          company: b.company,
+        customers={customers.map((c) => ({
+          id: c.id,
+          name: c.name,
+          company: c.company,
         }))}
       />
     </>

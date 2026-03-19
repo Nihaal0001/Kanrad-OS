@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation"
 
 import { getOrder } from "@/actions/orders"
-import { getBuyers } from "@/actions/buyers"
+import { getCustomers } from "@/actions/customers"
 import { PageHeader } from "@/components/shared/page-header"
 import { OrderForm } from "@/components/orders/order-form"
 import type { OrderDetail } from "@/lib/supabase/types"
@@ -20,7 +20,7 @@ export default async function EditOrderPage({ params }: EditOrderPageProps) {
     notFound()
   }
 
-  const buyers = await getBuyers()
+  const customers = await getCustomers()
 
   return (
     <>
@@ -35,10 +35,10 @@ export default async function EditOrderPage({ params }: EditOrderPageProps) {
       />
       <OrderForm
         order={order}
-        buyers={buyers.map((b) => ({
-          id: b.id,
-          name: b.name,
-          company: b.company,
+        customers={customers.map((c) => ({
+          id: c.id,
+          name: c.name,
+          company: c.company,
         }))}
       />
     </>

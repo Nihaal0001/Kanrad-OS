@@ -48,8 +48,8 @@ export async function createCreditNote(formData: CreditNoteFormData) {
     .insert({
       invoice_id: validated.invoice_id || null,
       order_id: validated.order_id || null,
-      buyer_name: validated.buyer_name,
-      buyer_gst: validated.buyer_gst || null,
+      customer_name: validated.customer_name,
+      customer_gst: validated.customer_gst || null,
       issue_date: validated.issue_date,
       reason: validated.reason || null,
       subtotal,
@@ -83,12 +83,12 @@ export async function createCreditNote(formData: CreditNoteFormData) {
   await logAudit({
     entityType: "credit_note",
     entityId: cn.id,
-    entityLabel: cn.credit_note_number || validated.buyer_name,
+    entityLabel: cn.credit_note_number || validated.customer_name,
     action: "created",
     newValues: {
       invoice_id: validated.invoice_id || null,
       order_id: validated.order_id || null,
-      buyer_name: validated.buyer_name,
+      customer_name: validated.customer_name,
       issue_date: validated.issue_date,
       total_amount: totalAmount,
       item_count: validated.items.length,

@@ -11,7 +11,7 @@ export default async function BankReconPage() {
 
   const { data: payments } = await supabase
     .from("payments")
-    .select("id, amount, payment_date, method, reference, invoice:invoices(invoice_number, buyer_name)")
+    .select("id, amount, payment_date, method, reference, invoice:invoices(invoice_number, customer_name)")
     .gte("payment_date", since.toISOString().slice(0, 10))
     .order("payment_date", { ascending: false })
 
@@ -21,18 +21,20 @@ export default async function BankReconPage() {
     .gte("payment_date", since.toISOString().slice(0, 10))
     .order("payment_date", { ascending: false })
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const allPayments = [
-    ...((payments ?? []).map((p: any) => ({
+    ...((payments ?? []).map((p: SalesPayment) => {
+      const invoice = Array.isArray(p.invoice) ? p.invoice[0] ?? null : p.invoice
+      return {
       id: p.id,
       amount: p.amount,
       date: p.payment_date,
       method: p.method,
       reference: p.reference,
-      label: `${p.invoice?.invoice_number ?? "—"} · ${p.invoice?.buyer_name ?? "—"}`,
+      label: `${invoice?.invoice_number ?? "—"} · ${invoice?.customer_name ?? "—"}`,
       type: "sales" as const,
-    }))),
-    ...((purchasePayments ?? []).map((p: any) => ({
+      }
+    })),
+    ...((purchasePayments ?? []).map((p: PurchasePayment) => ({
       id: p.id,
       amount: p.amount,
       date: p.payment_date,
@@ -54,3 +56,22 @@ export default async function BankReconPage() {
     </>
   )
 }
+  type SalesPayment = {
+    id: string
+    amount: number
+    payment_date: string
+    method: string
+    reference: string | null
+    invoice:
+      | { invoice_number: string; customer_name: string | null }
+      | { invoice_number: string; customer_name: string | null }[]
+      | null
+  }
+
+  type PurchasePayment = {
+    id: string
+    amount: number
+    payment_date: string
+    method: string
+    reference: string | null
+  }

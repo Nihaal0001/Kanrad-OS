@@ -31,7 +31,7 @@ export function TallyExportCard() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="flex items-end gap-4">
+        <div className="flex items-end gap-4 max-sm:flex-col max-sm:items-stretch">
           <div className="space-y-1.5">
             <Label htmlFor="tally-from">From</Label>
             <Input
@@ -39,7 +39,7 @@ export function TallyExportCard() {
               type="date"
               value={from}
               onChange={(e) => setFrom(e.target.value)}
-              className="w-40"
+              className="w-40 max-sm:w-full"
             />
           </div>
           <div className="space-y-1.5">
@@ -49,10 +49,10 @@ export function TallyExportCard() {
               type="date"
               value={to}
               onChange={(e) => setTo(e.target.value)}
-              className="w-40"
+              className="w-40 max-sm:w-full"
             />
           </div>
-          <Button onClick={handleExport} variant="outline">
+          <Button onClick={handleExport} variant="outline" className="max-sm:w-full">
             <Download className="mr-2 h-4 w-4" />
             Download XML
           </Button>

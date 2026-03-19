@@ -97,7 +97,7 @@ export async function getDashboardStats() {
       .from("orders")
       .select(`
         id, order_number, style_name, total_quantity, deadline, status, priority,
-        buyer:buyers(id, name, company)
+        customer:customers(id, name, company)
       `)
       .order("created_at", { ascending: false })
       .limit(5),
@@ -117,11 +117,11 @@ export async function getDashboardStats() {
       .eq("status", "in_progress"),
   ])
 
-  // Normalize buyer joins in recentOrders
+  // Normalize customer joins in recentOrders
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const normalizedOrders = (recentOrders ?? []).map((o: any) => ({
     ...o,
-    buyer: Array.isArray(o.buyer) ? o.buyer[0] ?? null : o.buyer,
+    customer: Array.isArray(o.customer) ? o.customer[0] ?? null : o.customer,
   }))
 
   return {

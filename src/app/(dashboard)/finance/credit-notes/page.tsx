@@ -46,14 +46,14 @@ export default async function CreditNotesPage() {
         <EmptyState
           icon={FileX}
           title="No credit notes"
-          description="Credit notes are created when buyers return goods or when corrections are needed on invoices"
+          description="Credit notes are created when customers return goods or when corrections are needed on invoices"
           action={{ label: "Create Credit Note", href: "/finance/credit-notes/new" }}
         />
       ) : (
         <div className="space-y-2">
           <div className="hidden grid-cols-[1fr_1fr_1fr_1fr_100px] gap-4 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide sm:grid">
             <span>Credit Note #</span>
-            <span>Buyer</span>
+            <span>Customer</span>
             <span>Reason</span>
             <span>Total</span>
             <span>Status</span>
@@ -63,7 +63,7 @@ export default async function CreditNotesPage() {
               <Card className="transition-colors hover:bg-accent/30 cursor-pointer">
                 <CardContent className="grid grid-cols-[1fr_1fr_1fr_1fr_100px] items-center gap-4 p-4">
                   <p className="text-sm font-mono font-medium">{note.credit_note_number || "—"}</p>
-                  <p className="text-sm">{note.buyer_name}</p>
+                  <p className="text-sm">{note.customer_name}</p>
                   <p className="text-sm text-muted-foreground truncate">{note.reason || "—"}</p>
                   <p className="text-sm font-semibold text-[hsl(16,65%,55%)]">₹{fmt(note.total_amount)}</p>
                   <Badge className={cn(STATUS_STYLES[note.status], "text-xs")}>

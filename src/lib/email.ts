@@ -95,7 +95,7 @@ export async function sendLowStockAlert(items: {
 
 export async function sendOverdueInvoiceAlert(invoices: {
   invoice_number: string
-  buyer_name: string
+  customer_name: string
   total_amount: number
   due_date: string
   outstanding: number
@@ -107,7 +107,7 @@ export async function sendOverdueInvoiceAlert(invoices: {
       (i) =>
         `<tr>
           <td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;font-family:monospace">${i.invoice_number}</td>
-          <td style="padding:8px 12px;border-bottom:1px solid #f3f4f6">${i.buyer_name}</td>
+          <td style="padding:8px 12px;border-bottom:1px solid #f3f4f6">${i.customer_name}</td>
           <td style="padding:8px 12px;border-bottom:1px solid #f3f4f6">${i.due_date}</td>
           <td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;color:#dc2626;font-weight:600">₹${i.outstanding.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
         </tr>`
@@ -126,7 +126,7 @@ export async function sendOverdueInvoiceAlert(invoices: {
           <thead>
             <tr style="background:#f9f5f2">
               <th style="padding:8px 12px;text-align:left;color:#6b7280;font-size:11px;text-transform:uppercase">Invoice</th>
-              <th style="padding:8px 12px;text-align:left;color:#6b7280;font-size:11px;text-transform:uppercase">Buyer</th>
+              <th style="padding:8px 12px;text-align:left;color:#6b7280;font-size:11px;text-transform:uppercase">Customer</th>
               <th style="padding:8px 12px;text-align:left;color:#6b7280;font-size:11px;text-transform:uppercase">Due</th>
               <th style="padding:8px 12px;text-align:left;color:#6b7280;font-size:11px;text-transform:uppercase">Outstanding</th>
             </tr>

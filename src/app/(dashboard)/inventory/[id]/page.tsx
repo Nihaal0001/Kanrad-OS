@@ -77,9 +77,9 @@ export default async function MaterialDetailPage({ params }: MaterialDetailPageP
         </Button>
       </PageHeader>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-4 sm:gap-6 lg:grid-cols-3">
         {/* Material Info */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="space-y-4 sm:space-y-6 lg:col-span-2">
           <Card>
             <CardHeader>
               <CardTitle>Material Details</CardTitle>
@@ -189,7 +189,7 @@ export default async function MaterialDetailPage({ params }: MaterialDetailPageP
         </div>
 
         {/* Stock Sidebar */}
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>Stock Status</CardTitle>

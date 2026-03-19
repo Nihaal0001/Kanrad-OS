@@ -66,7 +66,7 @@ interface StatCardSkeletonProps {
 export function StatCardSkeleton({ className }: StatCardSkeletonProps) {
   return (
     <Card className={className}>
-      <CardContent className="p-6">
+      <CardContent className="p-5 sm:p-6">
         <div className="flex items-start justify-between">
           <div className="space-y-2">
             <Skeleton className="h-4 w-24" />

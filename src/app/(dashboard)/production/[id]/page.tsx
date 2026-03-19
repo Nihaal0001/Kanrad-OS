@@ -72,7 +72,7 @@ export default async function ProductionDetailPage({
           { label: order.order_number },
         ]}
       >
-        <Button variant="outline" asChild>
+        <Button variant="outline" asChild className="hidden sm:inline-flex">
           <Link href="/production">
             <ArrowLeft className="h-4 w-4" />
             Back
@@ -86,7 +86,7 @@ export default async function ProductionDetailPage({
         </Button>
       </PageHeader>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-4 sm:gap-6 lg:grid-cols-3">
         {/* Left — stages */}
         <div className="lg:col-span-2 space-y-4">
 
@@ -262,9 +262,9 @@ export default async function ProductionDetailPage({
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
               <div>
-                <p className="text-xs text-muted-foreground">Buyer</p>
-                <p className="font-medium">{order.buyer?.name ?? "—"}
-                  {order.buyer?.company && <span className="text-muted-foreground"> ({order.buyer.company})</span>}
+                <p className="text-xs text-muted-foreground">Customer</p>
+                <p className="font-medium">{order.customer?.name ?? "—"}
+                  {order.customer?.company && <span className="text-muted-foreground"> ({order.customer.company})</span>}
                 </p>
               </div>
               <div>

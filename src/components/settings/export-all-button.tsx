@@ -36,7 +36,7 @@ export function ExportAllButton() {
   }
 
   return (
-    <Button onClick={handleExport} disabled={loading} variant="outline" className="gap-2">
+    <Button onClick={handleExport} disabled={loading} variant="outline" className="gap-2 max-sm:w-full">
       <Download className="h-4 w-4" />
       {loading ? "Exporting…" : "Export All Data"}
     </Button>

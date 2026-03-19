@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await supabase
     .from("invoices")
-    .select("invoice_number, buyer_name, total_amount, amount_paid, due_date, status")
+    .select("invoice_number, customer_name, total_amount, amount_paid, due_date, status")
     .in("status", ["sent", "partially_paid"])
     .lt("due_date", today)
 
@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
 
   const overdue = (data ?? []).map((inv) => ({
     invoice_number: inv.invoice_number ?? "—",
-    buyer_name: inv.buyer_name ?? "—",
+    customer_name: inv.customer_name ?? "—",
     total_amount: inv.total_amount ?? 0,
     due_date: inv.due_date ?? "",
     outstanding: Math.max(0, (inv.total_amount ?? 0) - (inv.amount_paid ?? 0)),

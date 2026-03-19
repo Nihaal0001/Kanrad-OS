@@ -12,23 +12,9 @@ export type Profile = {
   updated_at: string
 }
 
-export type Buyer = {
-  id: string
-  name: string
-  company: string | null
-  email: string | null
-  phone: string | null
-  address: string | null
-  gst_number: string | null
-  notes: string | null
-  created_at: string
-  updated_at: string
-}
-
 export type Order = {
   id: string
   order_number: string
-  buyer_id: string | null
   style_name: string
   description: string | null
   total_quantity: number
@@ -47,13 +33,14 @@ export type Order = {
   updated_at: string
 }
 
-export type OrderWithBuyer = Order & {
-  buyer: Pick<Buyer, "id" | "name" | "company"> | null
+export type OrderWithCustomer = Order & {
+  customer: Pick<Customer, "id" | "name" | "company"> | null
 }
 
 export type OrderItem = {
   id: string
   order_id: string
+  style_name: string
   size: string
   color: string
   quantity: number
@@ -63,7 +50,7 @@ export type OrderItem = {
 }
 
 export type OrderDetail = Order & {
-  buyer: Buyer | null
+  customer: Customer | null
   order_items: OrderItem[]
 }
 
@@ -198,7 +185,7 @@ export type ProductionTrackingWithOrder = ProductionTracking & {
 }
 
 export type OrderWithProduction = Order & {
-  buyer: Pick<Buyer, "id" | "name" | "company"> | null
+  customer: Pick<Customer, "id" | "name" | "company"> | null
   production_tracking: ProductionTrackingWithStage[]
 }
 
@@ -263,10 +250,10 @@ export type Invoice = {
   id: string
   invoice_number: string
   order_id: string | null
-  buyer_id: string | null
-  buyer_name: string
-  buyer_address: string | null
-  buyer_gst: string | null
+  customer_id: string | null
+  customer_name: string
+  customer_address: string | null
+  customer_gst: string | null
   subtotal: number
   tax_rate: number
   tax_amount: number
@@ -314,7 +301,7 @@ export type Payment = {
 }
 
 export type PaymentWithInvoice = Payment & {
-  invoice: Pick<Invoice, "id" | "invoice_number" | "buyer_name" | "total_amount"> | null
+  invoice: Pick<Invoice, "id" | "invoice_number" | "customer_name" | "total_amount"> | null
 }
 
 export type OrderCosting = {
@@ -570,8 +557,9 @@ export type CreditNote = {
   credit_note_number: string | null
   order_id: string | null
   invoice_id: string | null
-  buyer_name: string
-  buyer_gst: string | null
+  customer_id: string | null
+  customer_name: string
+  customer_gst: string | null
   issue_date: string
   reason: string | null
   subtotal: number

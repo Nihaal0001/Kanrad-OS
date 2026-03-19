@@ -15,8 +15,8 @@ import {
 
 const INVOICE_COLS = [
   { key: "Invoice #", label: "Invoice #" },
-  { key: "Buyer", label: "Buyer" },
-  { key: "Buyer GST", label: "Buyer GST" },
+  { key: "Customer", label: "Customer" },
+  { key: "Customer GST", label: "Customer GST" },
   { key: "Issue Date", label: "Issue Date" },
   { key: "Due Date", label: "Due Date" },
   { key: "Subtotal", label: "Subtotal" },

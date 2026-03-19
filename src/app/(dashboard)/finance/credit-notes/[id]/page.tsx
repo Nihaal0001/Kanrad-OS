@@ -57,7 +57,7 @@ export default async function CreditNoteDetailPage({ params }: Props) {
     <>
       <PageHeader
         title={cn.credit_note_number || "Credit Note"}
-        description={`Buyer: ${cn.buyer_name}`}
+        description={`Customer: ${cn.customer_name}`}
         breadcrumbs={[
           { label: "Finance", href: "/finance" },
           { label: "Credit Notes", href: "/finance/credit-notes" },
@@ -98,7 +98,7 @@ export default async function CreditNoteDetailPage({ params }: Props) {
       </Button>
 
       <Card className="max-w-3xl">
-        <CardContent className="p-8 space-y-6">
+        <CardContent className="space-y-5 p-5 sm:space-y-6 sm:p-6 lg:p-8">
           {/* Header */}
           <div className="flex items-start justify-between">
             <div>
@@ -111,11 +111,11 @@ export default async function CreditNoteDetailPage({ params }: Props) {
             </div>
           </div>
 
-          {/* Buyer */}
+          {/* Customer */}
           <div className="rounded-lg bg-secondary/50 p-4">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Credit To</p>
-            <p className="font-semibold">{cn.buyer_name}</p>
-            {cn.buyer_gst && <p className="text-sm text-muted-foreground">GST: {cn.buyer_gst}</p>}
+            <p className="font-semibold">{cn.customer_name}</p>
+            {cn.customer_gst && <p className="text-sm text-muted-foreground">GST: {cn.customer_gst}</p>}
             {cn.reason && <p className="text-sm text-muted-foreground mt-1">Reason: {cn.reason}</p>}
           </div>
 

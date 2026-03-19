@@ -66,10 +66,10 @@ export async function createInvoice(formData: InvoiceFormData) {
     .from("invoices")
     .insert({
       order_id: validated.order_id || null,
-      buyer_id: validated.buyer_id || null,
-      buyer_name: validated.buyer_name,
-      buyer_address: validated.buyer_address || null,
-      buyer_gst: validated.buyer_gst || null,
+      customer_id: validated.customer_id || null,
+      customer_name: validated.customer_name,
+      customer_address: validated.customer_address || null,
+      customer_gst: validated.customer_gst || null,
       tax_rate: validated.tax_rate,
       place_of_supply: validated.place_of_supply || null,
       reverse_charge: validated.reverse_charge ?? false,
@@ -195,24 +195,32 @@ export async function deleteInvoice(id: string) {
   return { success: true }
 }
 
-// Helper for invoice creation: fetch order + buyer info
+// Helper for invoice creation: fetch order + customer info
 export async function getOrderForInvoice(orderId: string) {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from("orders")
     .select(`
       id, order_number, style_name,
-      buyer:buyers(id, name, address, gst_number),
-      order_items(id, size, color, quantity, unit_price)
+      customer:customers(id, name, address, gstin),
+      order_items(id, style_name, size, color, quantity, unit_price)
     `)
     .eq("id", orderId)
     .single()
 
   if (error) return null
 
+  const customer = Array.isArray(data.customer) ? data.customer[0] ?? null : data.customer
   return {
     ...data,
-    buyer: Array.isArray(data.buyer) ? data.buyer[0] ?? null : data.buyer,
+    customer: customer
+      ? {
+          id: customer.id,
+          name: customer.name,
+          address: customer.address ?? null,
+          gst_number: customer.gstin ?? null,
+        }
+      : null,
     order_items: data.order_items ?? [],
   }
 }
@@ -222,7 +230,7 @@ export async function getOrdersForInvoice() {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from("orders")
-    .select("id, order_number, style_name, status, buyer:buyers(id, name)")
+    .select("id, order_number, style_name, status, customer:customers(id, name)")
     .in("status", ["completed", "dispatched"])
     .order("created_at", { ascending: false })
 
@@ -231,7 +239,14 @@ export async function getOrdersForInvoice() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (data ?? []).map((o: any) => ({
     ...o,
-    buyer: Array.isArray(o.buyer) ? o.buyer[0] ?? null : o.buyer,
+    customer: (() => {
+      const customer = Array.isArray(o.customer) ? o.customer[0] ?? null : o.customer
+      if (!customer) return null
+      return {
+        id: customer.id,
+        name: customer.name,
+      }
+    })(),
   }))
 }
 
@@ -243,7 +258,7 @@ export async function getPayments() {
     .from("payments")
     .select(`
       *,
-      invoice:invoices(id, invoice_number, buyer_name, total_amount)
+      invoice:invoices(id, invoice_number, customer_name, total_amount)
     `)
     .order("payment_date", { ascending: false })
 
@@ -333,12 +348,12 @@ export async function getOrderCosting(orderId: string) {
     .eq("order_id", orderId)
     .single()
 
-  // Fetch order + buyer
+  // Fetch order + customer
   const { data: order, error: orderErr } = await supabase
     .from("orders")
     .select(`
       id, order_number, style_name, total_quantity, status,
-      buyer:buyers(id, name),
+      customer:customers(id, name),
       order_materials(id, quantity_required, quantity_allocated, material_id)
     `)
     .eq("id", orderId)
@@ -364,7 +379,7 @@ export async function getOrderCosting(orderId: string) {
 
   const normalizedOrder = {
     ...order,
-    buyer: Array.isArray(order.buyer) ? order.buyer[0] ?? null : order.buyer,
+    customer: Array.isArray(order.customer) ? order.customer[0] ?? null : order.customer,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     order_materials: (order.order_materials ?? []).map((om: any) => ({
       ...om,
@@ -422,8 +437,8 @@ export async function getInvoicesForExport() {
 
     return {
       "Invoice #": inv.invoice_number,
-      Buyer: inv.buyer_name,
-      "Buyer GST": inv.buyer_gst ?? "",
+      Customer: inv.customer_name,
+      "Customer GST": inv.customer_gst ?? "",
       "Issue Date": inv.issue_date ?? "",
       "Due Date": inv.due_date ?? "",
       Subtotal: inv.subtotal ?? 0,
@@ -453,7 +468,7 @@ export async function getInvoicesForExport() {
       amount: number
     }) => ({
       "Invoice #": inv.invoice_number,
-      Buyer: inv.buyer_name,
+      Customer: inv.customer_name,
       Description: item.description,
       Quantity: item.quantity,
       "Unit Price": item.unit_price,
@@ -465,7 +480,7 @@ export async function getInvoicesForExport() {
   const sum = (key: string) => invoices.reduce((s, r) => s + (Number((r as Record<string, unknown>)[key]) || 0), 0)
   const invoicesTotalRow: Record<string, unknown> = {
     "Invoice #": "TOTAL",
-    Buyer: "", "Buyer GST": "", "Issue Date": "", "Due Date": "",
+    Customer: "", "Customer GST": "", "Issue Date": "", "Due Date": "",
     Subtotal: sum("Subtotal"),
     CGST: sum("CGST"), "CGST %": "",
     SGST: sum("SGST"), "SGST %": "",
@@ -479,7 +494,7 @@ export async function getInvoicesForExport() {
 
   // Total row for line items sheet
   const lineItemsTotalRow: Record<string, unknown> = {
-    "Invoice #": "TOTAL", Buyer: "", Description: "",
+    "Invoice #": "TOTAL", Customer: "", Description: "",
     Quantity: lineItems.reduce((s, r) => s + (Number(r.Quantity) || 0), 0),
     "Unit Price": "",
     Amount: lineItems.reduce((s, r) => s + (Number(r.Amount) || 0), 0),

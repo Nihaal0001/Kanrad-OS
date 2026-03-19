@@ -9,10 +9,10 @@ export const invoiceItemSchema = z.object({
 
 export const invoiceSchema = z.object({
   order_id: z.string().optional().or(z.literal("")),
-  buyer_id: z.string().optional().or(z.literal("")),
-  buyer_name: z.string().min(1, "Buyer name is required"),
-  buyer_address: z.string().optional().or(z.literal("")),
-  buyer_gst: z.string().optional().or(z.literal("")),
+  customer_id: z.string().optional().or(z.literal("")),
+  customer_name: z.string().min(1, "Customer name is required"),
+  customer_address: z.string().optional().or(z.literal("")),
+  customer_gst: z.string().optional().or(z.literal("")),
   tax_rate: z.number().min(0).max(100),
   place_of_supply: z.string().optional().or(z.literal("")),
   reverse_charge: z.boolean(),

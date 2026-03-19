@@ -79,7 +79,7 @@ export default async function InvoicesPage() {
                 <CardContent className="grid grid-cols-[1.5fr_1fr_1fr_1fr_120px_40px] items-center gap-4 p-4">
                   <Link href={`/finance/invoices/${inv.id}`} className="min-w-0">
                     <p className="font-medium text-sm">{inv.invoice_number}</p>
-                    <p className="text-xs text-muted-foreground truncate">{inv.buyer_name}</p>
+                    <p className="text-xs text-muted-foreground truncate">{inv.customer_name}</p>
                   </Link>
                   <p className="text-sm text-muted-foreground">{inv.issue_date}</p>
                   <p className="text-sm text-muted-foreground">{inv.due_date ?? "—"}</p>

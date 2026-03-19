@@ -32,7 +32,7 @@ const WRITE_TOOLS = new Set([
   "update_production_stage",
   "create_order",
   "update_order_status",
-  "create_buyer",
+  "create_customer",
   "adjust_stock",
   "create_quality_check",
   "mark_notifications_read",

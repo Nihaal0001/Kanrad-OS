@@ -9,7 +9,7 @@ import { ExportAllButton } from "@/components/settings/export-all-button"
 import { TallyExportCard } from "@/components/settings/tally-export-card"
 
 const MODULES = [
-  { name: "Orders & Buyers", status: "active" },
+  { name: "Orders & Customers", status: "active" },
   { name: "Customers & Suppliers Directory", status: "active" },
   { name: "Inventory", status: "active" },
   { name: "Production Tracking + Wastage", status: "active" },
@@ -21,7 +21,7 @@ const MODULES = [
   { name: "Bank Reconciliation", status: "active" },
   { name: "Tally XML Export", status: "active" },
   { name: "E-Invoice JSON (GST IRP)", status: "active" },
-  { name: "Buyer Portal (share link)", status: "active" },
+  { name: "Customer Portal (share link)", status: "active" },
   { name: "HR & Payroll", status: "active" },
   { name: "Email Alerts (Resend)", status: "active" },
   { name: "WhatsApp Digest (Twilio)", status: "active" },
@@ -58,7 +58,7 @@ export default async function SettingsPage() {
         breadcrumbs={[{ label: "Settings" }]}
       />
 
-      <div className="max-w-2xl space-y-8">
+      <div className="max-w-2xl space-y-6 sm:space-y-8">
         {/* Organisation Info */}
         <Card>
           <CardHeader>
@@ -89,20 +89,20 @@ export default async function SettingsPage() {
         <Card>
           <CardHeader>
             <CardTitle>Database</CardTitle>
-            <CardDescription>Supabase project connection details</CardDescription>
+          <CardDescription>Supabase project connection details</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div className="flex items-center justify-between rounded-lg border border-border p-3 text-sm">
+            <div className="flex items-center justify-between rounded-lg border border-border p-3 text-sm max-sm:flex-col max-sm:items-start max-sm:gap-1">
               <span className="text-muted-foreground">Project Ref</span>
-              <code className="font-mono text-xs">spwighzxkaeibutmijus</code>
+              <code className="font-mono text-xs max-sm:break-all">spwighzxkaeibutmijus</code>
             </div>
-            <div className="flex items-center justify-between rounded-lg border border-border p-3 text-sm">
+            <div className="flex items-center justify-between rounded-lg border border-border p-3 text-sm max-sm:flex-col max-sm:items-start max-sm:gap-1">
               <span className="text-muted-foreground">Migrations Applied</span>
               <span className="font-medium">00001 — 00014</span>
             </div>
-            <div className="flex items-center justify-between rounded-lg border border-border p-3 text-sm">
+            <div className="flex items-center justify-between rounded-lg border border-border p-3 text-sm max-sm:flex-col max-sm:items-start max-sm:gap-2">
               <span className="text-muted-foreground">RLS</span>
-              <Badge variant="outline" className="text-emerald-600 border-emerald-600/30">
+              <Badge variant="outline" className="border-emerald-600/30 text-emerald-600">
                 Authenticated users only
               </Badge>
             </div>
@@ -135,9 +135,9 @@ export default async function SettingsPage() {
             <div className="space-y-1">
               {MODULES.map((mod, i) => (
                 <div key={mod.name}>
-                  <div className="flex items-center justify-between py-2.5 text-sm">
-                    <span>{mod.name}</span>
-                    <Badge variant="outline" className="text-emerald-600 border-emerald-600/30">
+                  <div className="flex items-center justify-between py-2.5 text-sm max-sm:flex-col max-sm:items-start max-sm:gap-2">
+                    <span className="pr-2">{mod.name}</span>
+                    <Badge variant="outline" className="border-emerald-600/30 text-emerald-600">
                       Active
                     </Badge>
                   </div>

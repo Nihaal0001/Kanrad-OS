@@ -100,13 +100,14 @@ export function KioskSettingsForm({ defaults }: KioskSettingsFormProps) {
         </p>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3 pt-2">
+      <div className="flex flex-wrap items-center gap-3 pt-2 max-sm:flex-col max-sm:items-stretch">
         <Button
           type="button"
           variant="outline"
           size="sm"
           onClick={handleUseMyLocation}
           disabled={locating}
+          className="max-sm:w-full"
         >
           <Navigation className="h-4 w-4" />
           {locating ? "Locating..." : "Use my current location"}
@@ -126,7 +127,7 @@ export function KioskSettingsForm({ defaults }: KioskSettingsFormProps) {
       </div>
 
       <div className="flex justify-end pt-2">
-        <Button type="submit" disabled={isPending}>
+        <Button type="submit" disabled={isPending} className="max-sm:w-full">
           {isPending ? "Saving..." : "Save location"}
         </Button>
       </div>

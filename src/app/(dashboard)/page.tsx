@@ -154,7 +154,7 @@ export default async function DashboardPage() {
                       </div>
                       <p className="mt-0.5 text-xs text-muted-foreground">
                         {order.style_name}
-                        {order.buyer && ` — ${order.buyer.name}`}
+                        {order.customer && ` — ${order.customer.name}`}
                       </p>
                       <p className="mt-0.5 text-xs text-muted-foreground">
                         {order.total_quantity.toLocaleString("en-IN")} pcs · Due{" "}

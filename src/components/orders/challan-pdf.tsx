@@ -114,11 +114,11 @@ export function ChallanPDFDocument({ order, org }: Props) {
         <View style={s.infoRow}>
           <View style={s.infoBox}>
             <Text style={s.sectionLabel}>CONSIGNEE</Text>
-            <Text style={s.infoName}>{order.buyer?.name ?? "—"}</Text>
-            {order.buyer?.company ? <Text style={s.infoText}>{order.buyer.company}</Text> : null}
-            {order.buyer?.phone ? <Text style={s.infoText}>Phone: {order.buyer.phone}</Text> : null}
-            {order.buyer?.email ? <Text style={s.infoText}>{order.buyer.email}</Text> : null}
-            {order.buyer?.gst_number ? <Text style={s.infoText}>GSTIN: {order.buyer.gst_number}</Text> : null}
+            <Text style={s.infoName}>{order.customer?.name ?? "—"}</Text>
+            {order.customer?.company ? <Text style={s.infoText}>{order.customer.company}</Text> : null}
+            {order.customer?.phone ? <Text style={s.infoText}>Phone: {order.customer.phone}</Text> : null}
+            {order.customer?.email ? <Text style={s.infoText}>{order.customer.email}</Text> : null}
+            {order.customer?.gstin ? <Text style={s.infoText}>GSTIN: {order.customer.gstin}</Text> : null}
           </View>
           <View style={[s.infoBox, { alignItems: "flex-end" }]}>
             <Text style={s.sectionLabel}>TRANSPORT DETAILS</Text>

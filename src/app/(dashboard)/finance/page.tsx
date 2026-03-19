@@ -129,7 +129,7 @@ export default async function FinanceDashboardPage() {
         />
 
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-5 sm:p-6">
             <div className="flex items-start justify-between">
               <div className="space-y-1">
                 <p className="text-sm font-medium text-muted-foreground">Audit Readiness</p>

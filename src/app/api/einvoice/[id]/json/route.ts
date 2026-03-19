@@ -30,7 +30,7 @@ export async function GET(
     .select(
       `
       invoice_number, issue_date, due_date,
-      buyer_name, buyer_address, buyer_gst,
+      customer_name, customer_address, customer_gst,
       place_of_supply, is_igst, reverse_charge,
       subtotal, tax_rate, tax_amount, total_amount,
       cgst_amount, sgst_amount, igst_amount,
@@ -119,12 +119,12 @@ export async function GET(
       Stcd: sellerStateCode,
     },
     BuyerDtls: {
-      Gstin: invoice.buyer_gst ?? "URP",
-      LglNm: invoice.buyer_name,
-      TrdNm: invoice.buyer_name,
+      Gstin: invoice.customer_gst ?? "URP",
+      LglNm: invoice.customer_name,
+      TrdNm: invoice.customer_name,
       Pos: buyerStateCode,
-      Addr1: invoice.buyer_address ?? "",
-      Loc: invoice.buyer_name,
+      Addr1: invoice.customer_address ?? "",
+      Loc: invoice.customer_name,
       Pin: 999999,
       Stcd: buyerStateCode,
     },
@@ -141,7 +141,7 @@ export async function GET(
       TotInvVal: invoice.total_amount,
     },
     PayDtls: {
-      Nm: invoice.buyer_name,
+      Nm: invoice.customer_name,
       Mode: "Credit",
       ...(invoice.due_date ? { PayDueDt: formatGstDate(invoice.due_date) } : {}),
     },

@@ -12,7 +12,7 @@ export const ALL_PERMISSIONS: Permission[] = [
 
 export const MODULE_LABELS: Record<Permission, string> = {
   dashboard: "Dashboard",
-  orders: "Orders & Buyers",
+  orders: "Orders & Customers",
   inventory: "Inventory",
   production: "Production",
   quality: "Quality Control",

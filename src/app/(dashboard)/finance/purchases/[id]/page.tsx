@@ -138,7 +138,7 @@ export default async function PurchaseInvoiceDetailPage({ params }: Props) {
 
       {/* Invoice Details */}
       <Card className="mb-6">
-        <CardContent className="p-8 space-y-6">
+        <CardContent className="space-y-5 p-5 sm:space-y-6 sm:p-6 lg:p-8">
           <div className="flex items-start justify-between">
             <div>
               <h2 className="text-2xl font-bold tracking-tight">PURCHASE INVOICE</h2>

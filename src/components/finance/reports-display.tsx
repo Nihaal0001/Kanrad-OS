@@ -380,7 +380,7 @@ export function ReportsDisplay({ period, mode, pl, gst, receivables, payables }:
               ) : (
                 <div className="space-y-2">
                   <div className="grid grid-cols-[2fr_1fr_1fr_1fr] gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wide pb-1 border-b">
-                    <span>Invoice / Buyer</span>
+                    <span>Invoice / Customer</span>
                     <span className="text-right">Amount</span>
                     <span className="text-right">Due Date</span>
                     <span className="text-right">Age</span>

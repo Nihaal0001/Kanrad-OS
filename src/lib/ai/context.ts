@@ -24,7 +24,7 @@ export async function buildERPContext(): Promise<string> {
     // Active orders
     supabase
       .from("orders")
-      .select("id, order_number, style_name, status, priority, deadline, total_quantity")
+      .select("id, order_number, style_name, status, priority, deadline, total_quantity, customer:customers(name)")
       .in("status", ["confirmed", "in_production"])
       .order("deadline")
       .limit(30),
@@ -32,7 +32,7 @@ export async function buildERPContext(): Promise<string> {
     // Orders due this week
     supabase
       .from("orders")
-      .select("order_number, style_name, deadline, status")
+      .select("order_number, style_name, deadline, status, customer:customers(name)")
       .in("status", ["confirmed", "in_production"])
       .lte("deadline", weekFromNow)
       .gte("deadline", today)
@@ -146,7 +146,8 @@ export async function buildERPContext(): Promise<string> {
   if (dueThisWeek.length > 0) {
     lines.push(`Orders due this week (${dueThisWeek.length}):`)
     for (const o of dueThisWeek) {
-      lines.push(`  - ${o.order_number}: ${o.style_name}, deadline ${o.deadline}, status: ${o.status}`)
+      const customer = Array.isArray(o.customer) ? o.customer[0]?.name : o.customer?.name
+      lines.push(`  - ${o.order_number}: ${o.style_name}${customer ? ` for ${customer}` : ""}, deadline ${o.deadline}, status: ${o.status}`)
     }
     lines.push("")
   }

@@ -17,7 +17,7 @@ function esc(str: string | null | undefined): string {
 function buildSalesVoucher(inv: {
   invoice_number: string
   issue_date: string
-  buyer_name: string
+  customer_name: string
   subtotal: number
   tax_amount: number
   total_amount: number
@@ -30,10 +30,10 @@ function buildSalesVoucher(inv: {
   const halfRate = inv.tax_rate / 2
   const ledgerEntries: string[] = []
 
-  // Debtor (buyer) — positive in Tally means receivable
+  // Debtor (customer) — positive in Tally means receivable
   ledgerEntries.push(`
         <ALLLEDGERENTRIES.LIST>
-          <LEDGERNAME>${esc(inv.buyer_name)}</LEDGERNAME>
+          <LEDGERNAME>${esc(inv.customer_name)}</LEDGERNAME>
           <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>
           <AMOUNT>-${inv.total_amount.toFixed(2)}</AMOUNT>
         </ALLLEDGERENTRIES.LIST>`)
@@ -75,7 +75,7 @@ function buildSalesVoucher(inv: {
           <DATE>${tallyDate(inv.issue_date)}</DATE>
           <VOUCHERNUMBER>${esc(inv.invoice_number)}</VOUCHERNUMBER>
           <VOUCHERTYPE>Sales</VOUCHERTYPE>
-          <PARTYLEDGERNAME>${esc(inv.buyer_name)}</PARTYLEDGERNAME>
+          <PARTYLEDGERNAME>${esc(inv.customer_name)}</PARTYLEDGERNAME>
           <CSTFORMISSUETYPE/>
           <CSTFORMRECVTYPE/>
           ${ledgerEntries.join("")}
@@ -163,7 +163,7 @@ export async function GET(req: NextRequest) {
   // Fetch invoices (sales)
   let invQuery = supabase
     .from("invoices")
-    .select("invoice_number, issue_date, buyer_name, subtotal, tax_amount, total_amount, is_igst, tax_rate, cgst_amount, sgst_amount, igst_amount")
+    .select("invoice_number, issue_date, customer_name, subtotal, tax_amount, total_amount, is_igst, tax_rate, cgst_amount, sgst_amount, igst_amount")
     .not("status", "eq", "cancelled")
     .order("issue_date")
 

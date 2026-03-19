@@ -10,8 +10,8 @@ export const creditNoteItemSchema = z.object({
 export const creditNoteSchema = z.object({
   invoice_id: z.string().optional().or(z.literal("")),
   order_id: z.string().optional().or(z.literal("")),
-  buyer_name: z.string().min(1, "Buyer name required"),
-  buyer_gst: z.string().optional().or(z.literal("")),
+  customer_name: z.string().min(1, "Customer name required"),
+  customer_gst: z.string().optional().or(z.literal("")),
   issue_date: z.string().min(1, "Issue date required"),
   reason: z.string().optional().or(z.literal("")),
   tax_rate: z.number().min(0).max(100),

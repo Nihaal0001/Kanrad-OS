@@ -73,7 +73,7 @@ export default async function InvoiceDetailPage({ params }: Props) {
     <>
       <PageHeader
         title={invoice.invoice_number}
-        description={`Issued to ${invoice.buyer_name}`}
+        description={`Issued to ${invoice.customer_name}`}
         breadcrumbs={[
           { label: "Finance", href: "/finance/invoices" },
           { label: "Invoices", href: "/finance/invoices" },
@@ -128,7 +128,7 @@ export default async function InvoiceDetailPage({ params }: Props) {
 
       {/* Print-ready invoice */}
       <Card className="mb-6 print:shadow-none print:border-0">
-        <CardContent className="p-8 space-y-6">
+        <CardContent className="space-y-5 p-5 sm:space-y-6 sm:p-6 lg:p-8">
           {/* Header */}
           <div className="flex items-start justify-between">
             <div>
@@ -160,14 +160,14 @@ export default async function InvoiceDetailPage({ params }: Props) {
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
               Bill To
             </p>
-            <p className="font-semibold">{invoice.buyer_name}</p>
-            {invoice.buyer_address && (
+            <p className="font-semibold">{invoice.customer_name}</p>
+            {invoice.customer_address && (
               <p className="text-sm text-muted-foreground whitespace-pre-line">
-                {invoice.buyer_address}
+                {invoice.customer_address}
               </p>
             )}
-            {invoice.buyer_gst && (
-              <p className="text-sm text-muted-foreground">GST: {invoice.buyer_gst}</p>
+            {invoice.customer_gst && (
+              <p className="text-sm text-muted-foreground">GST: {invoice.customer_gst}</p>
             )}
           </div>
 

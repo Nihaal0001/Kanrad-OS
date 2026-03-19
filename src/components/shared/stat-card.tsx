@@ -30,18 +30,18 @@ export function StatCard({
         className
       )}
     >
-      <CardContent className="flex h-full p-6">
-        <div className="flex w-full items-start justify-between gap-4">
-          <div className="flex min-h-[128px] flex-1 flex-col">
-            <p className="text-sm font-medium text-muted-foreground">{title}</p>
-            <p className="text-3xl font-bold">{value}</p>
+      <CardContent className="flex h-full p-5 sm:p-6">
+        <div className="flex w-full items-start justify-between gap-3 sm:gap-4">
+          <div className="flex min-h-[104px] flex-1 flex-col sm:min-h-[128px]">
+            <p className="text-sm font-medium leading-tight text-muted-foreground sm:text-base">{title}</p>
+            <p className="mt-2 text-3xl font-bold leading-none sm:text-4xl">{value}</p>
             {description && (
-              <p className="text-sm text-muted-foreground">{description}</p>
+              <p className="mt-3 max-w-[18ch] text-sm leading-snug text-muted-foreground sm:mt-4 sm:max-w-none sm:text-sm">{description}</p>
             )}
             {trend && (
               <div
                 className={cn(
-                  "flex items-center gap-1 text-sm font-medium",
+                  "mt-3 flex items-center gap-1 text-sm font-medium sm:mt-4",
                   trend.positive ? "text-green-600" : "text-red-600"
                 )}
               >
@@ -54,8 +54,8 @@ export function StatCard({
               </div>
             )}
           </div>
-          <div className="rounded-lg bg-accent p-2.5">
-            <Icon className="h-5 w-5 text-muted-foreground" />
+          <div className="rounded-2xl bg-accent p-2.5 sm:p-3">
+            <Icon className="h-5 w-5 text-muted-foreground sm:h-6 sm:w-6" />
           </div>
         </div>
       </CardContent>

@@ -24,7 +24,7 @@ function formatCurrency(n: number) {
 const EXPORT_COLS = [
   { key: "payment_date", label: "Date" },
   { key: "invoice_number", label: "Invoice #" },
-  { key: "buyer_name", label: "Buyer" },
+  { key: "customer_name", label: "Customer" },
   { key: "amount", label: "Amount (₹)" },
   { key: "method", label: "Method" },
   { key: "reference", label: "Reference" },
@@ -38,7 +38,7 @@ export default async function PaymentsPage() {
   const exportData = payments.map((p) => ({
     payment_date: p.payment_date,
     invoice_number: p.invoice?.invoice_number ?? "",
-    buyer_name: p.invoice?.buyer_name ?? "",
+    customer_name: p.invoice?.customer_name ?? "",
     amount: p.amount,
     method: METHOD_LABELS[p.method] ?? p.method,
     reference: p.reference ?? "",
@@ -67,7 +67,7 @@ export default async function PaymentsPage() {
         <div className="space-y-2">
           <div className="hidden grid-cols-[1.5fr_1fr_1fr_1fr_1fr_40px] gap-4 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide sm:grid">
             <span>Invoice</span>
-            <span>Buyer</span>
+            <span>Customer</span>
             <span>Date</span>
             <span>Method</span>
             <span>Amount</span>
@@ -93,7 +93,7 @@ export default async function PaymentsPage() {
                   )}
                 </div>
                 <p className="text-sm text-muted-foreground truncate">
-                  {p.invoice?.buyer_name ?? "—"}
+                  {p.invoice?.customer_name ?? "—"}
                 </p>
                 <p className="text-sm text-muted-foreground">{p.payment_date}</p>
                 <Badge variant="outline" className="w-fit text-xs">

@@ -2,6 +2,7 @@ import { notFound } from "next/navigation"
 import { CheckCircle2, Clock, AlertCircle, Ban, Package, Truck } from "lucide-react"
 import { verifyPortalToken } from "@/lib/portal"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { getOrderStyleSummary } from "@/lib/order-styles"
 
 interface Props {
   params: Promise<{ orderId: string; token: string }>
@@ -44,7 +45,7 @@ function fmtDate(d: string | null | undefined) {
   return new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
 }
 
-export default async function BuyerPortalPage({ params }: Props) {
+export default async function CustomerPortalPage({ params }: Props) {
   const { orderId, token } = await params
 
   // Verify token
@@ -57,7 +58,8 @@ export default async function BuyerPortalPage({ params }: Props) {
     .select(`
       id, order_number, style_name, status, deadline, total_quantity,
       transporter_name, lr_number, vehicle_number, dispatch_date, expected_delivery_date,
-      buyer:buyers(name, company),
+      customer:customers(name, company),
+      order_items(style_name),
       production_tracking(
         id, status, quantity_completed,
         stage:production_stages(id, name, sequence)
@@ -70,7 +72,9 @@ export default async function BuyerPortalPage({ params }: Props) {
 
   // Normalize
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const buyer = Array.isArray((order as any).buyer) ? (order as any).buyer[0] : (order as any).buyer
+  const customer = Array.isArray((order as any).customer) ? (order as any).customer[0] : (order as any).customer
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const styleSummary = getOrderStyleSummary((order as any).order_items, (order as any).style_name)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const tracking = ((order as any).production_tracking ?? [])
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -107,9 +111,9 @@ export default async function BuyerPortalPage({ params }: Props) {
         <div className="rounded-xl border border-[hsl(25,18%,72%)] bg-white shadow-[0_18px_45px_-32px_rgba(58,41,31,0.35)] p-6">
           <p className="mb-1 text-xs font-semibold uppercase tracking-[0.24em] text-[hsl(25,20%,45%)]">Order Reference</p>
           <h1 className="text-3xl font-bold text-[hsl(16,65%,55%)]">{order.order_number}</h1>
-          <p className="mt-1 text-lg font-medium text-[hsl(25,20%,18%)]">{order.style_name}</p>
-          {buyer && (
-            <p className="mt-1 text-sm text-[hsl(25,16%,34%)]">{buyer.name}{buyer.company ? ` · ${buyer.company}` : ""}</p>
+          <p className="mt-1 text-lg font-medium text-[hsl(25,20%,18%)]">{styleSummary}</p>
+          {customer && (
+            <p className="mt-1 text-sm text-[hsl(25,16%,34%)]">{customer.name}{customer.company ? ` · ${customer.company}` : ""}</p>
           )}
 
           <div className="mt-6 grid grid-cols-3 gap-4 border-t border-[hsl(25,16%,82%)] pt-6">

@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { rateLimit } from "@/lib/rate-limit"
 import { revalidatePath } from "next/cache"
+import { createOrder } from "@/actions/orders"
 
 type AgentResponse = AgentResult | { error: string }
 
@@ -101,7 +102,7 @@ export async function executeAgentTool(
       case "get_attendance_today":
       case "get_order_status":
       case "get_orders":
-      case "get_buyers":
+      case "get_customers":
       case "get_production_status":
       case "get_pending_leaves":
       case "get_low_stock":
@@ -288,40 +289,53 @@ export async function executeAgentTool(
         const deadline = String(args.deadline ?? "")
         if (!deadline) return { success: false, message: "Deadline is required." }
 
-        let buyerId: string | null = null
-        if (args.buyer_name) {
-          const { data: buyer } = await admin
-            .from("buyers")
+        const customerName = String(args.customer_name ?? "").trim()
+        let customerId: string | null = null
+        if (customerName) {
+          const { data: customer } = await admin
+            .from("customers")
             .select("id, name")
-            .ilike("name", `%${String(args.buyer_name)}%`)
+            .ilike("name", `%${customerName}%`)
             .limit(1)
             .maybeSingle()
-          if (!buyer) return { success: false, message: `Buyer "${args.buyer_name}" not found. Create the buyer first.` }
-          buyerId = buyer.id
+          if (!customer) return { success: false, message: `Customer "${customerName}" not found. Create the customer first.` }
+          customerId = customer.id
         }
 
         const priority = ["low", "normal", "high", "urgent"].includes(String(args.priority ?? ""))
           ? String(args.priority)
           : "normal"
 
-        const { data: order, error } = await admin
-          .from("orders")
-          .insert({
-            style_name: styleName,
-            buyer_id: buyerId,
-            total_quantity: totalQuantity,
-            deadline,
-            priority,
-            description: args.description ? String(args.description) : null,
-            status: "draft",
-          })
-          .select("order_number")
-          .single()
+        if (!customerId) {
+          return { success: false, message: "Customer is required. Create or select a customer first." }
+        }
 
-        if (error) return { success: false, message: `Failed to create order: ${error.message}` }
+        const result = await createOrder({
+          customer_id: customerId,
+          description: args.description ? String(args.description) : "",
+          deadline,
+          priority: priority as "low" | "normal" | "high" | "urgent",
+          notes: "",
+          status: "draft",
+          items: [{
+            style_name: styleName,
+            size: "Mixed",
+            color: "Assorted",
+            quantity: totalQuantity,
+            unit_price: 0,
+            hsn_code: "",
+          }],
+        })
+
+        if ("error" in result && result.error) {
+          return { success: false, message: `Failed to create order: ${result.error}` }
+        }
 
         revalidatePath("/orders")
-        return { success: true, message: `Order ${order.order_number} created: ${styleName}, ${totalQuantity} pcs, deadline ${deadline}.` }
+        return {
+          success: true,
+          message: `Order ${result.data.order_number} created for ${customerName || "the selected customer"}: ${styleName}, ${totalQuantity} pcs, deadline ${deadline}.`,
+        }
       }
 
       case "update_order_status": {
@@ -353,15 +367,15 @@ export async function executeAgentTool(
         return { success: true, message: `Order ${order.order_number} updated to ${status}.` }
       }
 
-      // ── Buyer write tools ──
-      case "create_buyer": {
-        const buyerName = String(args.name ?? "").trim()
-        if (!buyerName) return { success: false, message: "Buyer name is required." }
+      // ── Customer write tools ──
+      case "create_customer": {
+        const customerName = String(args.name ?? "").trim()
+        if (!customerName) return { success: false, message: "Customer name is required." }
 
-        const { data: buyer, error } = await admin
-          .from("buyers")
+        const { data: customer, error } = await admin
+          .from("customers")
           .insert({
-            name: buyerName,
+            name: customerName,
             company: args.company ? String(args.company) : null,
             phone: args.phone ? String(args.phone) : null,
             email: args.email ? String(args.email) : null,
@@ -370,10 +384,10 @@ export async function executeAgentTool(
           .select("id, name")
           .single()
 
-        if (error) return { success: false, message: `Failed to create buyer: ${error.message}` }
+        if (error) return { success: false, message: `Failed to create customer: ${error.message}` }
 
-        revalidatePath("/orders/buyers")
-        return { success: true, message: `Buyer "${buyer.name}" added successfully.` }
+        revalidatePath("/customers")
+        return { success: true, message: `Customer "${customer.name}" added successfully.` }
       }
 
       // ── Inventory write tools ──
