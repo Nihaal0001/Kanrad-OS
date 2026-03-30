@@ -10,7 +10,7 @@ export async function getTasks(filters?: { status?: string }) {
     .from("tasks")
     .select(`
       *,
-      order:orders(id, order_number, style_name),
+      order:orders(id, order_number, product_variant),
       stage:production_stages(id, name)
     `)
     .order("created_at", { ascending: false })

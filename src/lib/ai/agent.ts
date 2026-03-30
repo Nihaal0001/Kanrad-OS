@@ -79,7 +79,7 @@ const toolDeclarations: FunctionDeclaration[] = [
     parameters: {
       type: SchemaType.OBJECT,
       properties: {
-        order_number: { type: SchemaType.STRING, description: "The order number, e.g. JC-ORD-250101-001" },
+        order_number: { type: SchemaType.STRING, description: "The order number, e.g. KH-ORD-250101-001" },
       },
       required: ["order_number"],
     },
@@ -272,18 +272,18 @@ const toolDeclarations: FunctionDeclaration[] = [
   },
   {
     name: "create_order",
-    description: "Create a new garment order.",
+    description: "Create a new work order.",
     parameters: {
       type: SchemaType.OBJECT,
       properties: {
-        style_name: { type: SchemaType.STRING, description: "Primary style/garment name for the default line item, e.g. 'Polo T-Shirt'" },
+        product_variant: { type: SchemaType.STRING, description: "Primary product variant for the default line item, e.g. 'Stainless Steel Kadai'" },
         customer_name: { type: SchemaType.STRING, description: "Customer name (must match an existing customer)" },
         total_quantity: { type: SchemaType.NUMBER, description: "Total number of pieces to produce" },
         deadline: { type: SchemaType.STRING, description: "Deadline in YYYY-MM-DD format" },
         priority: { type: SchemaType.STRING, description: "low, normal, high, or urgent (optional, defaults to normal)" },
         description: { type: SchemaType.STRING, description: "Brief description or notes (optional)" },
       },
-      required: ["style_name", "total_quantity", "deadline"],
+      required: ["product_variant", "total_quantity", "deadline"],
     },
   },
   {
@@ -366,7 +366,7 @@ function buildDisplayText(name: string, args: Record<string, unknown>): string {
     case "update_production_stage":
       return `Update **${args.stage_name}** stage for order **${args.order_number}** → **${args.status}**`
     case "create_order":
-      return `Create order: **${args.style_name}**, ${args.total_quantity} pcs, deadline ${args.deadline}${args.customer_name ? `, customer: ${args.customer_name}` : ""}`
+      return `Create order: **${args.product_variant}**, ${args.total_quantity} pcs, deadline ${args.deadline}${args.customer_name ? `, customer: ${args.customer_name}` : ""}`
     case "update_order_status":
       return `Update order **${args.order_number}** → **${args.status}**`
     case "create_customer":
@@ -409,13 +409,13 @@ async function executeReadTool(
       const orderNumber = String(args.order_number ?? "")
       const { data } = await admin
         .from("orders")
-        .select("order_number, style_name, status, priority, deadline, total_quantity, customer:customers(name)")
+        .select("order_number, product_variant, status, priority, deadline, total_quantity, customer:customers(name)")
         .ilike("order_number", `%${orderNumber}%`)
         .limit(1)
         .maybeSingle() as {
           data: {
             order_number: string
-            style_name: string
+            product_variant: string
             status: string
             priority: string
             deadline: string
@@ -427,7 +427,7 @@ async function executeReadTool(
       const customer = Array.isArray(data.customer) ? data.customer[0] : data.customer
       return {
         order_number: data.order_number,
-        style: data.style_name,
+        style: data.product_variant,
         status: data.status,
         priority: data.priority,
         deadline: data.deadline,
@@ -439,7 +439,7 @@ async function executeReadTool(
     case "get_orders": {
       let query = admin
         .from("orders")
-        .select("order_number, style_name, status, priority, deadline, total_quantity, customer:customers(name)")
+        .select("order_number, product_variant, status, priority, deadline, total_quantity, customer:customers(name)")
         .order("created_at", { ascending: false })
         .limit(20)
       if (args.status) query = query.eq("status", String(args.status))
@@ -448,7 +448,7 @@ async function executeReadTool(
         count: (data ?? []).length,
         orders: (data ?? []).map((o) => ({
           order_number: o.order_number,
-          style: o.style_name,
+          style: o.product_variant,
           status: o.status,
           priority: o.priority,
           deadline: o.deadline,
@@ -471,7 +471,7 @@ async function executeReadTool(
       const orderNumber = args.order_number ? String(args.order_number) : null
       let query = admin
         .from("production_tracking")
-        .select("status, quantity_completed, quantity_rejected, order:orders(order_number, style_name), stage:production_stages(name)")
+        .select("status, quantity_completed, quantity_rejected, order:orders(order_number, product_variant), stage:production_stages(name)")
         .in("status", ["in_progress", "blocked", "pending"])
         .limit(20)
 
@@ -613,7 +613,7 @@ async function executeReadTool(
     case "get_quality_checks": {
       let query = admin
         .from("quality_checks")
-        .select("quantity_checked, quantity_passed, quantity_failed, defect_type, notes, created_at, order:orders(order_number, style_name), stage:production_stages(name)")
+        .select("quantity_checked, quantity_passed, quantity_failed, defect_type, notes, created_at, order:orders(order_number, product_variant), stage:production_stages(name)")
         .order("created_at", { ascending: false })
         .limit(15)
 
@@ -816,7 +816,7 @@ export async function runAgentTurn(
     ? `\nThe user has access to these modules only: ${permissions.join(", ")}. Do NOT attempt actions outside their permissions.`
     : ""
 
-  const systemPrompt = `You are KYRE, an AI agent for JUST CLOTHING garment factory ERP. Today is ${today}.
+  const systemPrompt = `You are KYRE, an AI agent for KANRAD ERP houseware factory ERP. Today is ${today}.
 
 You have tools to read data and perform actions. Always use a tool when the user asks you to do something or query data.
 

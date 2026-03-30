@@ -39,7 +39,7 @@ export default async function OrderCostingPage({ params }: Props) {
     <>
       <PageHeader
         title={`Costing — ${order.order_number}`}
-        description={`${order.style_name} · ${order.total_quantity.toLocaleString("en-IN")} pcs`}
+        description={`${order.product_variant} · ${order.total_quantity.toLocaleString("en-IN")} pcs`}
         breadcrumbs={[
           { label: "Finance", href: "/finance/costing" },
           { label: "Costing", href: "/finance/costing" },

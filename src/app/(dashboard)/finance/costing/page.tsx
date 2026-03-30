@@ -19,7 +19,7 @@ export default async function CostingPage() {
     getOrderCostings(),
     supabase
       .from("orders")
-      .select("id, order_number, style_name, status")
+      .select("id, order_number, product_variant, status")
       .in("status", ["in_production", "completed", "dispatched"])
       .order("created_at", { ascending: false }),
   ])
@@ -62,7 +62,7 @@ export default async function CostingPage() {
                     <CardContent className="grid grid-cols-[1.5fr_1fr_1fr_1fr_1fr_40px] items-center gap-4 p-4">
                       <div>
                         <p className="text-sm font-medium">{c.order?.order_number ?? "—"}</p>
-                        <p className="text-xs text-muted-foreground truncate">{c.order?.style_name}</p>
+                        <p className="text-xs text-muted-foreground truncate">{c.order?.product_variant}</p>
                       </div>
                       <p className="text-sm text-muted-foreground">₹{formatCurrency(c.material_cost)}</p>
                       <p className="text-sm text-muted-foreground">₹{formatCurrency(c.labor_cost)}</p>
@@ -87,7 +87,7 @@ export default async function CostingPage() {
                   <CardContent className="flex items-center justify-between p-4">
                     <div>
                       <p className="text-sm font-medium">{o.order_number}</p>
-                      <p className="text-xs text-muted-foreground">{o.style_name}</p>
+                      <p className="text-xs text-muted-foreground">{o.product_variant}</p>
                     </div>
                     <Button asChild size="sm" variant="outline">
                       <Link href={`/finance/costing/${o.id}`}>

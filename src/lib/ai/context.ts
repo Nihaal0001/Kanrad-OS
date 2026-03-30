@@ -24,7 +24,7 @@ export async function buildERPContext(): Promise<string> {
     // Active orders
     supabase
       .from("orders")
-      .select("id, order_number, style_name, status, priority, deadline, total_quantity, customer:customers(name)")
+      .select("id, order_number, product_variant, status, priority, deadline, total_quantity, customer:customers(name)")
       .in("status", ["confirmed", "in_production"])
       .order("deadline")
       .limit(30),
@@ -32,7 +32,7 @@ export async function buildERPContext(): Promise<string> {
     // Orders due this week
     supabase
       .from("orders")
-      .select("order_number, style_name, deadline, status, customer:customers(name)")
+      .select("order_number, product_variant, deadline, status, customer:customers(name)")
       .in("status", ["confirmed", "in_production"])
       .lte("deadline", weekFromNow)
       .gte("deadline", today)
@@ -50,7 +50,7 @@ export async function buildERPContext(): Promise<string> {
       .from("production_tracking")
       .select(`
         status, quantity_completed, quantity_rejected,
-        order:orders(order_number, style_name),
+        order:orders(order_number, product_variant),
         stage:production_stages(name)
       `)
       .in("status", ["in_progress", "blocked"])
@@ -136,7 +136,7 @@ export async function buildERPContext(): Promise<string> {
   }
 
   const lines: string[] = [
-    `== JUST CLOTHING ERP — Factory Status (${today}) ==`,
+    `== KANRAD ERP — Factory Status (${today}) ==`,
     "",
     `Total active workers: ${workers.length}`,
     `Active orders: ${activeOrders.length} (${activeOrders.filter((o) => o.status === "confirmed").length} confirmed, ${activeOrders.filter((o) => o.status === "in_production").length} in production)`,
@@ -147,7 +147,7 @@ export async function buildERPContext(): Promise<string> {
     lines.push(`Orders due this week (${dueThisWeek.length}):`)
     for (const o of dueThisWeek) {
       const customer = Array.isArray(o.customer) ? o.customer[0]?.name : o.customer?.name
-      lines.push(`  - ${o.order_number}: ${o.style_name}${customer ? ` for ${customer}` : ""}, deadline ${o.deadline}, status: ${o.status}`)
+      lines.push(`  - ${o.order_number}: ${o.product_variant}${customer ? ` for ${customer}` : ""}, deadline ${o.deadline}, status: ${o.status}`)
     }
     lines.push("")
   }

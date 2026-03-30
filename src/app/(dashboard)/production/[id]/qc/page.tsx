@@ -24,7 +24,7 @@ export default async function QCPage({ params }: QCPageProps) {
     <>
       <PageHeader
         title="Quality Check"
-        description={`Inspection for ${order.order_number} — ${order.style_name}`}
+        description={`Inspection for ${order.order_number} — ${order.product_variant}`}
         breadcrumbs={[
           { label: "Production", href: "/production" },
           { label: order.order_number, href: `/production/${id}` },

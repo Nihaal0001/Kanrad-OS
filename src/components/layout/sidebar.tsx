@@ -233,11 +233,11 @@ export function Sidebar({
           <Link href="/" className="flex items-center gap-2 overflow-hidden">
             {collapsed ? (
               <span className="font-serif text-lg font-bold text-sidebar-foreground">
-                JC
+                KH
               </span>
             ) : (
               <h1 className="font-serif text-xl font-bold tracking-tight text-sidebar-foreground">
-                JUST CLOTHING
+                KANRAD ERP
               </h1>
             )}
           </Link>

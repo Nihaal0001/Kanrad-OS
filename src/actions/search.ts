@@ -20,8 +20,8 @@ export async function globalSearch(query: string): Promise<SearchResult[]> {
   const [ordersRes, materialsRes, workersRes] = await Promise.all([
     supabase
       .from("orders")
-      .select("id, order_number, style_name, status")
-      .or(`order_number.ilike.%${q}%,style_name.ilike.%${q}%`)
+      .select("id, order_number, product_variant, status")
+      .or(`order_number.ilike.%${q}%,product_variant.ilike.%${q}%`)
       .limit(5),
     supabase
       .from("materials")
@@ -42,7 +42,7 @@ export async function globalSearch(query: string): Promise<SearchResult[]> {
       id: order.id,
       type: "order",
       title: order.order_number,
-      subtitle: `${order.style_name} · ${order.status}`,
+      subtitle: `${order.product_variant} · ${order.status}`,
       href: `/orders/${order.id}`,
     })
   }

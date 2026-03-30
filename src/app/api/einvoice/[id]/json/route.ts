@@ -53,7 +53,7 @@ export async function GET(
     .single()
 
   const sellerGstin = settings?.gstin ?? "29AABCU9603R1ZX" // placeholder
-  const sellerName = settings?.org_name ?? "JUST CLOTHING"
+  const sellerName = settings?.org_name ?? "KANRAD ERP"
   const sellerAddr = settings?.address ?? ""
   const sellerStateCode = settings?.state_code ?? "29"
 

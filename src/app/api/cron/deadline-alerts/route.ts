@@ -22,7 +22,7 @@ export async function GET(request: Request) {
   // Active orders with deadlines
   const { data: orders, error } = await admin
     .from("orders")
-    .select("id, order_number, style_name, created_at, deadline")
+    .select("id, order_number, product_variant, created_at, deadline")
     .in("status", ["confirmed", "in_production"])
     .not("deadline", "is", null)
 
@@ -72,7 +72,7 @@ export async function GET(request: Request) {
           notifications.push({
             type: threshold.type,
             title: `Order ${order.order_number} — ${threshold.label}`,
-            message: `${order.style_name ?? order.order_number} is at ${Math.round(pct)}% of its timeline (deadline: ${order.deadline})`,
+            message: `${order.product_variant ?? order.order_number} is at ${Math.round(pct)}% of its timeline (deadline: ${order.deadline})`,
             reference_type: "order",
             reference_id: order.id,
             is_read: false,

@@ -11,7 +11,7 @@ export async function saveOrgSettings(formData: FormData) {
   if (!user) return { error: "Not authenticated" }
 
   const settings = {
-    org_name: (formData.get("org_name") as string) || "JUST CLOTHING",
+    org_name: (formData.get("org_name") as string) || "KANRAD ERP",
     org_type: (formData.get("org_type") as string) || "",
     gstin: (formData.get("gstin") as string) || "",
     address: (formData.get("address") as string) || "",

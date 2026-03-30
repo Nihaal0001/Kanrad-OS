@@ -8,7 +8,7 @@ import { Resend } from "resend"
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
-const FROM = process.env.EMAIL_FROM || "JUST CLOTHING <notifications@justclothing.in>"
+const FROM = process.env.EMAIL_FROM || "KANRAD ERP <notifications@justclothing.in>"
 const OWNER_EMAIL = process.env.OWNER_EMAIL || ""
 
 export interface EmailResult {
@@ -70,7 +70,7 @@ export async function sendLowStockAlert(items: {
     <div style="font-family:Inter,sans-serif;max-width:600px;margin:0 auto">
       <div style="background:#c2622a;padding:24px 32px;border-radius:8px 8px 0 0">
         <h1 style="color:#fff;margin:0;font-size:20px">⚠️ Low Stock Alert</h1>
-        <p style="color:#fde4d3;margin:4px 0 0;font-size:14px">JUST CLOTHING — Inventory Management</p>
+        <p style="color:#fde4d3;margin:4px 0 0;font-size:14px">KANRAD ERP — Inventory Management</p>
       </div>
       <div style="background:#fff;padding:24px 32px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 8px 8px">
         <p style="color:#374151;font-size:15px">${items.length} material${items.length > 1 ? "s are" : " is"} below minimum stock level:</p>
@@ -90,7 +90,7 @@ export async function sendLowStockAlert(items: {
     </div>
   `
 
-  return sendEmail({ to: OWNER_EMAIL, subject: `[JUST CLOTHING] Low Stock Alert — ${items.length} item${items.length > 1 ? "s" : ""}`, html })
+  return sendEmail({ to: OWNER_EMAIL, subject: `[KANRAD ERP] Low Stock Alert — ${items.length} item${items.length > 1 ? "s" : ""}`, html })
 }
 
 export async function sendOverdueInvoiceAlert(invoices: {
@@ -118,7 +118,7 @@ export async function sendOverdueInvoiceAlert(invoices: {
     <div style="font-family:Inter,sans-serif;max-width:600px;margin:0 auto">
       <div style="background:#c2622a;padding:24px 32px;border-radius:8px 8px 0 0">
         <h1 style="color:#fff;margin:0;font-size:20px">🔴 Overdue Invoices</h1>
-        <p style="color:#fde4d3;margin:4px 0 0;font-size:14px">JUST CLOTHING — Finance</p>
+        <p style="color:#fde4d3;margin:4px 0 0;font-size:14px">KANRAD ERP — Finance</p>
       </div>
       <div style="background:#fff;padding:24px 32px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 8px 8px">
         <p style="color:#374151;font-size:15px">${invoices.length} invoice${invoices.length > 1 ? "s are" : " is"} overdue:</p>
@@ -137,7 +137,7 @@ export async function sendOverdueInvoiceAlert(invoices: {
     </div>
   `
 
-  return sendEmail({ to: OWNER_EMAIL, subject: `[JUST CLOTHING] ${invoices.length} Overdue Invoice${invoices.length > 1 ? "s" : ""}`, html })
+  return sendEmail({ to: OWNER_EMAIL, subject: `[KANRAD ERP] ${invoices.length} Overdue Invoice${invoices.length > 1 ? "s" : ""}`, html })
 }
 
 export async function sendLeaveRequestNotification(opts: {
@@ -153,7 +153,7 @@ export async function sendLeaveRequestNotification(opts: {
     <div style="font-family:Inter,sans-serif;max-width:600px;margin:0 auto">
       <div style="background:#c2622a;padding:24px 32px;border-radius:8px 8px 0 0">
         <h1 style="color:#fff;margin:0;font-size:20px">📋 New Leave Request</h1>
-        <p style="color:#fde4d3;margin:4px 0 0;font-size:14px">JUST CLOTHING — HR</p>
+        <p style="color:#fde4d3;margin:4px 0 0;font-size:14px">KANRAD ERP — HR</p>
       </div>
       <div style="background:#fff;padding:24px 32px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 8px 8px">
         <table style="width:100%;font-size:14px;border-collapse:collapse">
@@ -168,5 +168,5 @@ export async function sendLeaveRequestNotification(opts: {
     </div>
   `
 
-  return sendEmail({ to: OWNER_EMAIL, subject: `[JUST CLOTHING] Leave Request — ${opts.workerName}`, html })
+  return sendEmail({ to: OWNER_EMAIL, subject: `[KANRAD ERP] Leave Request — ${opts.workerName}`, html })
 }

@@ -6,7 +6,7 @@ type ExtractionContext = {
   suppliers: Array<{ id: string; name: string }>
   purchaseOrders: Array<{ id: string; po_number: string; supplier_name: string }>
   expenseCategories: Array<{ id: string; name: string }>
-  orders: Array<{ id: string; order_number: string; style_name: string }>
+  orders: Array<{ id: string; order_number: string; product_variant: string }>
 }
 
 type ExtractionResult = {
@@ -162,7 +162,7 @@ Context for matching only:
 Suppliers: ${JSON.stringify(context.suppliers.map((s) => s.name))}
 Purchase Orders: ${JSON.stringify(context.purchaseOrders.map((po) => `${po.po_number} | ${po.supplier_name}`))}
 Expense categories: ${JSON.stringify(context.expenseCategories.map((c) => c.name))}
-Orders: ${JSON.stringify(context.orders.map((order) => `${order.order_number} | ${order.style_name}`))}
+Orders: ${JSON.stringify(context.orders.map((order) => `${order.order_number} | ${order.product_variant}`))}
 `.trim()
 
   const model = ai.getGenerativeModel({ model: "gemini-2.5-flash" })

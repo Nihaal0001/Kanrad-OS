@@ -1,7 +1,7 @@
 import { z } from "zod"
 
 export const orderItemSchema = z.object({
-  style_name: z.string().min(1, "Style name is required").max(200),
+  product_variant: z.string().min(1, "Style name is required").max(200),
   size: z.string().min(1, "Size is required"),
   color: z.string().min(1, "Color is required"),
   quantity: z.number().int().min(1, "Quantity must be at least 1"),

@@ -66,7 +66,7 @@ export default async function ProductionDetailPage({
     <>
       <PageHeader
         title={order.order_number}
-        description={`${order.style_name} · ${order.total_quantity.toLocaleString("en-IN")} pcs`}
+        description={`${order.product_variant} · ${order.total_quantity.toLocaleString("en-IN")} pcs`}
         breadcrumbs={[
           { label: "Production", href: "/production" },
           { label: order.order_number },
@@ -116,7 +116,7 @@ export default async function ProductionDetailPage({
               </div>
               <Progress value={progressPct} className="h-3 rounded-full" />
               <div className="mt-2 flex justify-between text-xs text-muted-foreground">
-                <span>Fabric Sourcing</span>
+                <span>Raw Material Sourcing</span>
                 <span>{progressPct}%</span>
                 <span>Dispatch</span>
               </div>

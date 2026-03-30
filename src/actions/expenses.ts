@@ -84,7 +84,7 @@ export async function getExpenses(filters?: {
     .select(`
       *,
       category:expense_categories(id, name),
-      order:orders(id, order_number, style_name)
+      order:orders(id, order_number, product_variant)
     `)
     .order("expense_date", { ascending: false })
 

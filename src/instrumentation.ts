@@ -25,7 +25,7 @@ export async function register() {
   const missingRecommended = recommended.filter((k) => !process.env[k])
   if (missingRecommended.length > 0) {
     console.warn(
-      `[JUST CLOTHING] AI features will be disabled — missing env vars: ${missingRecommended.join(", ")}`
+      `[KANRAD ERP] AI features will be disabled — missing env vars: ${missingRecommended.join(", ")}`
     )
   }
 }

@@ -65,7 +65,7 @@ async function getExtractionContext(supabase: Awaited<ReturnType<typeof createCl
       .order("created_at", { ascending: false })
       .limit(100),
     supabase.from("expense_categories").select("id, name").eq("is_active", true).order("name"),
-    supabase.from("orders").select("id, order_number, style_name").order("created_at", { ascending: false }).limit(100),
+    supabase.from("orders").select("id, order_number, product_variant").order("created_at", { ascending: false }).limit(100),
   ])
 
   return {
@@ -324,7 +324,7 @@ export async function uploadFinanceImportBatch(formData: FormData) {
           extracted.expense?.order_number_hint || "",
           context.orders.map((order) => ({
             id: order.id,
-            label: `${order.order_number} — ${order.style_name}`,
+            label: `${order.order_number} — ${order.product_variant}`,
           }))
         )
 

@@ -81,7 +81,7 @@ function fmtDate(d: string | null | undefined) {
 }
 
 export function ChallanPDFDocument({ order, org }: Props) {
-  const orgName = org?.org_name || "JUST CLOTHING"
+  const orgName = org?.org_name || "KANRAD ERP"
   const orgAddress = [org?.address, org?.city, org?.state, org?.pincode].filter(Boolean).join(", ")
   const orgGstin = org?.gstin || ""
 
@@ -137,7 +137,7 @@ export function ChallanPDFDocument({ order, org }: Props) {
           </View>
           <View style={s.metaItem}>
             <Text style={s.metaLabel}>Style</Text>
-            <Text style={s.metaValue}>{order.style_name}</Text>
+            <Text style={s.metaValue}>{order.product_variant}</Text>
           </View>
           <View style={s.metaItem}>
             <Text style={s.metaLabel}>Deadline</Text>
@@ -159,7 +159,7 @@ export function ChallanPDFDocument({ order, org }: Props) {
         {order.order_items?.map((item, idx) => (
           <View key={item.id} style={[s.tableRow, idx % 2 === 1 ? s.tableRowAlt : {}]}>
             <View style={s.colSl}><Text style={s.cellMuted}>{idx + 1}</Text></View>
-            <View style={s.colDesc}><Text style={s.cellText}>{order.style_name}</Text></View>
+            <View style={s.colDesc}><Text style={s.cellText}>{order.product_variant}</Text></View>
             <View style={s.colSize}><Text style={s.cellText}>{item.size}</Text></View>
             <View style={s.colColor}><Text style={s.cellText}>{item.color}</Text></View>
             <View style={s.colQty}><Text style={[s.cellText, { textAlign: "right" }]}>{item.quantity}</Text></View>

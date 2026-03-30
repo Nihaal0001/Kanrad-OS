@@ -81,7 +81,7 @@ function fmtDate(d: string | null | undefined) {
 }
 
 export function PackingSlipPDFDocument({ order, org }: Props) {
-  const orgName = org?.org_name || "JUST CLOTHING"
+  const orgName = org?.org_name || "KANRAD ERP"
   const orgAddress = [org?.address, org?.city, org?.state, org?.pincode].filter(Boolean).join(", ")
 
   const totalQty = order.order_items?.reduce((s, i) => s + i.quantity, 0) ?? 0
@@ -120,7 +120,7 @@ export function PackingSlipPDFDocument({ order, org }: Props) {
           <View style={[s.shipBox, { alignItems: "flex-end" }]}>
             <Text style={s.sectionLabel}>ORDER DETAILS</Text>
             <Text style={s.shipText}>Order: {order.order_number}</Text>
-            <Text style={s.shipText}>Style: {order.style_name}</Text>
+            <Text style={s.shipText}>Style: {order.product_variant}</Text>
             <Text style={s.shipText}>Deadline: {fmtDate(order.deadline)}</Text>
             {order.transporter_name ? <Text style={s.shipText}>Via: {order.transporter_name}</Text> : null}
           </View>

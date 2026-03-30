@@ -24,7 +24,7 @@ interface TrackingRow {
 interface OrderRow {
   id: string
   order_number: string
-  style_name: string
+  product_variant: string
   total_quantity: number
   status: string
   deadline: string
@@ -86,7 +86,7 @@ export function PipelineView({ orders, stageNames }: PipelineViewProps) {
                   {order.order_number}
                 </Link>
                 <span className="text-sm text-muted-foreground">
-                  {order.style_name}
+                  {order.product_variant}
                 </span>
                 {order.customer && (
                   <span className="text-xs text-muted-foreground">

@@ -39,8 +39,8 @@ export default async function SettingsPage() {
   ])
 
   const defaults = {
-    org_name: saved?.org_name ?? "JUST CLOTHING",
-    org_type: saved?.org_type ?? "Garment Manufacturing Unit",
+    org_name: saved?.org_name ?? "KANRAD ERP",
+    org_type: saved?.org_type ?? "Houseware Manufacturing Unit",
     gstin: saved?.gstin ?? "",
     address: saved?.address ?? "",
     city: saved?.city ?? "",

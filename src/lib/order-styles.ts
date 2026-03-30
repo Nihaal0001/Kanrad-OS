@@ -1,5 +1,5 @@
 type StyleItem = {
-  style_name: string | null | undefined
+  product_variant: string | null | undefined
 }
 
 export function getUniqueOrderStyles(items: StyleItem[] | null | undefined) {
@@ -7,7 +7,7 @@ export function getUniqueOrderStyles(items: StyleItem[] | null | undefined) {
   const styles: string[] = []
 
   for (const item of items ?? []) {
-    const style = item.style_name?.trim()
+    const style = item.product_variant?.trim()
     if (!style) continue
 
     const key = style.toLowerCase()

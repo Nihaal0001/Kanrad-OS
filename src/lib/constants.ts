@@ -31,6 +31,11 @@ import {
   Truck,
   Undo2,
   Landmark,
+  Warehouse,
+  XCircle,
+  Target,
+  AlertTriangle,
+  Archive,
   type LucideIcon,
 } from "lucide-react"
 
@@ -105,7 +110,7 @@ export const navigation: NavSection[] = [
     title: "Sales",
     icon: FileText,
     items: [
-      { title: "Orders", href: "/orders", icon: ShoppingBag, permission: "orders" },
+      { title: "Work Orders", href: "/orders", icon: ShoppingBag, permission: "orders" },
       { title: "Customers", href: "/customers", icon: UserCircle, permission: "orders" },
     ],
   },
@@ -115,10 +120,15 @@ export const navigation: NavSection[] = [
     icon: Factory,
     items: [
       { title: "Suppliers", href: "/suppliers", icon: Truck, permission: "inventory" },
-      { title: "Inventory", href: "/inventory", icon: Package, permission: "inventory" },
+      { title: "Raw Materials", href: "/inventory", icon: Package, permission: "inventory" },
       { title: "Purchase Orders", href: "/inventory/purchase-orders", icon: ShoppingCart, permission: "inventory" },
       { title: "PO Approvals", href: "/inventory/approvals", icon: ClipboardCheck, permission: "inventory" },
+      { title: "Warehouse", href: "/warehouse", icon: Warehouse, permission: "inventory" },
       { title: "Production", href: "/production", icon: Factory, permission: "production" },
+      { title: "Prod. Targets", href: "/production/targets", icon: Target, permission: "production" },
+      { title: "Quality", href: "/quality", icon: CheckCircle, permission: "production" },
+      { title: "Rejections", href: "/rejections", icon: XCircle, permission: "production" },
+      { title: "Logistics", href: "/logistics", icon: Truck, permission: "orders" },
       { title: "Tasks", href: "/tasks", icon: ListTodo, permission: "tasks" },
     ],
   },
@@ -162,6 +172,8 @@ export const navigation: NavSection[] = [
     icon: Settings,
     items: [
       { title: "Audit Log", href: "/audit", icon: History, permission: "settings" },
+      { title: "Issues", href: "/issues", icon: AlertTriangle, permission: "settings" },
+      { title: "History", href: "/history", icon: Archive, permission: "settings" },
       { title: "Users", href: "/users", icon: Users, permission: "users" },
       { title: "Settings", href: "/settings", icon: Settings, permission: "settings" },
     ],
@@ -195,7 +207,7 @@ export function getMobileMoreSections(allowedPermissions?: string[]) {
 }
 
 export const productionStages = [
-  "Fabric Sourcing",
+  "Raw Material Sourcing",
   "Cutting",
   "Stitching",
   "Quality Check",

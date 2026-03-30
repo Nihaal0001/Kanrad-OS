@@ -96,7 +96,7 @@ export async function getDashboardStats() {
     supabase
       .from("orders")
       .select(`
-        id, order_number, style_name, total_quantity, deadline, status, priority,
+        id, order_number, product_variant, total_quantity, deadline, status, priority,
         customer:customers(id, name, company)
       `)
       .order("created_at", { ascending: false })

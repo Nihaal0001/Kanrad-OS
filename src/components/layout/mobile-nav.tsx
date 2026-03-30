@@ -182,7 +182,7 @@ export function MobileNav({ open, onOpenChange, allowedPermissions }: MobileNavP
       <SheetContent side="left" className="w-[280px] bg-sidebar p-0">
         <SheetHeader className="border-b border-sidebar-border px-6 py-4">
           <SheetTitle className="font-serif text-xl font-bold tracking-tight text-sidebar-foreground">
-            JUST CLOTHING
+            KANRAD ERP
           </SheetTitle>
         </SheetHeader>
 

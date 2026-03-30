@@ -22,7 +22,7 @@ export async function GET(request: Request) {
   // Get in-production orders with their tracking rows that are in_progress
   const { data: orders, error: ordErr } = await admin
     .from("orders")
-    .select("id, order_number, style_name, created_at, deadline")
+    .select("id, order_number, product_variant, created_at, deadline")
     .eq("status", "in_production")
     .not("deadline", "is", null)
 

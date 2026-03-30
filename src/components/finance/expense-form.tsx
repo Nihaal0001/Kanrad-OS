@@ -26,7 +26,7 @@ import { ExpenseCategoryDialog } from "./expense-category-dialog"
 
 interface ExpenseFormProps {
   categories: { id: string; name: string }[]
-  orders: { id: string; order_number: string; style_name: string }[]
+  orders: { id: string; order_number: string; product_variant: string }[]
   editId?: string
   defaultValues?: Partial<ExpenseFormData>
 }
@@ -167,7 +167,7 @@ export function ExpenseForm({ categories, orders, editId, defaultValues }: Expen
                   <SelectItem value="none">No order</SelectItem>
                   {orders.map((order) => (
                     <SelectItem key={order.id} value={order.id}>
-                      {order.order_number} — {order.style_name}
+                      {order.order_number} — {order.product_variant}
                     </SelectItem>
                   ))}
                 </SelectContent>

@@ -49,7 +49,7 @@ async function getOrders() {
   const supabase = await createClient()
   const { data } = await supabase
     .from("orders")
-    .select("id, order_number, style_name")
+    .select("id, order_number, product_variant")
     .in("status", ["confirmed", "in_production", "completed", "dispatched"])
     .order("created_at", { ascending: false })
 

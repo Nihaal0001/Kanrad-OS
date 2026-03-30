@@ -26,7 +26,7 @@ export async function getOrders(filters?: {
   }
   if (filters?.search) {
     const escaped = filters.search.replace(/%/g, "\\%").replace(/_/g, "\\_")
-    query = query.or(`order_number.ilike.%${escaped}%,style_name.ilike.%${escaped}%`)
+    query = query.or(`order_number.ilike.%${escaped}%,product_variant.ilike.%${escaped}%`)
   }
 
   const { data, error } = await query
@@ -77,7 +77,7 @@ export async function createOrder(formData: OrderFormData) {
     .from("orders")
     .insert({
       ...cleaned,
-      style_name: styleSummary,
+      product_variant: styleSummary,
       order_number: "", // trigger will set this
     })
     .select()
@@ -88,7 +88,7 @@ export async function createOrder(formData: OrderFormData) {
   // Insert order items
   const orderItems = items.map((item) => ({
     order_id: order.id,
-    style_name: item.style_name,
+    product_variant: item.product_variant,
     size: item.size,
     color: item.color,
     quantity: item.quantity,
@@ -131,7 +131,7 @@ export async function updateOrder(id: string, formData: OrderFormData) {
     .from("orders")
     .update({
       ...cleaned,
-      style_name: styleSummary,
+      product_variant: styleSummary,
     })
     .eq("id", id)
 
@@ -147,7 +147,7 @@ export async function updateOrder(id: string, formData: OrderFormData) {
 
   const orderItems = items.map((item) => ({
     order_id: id,
-    style_name: item.style_name,
+    product_variant: item.product_variant,
     size: item.size,
     color: item.color,
     quantity: item.quantity,
@@ -228,7 +228,7 @@ export async function duplicateOrder(id: string) {
   const { data: newOrder, error: createError } = await supabase
     .from("orders")
     .insert({
-      style_name: getOrderStyleSummary(original.order_items, original.style_name),
+      product_variant: getOrderStyleSummary(original.order_items, original.product_variant),
       description: original.description,
       total_quantity: original.total_quantity,
       deadline: original.deadline,
@@ -247,7 +247,7 @@ export async function duplicateOrder(id: string) {
   if (original.order_items?.length) {
     const items = original.order_items.map((item: OrderItem) => ({
       order_id: newOrder.id,
-      style_name: item.style_name,
+      product_variant: item.product_variant,
       size: item.size,
       color: item.color,
       quantity: item.quantity,

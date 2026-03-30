@@ -38,7 +38,7 @@ export default async function PrintInvoicePage({ params }: Props) {
   }
 
   const org = await getOrgSettings()
-  const orgName = org?.org_name || "JUST CLOTHING"
+  const orgName = org?.org_name || "KANRAD ERP"
   const orgAddress = [org?.address, org?.city, org?.state, org?.pincode].filter(Boolean).join(", ")
   const orgPhone = org?.phone || ""
   const orgEmail = org?.email || ""

@@ -56,10 +56,10 @@ export default async function CustomerPortalPage({ params }: Props) {
   const { data: order, error } = await supabase
     .from("orders")
     .select(`
-      id, order_number, style_name, status, deadline, total_quantity,
+      id, order_number, product_variant, status, deadline, total_quantity,
       transporter_name, lr_number, vehicle_number, dispatch_date, expected_delivery_date,
       customer:customers(name, company),
-      order_items(style_name),
+      order_items(product_variant),
       production_tracking(
         id, status, quantity_completed,
         stage:production_stages(id, name, sequence)
@@ -74,7 +74,7 @@ export default async function CustomerPortalPage({ params }: Props) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const customer = Array.isArray((order as any).customer) ? (order as any).customer[0] : (order as any).customer
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const styleSummary = getOrderStyleSummary((order as any).order_items, (order as any).style_name)
+  const styleSummary = getOrderStyleSummary((order as any).order_items, (order as any).product_variant)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const tracking = ((order as any).production_tracking ?? [])
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -97,7 +97,7 @@ export default async function CustomerPortalPage({ params }: Props) {
       <header className="sticky top-0 z-10 border-b border-[hsl(25,18%,78%)] bg-white/95 backdrop-blur">
         <div className="max-w-2xl mx-auto px-6 py-4 flex items-center justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[hsl(25,20%,42%)]">JUST CLOTHING</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[hsl(25,20%,42%)]">KANRAD ERP</p>
             <p className="text-sm font-semibold text-[hsl(25,20%,20%)]">Order Tracking Portal</p>
           </div>
           <span className={`text-xs font-semibold px-3 py-1 rounded-full ${STATUS_COLORS[order.status] ?? "bg-gray-100 text-gray-600"}`}>
@@ -227,7 +227,7 @@ export default async function CustomerPortalPage({ params }: Props) {
 
         {/* Footer */}
         <p className="pt-4 text-center text-xs text-[hsl(25,14%,42%)]">
-          This is a read-only view. For queries, contact JUST CLOTHING directly.
+          This is a read-only view. For queries, contact KANRAD ERP directly.
         </p>
       </main>
     </div>

@@ -79,7 +79,7 @@ export default function KioskPage() {
       {/* Brand */}
       <div className="text-center">
         <h1 className="text-3xl font-serif font-bold tracking-tight">
-          JUST CLOTHING
+          KANRAD ERP
         </h1>
         <p className="mt-1 text-sm opacity-60">Attendance Kiosk</p>
       </div>

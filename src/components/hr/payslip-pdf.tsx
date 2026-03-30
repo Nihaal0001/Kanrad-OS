@@ -96,7 +96,7 @@ function fmtDate(d: string) {
 }
 
 export function PayslipPDFDocument({ payroll, org }: Props) {
-  const orgName = org?.org_name || "JUST CLOTHING"
+  const orgName = org?.org_name || "KANRAD ERP"
   const orgAddress = [org?.address, org?.city, org?.state].filter(Boolean).join(", ")
 
   const basicWage = payroll.days_present * payroll.daily_wage

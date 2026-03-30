@@ -17,10 +17,10 @@ const dmSerif = DM_Serif_Display({
 
 export const metadata: Metadata = {
   title: {
-    default: "JUST CLOTHING",
-    template: "%s | JUST CLOTHING",
+    default: "KANRAD ERP",
+    template: "%s | KANRAD ERP",
   },
-  description: "Garment Manufacturing ERP — Manage orders, production, inventory, and more.",
+  description: "Houseware Manufacturing ERP — Manage orders, production, inventory, and more.",
 }
 
 export default function RootLayout({

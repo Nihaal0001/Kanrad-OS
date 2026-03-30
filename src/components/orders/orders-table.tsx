@@ -64,7 +64,7 @@ export function OrdersTable({ orders }: OrdersTableProps) {
       result = result.filter(
         (o) =>
           o.order_number.toLowerCase().includes(q) ||
-          o.style_name.toLowerCase().includes(q) ||
+          o.product_variant.toLowerCase().includes(q) ||
           o.customer?.name.toLowerCase().includes(q)
       )
     }
@@ -162,7 +162,7 @@ export function OrdersTable({ orders }: OrdersTableProps) {
                       {order.order_number}
                     </Link>
                   </TableCell>
-                  <TableCell>{order.style_name}</TableCell>
+                  <TableCell>{order.product_variant}</TableCell>
                   <TableCell>
                     {order.customer ? (
                       <span>

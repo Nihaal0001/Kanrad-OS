@@ -36,7 +36,7 @@ export async function getInvoice(id: string) {
     .from("invoices")
     .select(`
       *,
-      order:orders(id, order_number, style_name),
+      order:orders(id, order_number, product_variant),
       invoice_items(*)
     `)
     .eq("id", id)
@@ -201,9 +201,9 @@ export async function getOrderForInvoice(orderId: string) {
   const { data, error } = await supabase
     .from("orders")
     .select(`
-      id, order_number, style_name,
+      id, order_number, product_variant,
       customer:customers(id, name, address, gstin),
-      order_items(id, style_name, size, color, quantity, unit_price)
+      order_items(id, product_variant, size, color, quantity, unit_price)
     `)
     .eq("id", orderId)
     .single()
@@ -230,7 +230,7 @@ export async function getOrdersForInvoice() {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from("orders")
-    .select("id, order_number, style_name, status, customer:customers(id, name)")
+    .select("id, order_number, product_variant, status, customer:customers(id, name)")
     .in("status", ["completed", "dispatched"])
     .order("created_at", { ascending: false })
 
@@ -325,7 +325,7 @@ export async function getOrderCostings() {
     .from("order_costings")
     .select(`
       *,
-      order:orders(id, order_number, style_name, total_quantity)
+      order:orders(id, order_number, product_variant, total_quantity)
     `)
     .order("created_at", { ascending: false })
 
@@ -352,7 +352,7 @@ export async function getOrderCosting(orderId: string) {
   const { data: order, error: orderErr } = await supabase
     .from("orders")
     .select(`
-      id, order_number, style_name, total_quantity, status,
+      id, order_number, product_variant, total_quantity, status,
       customer:customers(id, name),
       order_materials(id, quantity_required, quantity_allocated, material_id)
     `)

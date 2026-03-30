@@ -15,7 +15,7 @@ export type Profile = {
 export type Order = {
   id: string
   order_number: string
-  style_name: string
+  product_variant: string
   description: string | null
   total_quantity: number
   deadline: string
@@ -40,7 +40,7 @@ export type OrderWithCustomer = Order & {
 export type OrderItem = {
   id: string
   order_id: string
-  style_name: string
+  product_variant: string
   size: string
   color: string
   quantity: number
@@ -181,7 +181,7 @@ export type ProductionTrackingWithStage = ProductionTracking & {
 
 export type ProductionTrackingWithOrder = ProductionTracking & {
   stage: ProductionStage
-  order: Pick<Order, "id" | "order_number" | "style_name" | "total_quantity" | "status">
+  order: Pick<Order, "id" | "order_number" | "product_variant" | "total_quantity" | "status">
 }
 
 export type OrderWithProduction = Order & {
@@ -205,7 +205,7 @@ export type QualityCheck = {
 }
 
 export type QualityCheckWithDetails = QualityCheck & {
-  order: Pick<Order, "id" | "order_number" | "style_name"> | null
+  order: Pick<Order, "id" | "order_number" | "product_variant"> | null
   stage: Pick<ProductionStage, "id" | "name"> | null
 }
 
@@ -227,7 +227,7 @@ export type Task = {
 }
 
 export type TaskWithDetails = Task & {
-  order: Pick<Order, "id" | "order_number" | "style_name"> | null
+  order: Pick<Order, "id" | "order_number" | "product_variant"> | null
   stage: Pick<ProductionStage, "id" | "name"> | null
 }
 
@@ -285,7 +285,7 @@ export type InvoiceItem = {
 }
 
 export type InvoiceDetail = Invoice & {
-  order: Pick<Order, "id" | "order_number" | "style_name"> | null
+  order: Pick<Order, "id" | "order_number" | "product_variant"> | null
   invoice_items: InvoiceItem[]
 }
 
@@ -318,7 +318,7 @@ export type OrderCosting = {
 }
 
 export type OrderCostingWithOrder = OrderCosting & {
-  order: Pick<Order, "id" | "order_number" | "style_name" | "total_quantity"> | null
+  order: Pick<Order, "id" | "order_number" | "product_variant" | "total_quantity"> | null
 }
 
 // ==================== HR ====================

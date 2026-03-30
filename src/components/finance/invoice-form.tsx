@@ -81,7 +81,7 @@ const GSTIN_STATE: Record<string, string> = {
 interface SelectableOrder {
   id: string
   order_number: string
-  style_name: string
+  product_variant: string
   customer: { id: string; name: string } | null
 }
 
@@ -127,7 +127,7 @@ export function InvoiceForm({ orders, preloadedOrder, preloadedOrderId, orgGstin
       due_date: "",
       notes: "",
       items: preloadedOrder?.order_items.map((oi) => ({
-        description: `${oi.style_name} — ${oi.size} / ${oi.color}`,
+        description: `${oi.product_variant} — ${oi.size} / ${oi.color}`,
         quantity: oi.quantity,
         unit_price: oi.unit_price,
         hsn_code: "",
@@ -182,7 +182,7 @@ export function InvoiceForm({ orders, preloadedOrder, preloadedOrderId, orgGstin
 
       if (order.order_items.length > 0) {
         const items = order.order_items.map((oi) => ({
-          description: `${oi.style_name} — ${oi.size} / ${oi.color}`,
+          description: `${oi.product_variant} — ${oi.size} / ${oi.color}`,
           quantity: oi.quantity,
           unit_price: oi.unit_price,
           hsn_code: "",
@@ -243,7 +243,7 @@ export function InvoiceForm({ orders, preloadedOrder, preloadedOrderId, orgGstin
                   <SelectItem value="none">— No order —</SelectItem>
                   {orders.map((o) => (
                     <SelectItem key={o.id} value={o.id}>
-                      {o.order_number} · {o.style_name}
+                      {o.order_number} · {o.product_variant}
                       {o.customer ? ` (${o.customer.name})` : ""}
                     </SelectItem>
                   ))}

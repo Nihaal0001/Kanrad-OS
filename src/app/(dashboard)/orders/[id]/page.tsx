@@ -57,7 +57,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
     (sum, item) => sum + item.quantity * item.unit_price,
     0
   ) ?? 0
-  const styleSummary = getOrderStyleSummary(order.order_items, order.style_name)
+  const styleSummary = getOrderStyleSummary(order.order_items, order.product_variant)
   const uniqueStyles = getUniqueOrderStyles(order.order_items)
   const salesContact = order.customer
 
@@ -235,7 +235,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
                 <TableBody>
                   {order.order_items?.map((item) => (
                     <TableRow key={item.id}>
-                      <TableCell className="font-medium">{item.style_name}</TableCell>
+                      <TableCell className="font-medium">{item.product_variant}</TableCell>
                       <TableCell className="font-medium">{item.size}</TableCell>
                       <TableCell>{item.color}</TableCell>
                       <TableCell className="text-right">

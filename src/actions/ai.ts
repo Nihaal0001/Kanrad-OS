@@ -29,7 +29,7 @@ export interface ChatMessage {
 
 // ===== Chat (Sarvam) =====
 
-const CHAT_SYSTEM_PROMPT = `You are KYRE, a friendly, helpful AI assistant for JUST CLOTHING — a garment manufacturing factory. Think of yourself as a knowledgeable colleague who knows the factory inside-out.
+const CHAT_SYSTEM_PROMPT = `You are KYRE, a friendly, helpful AI assistant for KANRAD ERP — a houseware manufacturing factory. Think of yourself as a knowledgeable colleague who knows the factory inside-out.
 
 Talk like a real person — warm, direct, no jargon unless the user uses it first. Keep answers short and natural. Use simple sentences, not walls of text.
 
@@ -40,7 +40,7 @@ IMPORTANT rules:
 - Use bullet points only when listing 3+ items. Otherwise just talk naturally.
 - If you don't have the data to answer, say so honestly in one line.
 - Currency is ₹ (Indian Rupees).
-- Production stages: Fabric Sourcing → Cutting → Stitching → Quality Check → Finishing/Ironing → Packing → Dispatch.
+- Production stages: Raw Material Sourcing → Cutting → Forming → Assembly → Surface Treatment → Quality Check → Packing → Dispatch.
 - You can ONLY answer questions and provide information. You CANNOT perform actions like creating orders, marking attendance, approving leaves, adjusting stock, creating tasks, or modifying any data.
 - If the user asks you to DO something (create, update, delete, mark, approve, reject, adjust, log, etc.), politely tell them: "I can only answer questions — to perform actions, switch to KYRE Agent mode using the wand icon in the top-right corner of this chat." Reply in the same language they used.
 
@@ -84,7 +84,7 @@ export async function askAI(
 
 // ===== Insights (Gemini) =====
 
-const INSIGHTS_SYSTEM_PROMPT = `You are an operations analyst for JUST CLOTHING, a garment manufacturing factory ERP. Analyze the factory data and provide 3-5 actionable insights.
+const INSIGHTS_SYSTEM_PROMPT = `You are an operations analyst for KANRAD ERP, a houseware manufacturing factory ERP. Analyze the factory data and provide 3-5 actionable insights.
 
 Return your response as a JSON array with this exact structure (no markdown, no code fences, just raw JSON):
 [
@@ -152,7 +152,7 @@ export async function refreshInsights(): Promise<
 
 // ===== Smart Suggestions (Gemini) =====
 
-const SUGGESTIONS_SYSTEM_PROMPT = `You are an operations assistant for JUST CLOTHING garment factory. Based on the factory data, suggest 3-5 actionable next steps.
+const SUGGESTIONS_SYSTEM_PROMPT = `You are an operations assistant for KANRAD ERP houseware factory. Based on the factory data, suggest 3-5 actionable next steps.
 
 Return your response as a JSON array (no markdown, no code fences, just raw JSON):
 [
@@ -207,7 +207,7 @@ export async function getSmartSuggestions(): Promise<
 
 // ===== Order Summary (Gemini) =====
 
-const ORDER_SUMMARY_PROMPT = `You are an operations analyst for JUST CLOTHING garment factory. Analyze the order data and provide a brief AI summary.
+const ORDER_SUMMARY_PROMPT = `You are an operations analyst for KANRAD ERP houseware factory. Analyze the order data and provide a brief AI summary.
 
 Return your response as a JSON object (no markdown, no code fences, just raw JSON):
 {
@@ -230,7 +230,7 @@ export async function generateOrderSummary(
     const [orderRes, trackingRes, qcRes, costingRes] = await Promise.all([
       supabase
         .from("orders")
-        .select(`*, customer:customers(name), items:order_items(style_name, size, color, quantity, unit_price)`)
+        .select(`*, customer:customers(name), items:order_items(product_variant, size, color, quantity, unit_price)`)
         .eq("id", orderId)
         .single(),
       supabase
@@ -257,7 +257,7 @@ export async function generateOrderSummary(
 
     const order = orderRes.data
     const customer = Array.isArray(order.customer) ? order.customer[0] : order.customer
-    const styleSummary = getOrderStyleSummary(order.items, order.style_name)
+    const styleSummary = getOrderStyleSummary(order.items, order.product_variant)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const tracking = (trackingRes.data ?? []) as any[]
     const qcChecks = qcRes.data ?? []

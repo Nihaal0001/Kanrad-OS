@@ -13,9 +13,9 @@ export default async function LoginPage({ searchParams }: Props) {
         {/* Brand */}
         <div className="space-y-1 text-center">
           <h1 className="font-dm-serif text-3xl font-normal tracking-tight text-foreground">
-            JUST CLOTHING
+            KANRAD ERP
           </h1>
-          <p className="text-sm text-muted-foreground">Garment Manufacturing ERP</p>
+          <p className="text-sm text-muted-foreground">Houseware Manufacturing ERP</p>
         </div>
 
         {/* Card */}

@@ -55,14 +55,14 @@ export function OrderForm({ order, customers }: OrderFormProps) {
       notes: order?.notes ?? "",
       items: order?.order_items?.length
         ? order.order_items.map((item) => ({
-            style_name: item.style_name ?? order.style_name ?? "",
+            product_variant: item.product_variant ?? order.product_variant ?? "",
             size: item.size,
             color: item.color,
             quantity: item.quantity,
             unit_price: item.unit_price,
             hsn_code: item.hsn_code ?? "",
           }))
-        : [{ style_name: "", size: "", color: "", quantity: 1, unit_price: 0, hsn_code: "" }],
+        : [{ product_variant: "", size: "", color: "", quantity: 1, unit_price: 0, hsn_code: "" }],
     },
   })
 
@@ -274,11 +274,11 @@ export function OrderForm({ order, customers }: OrderFormProps) {
                 </Label>
                 <Input
                   placeholder="e.g., Classic Polo"
-                  {...form.register(`items.${index}.style_name`)}
+                  {...form.register(`items.${index}.product_variant`)}
                 />
-                {form.formState.errors.items?.[index]?.style_name && (
+                {form.formState.errors.items?.[index]?.product_variant && (
                   <p className="text-xs text-destructive">
-                    {form.formState.errors.items[index]?.style_name?.message}
+                    {form.formState.errors.items[index]?.product_variant?.message}
                   </p>
                 )}
               </div>
@@ -408,7 +408,7 @@ export function OrderForm({ order, customers }: OrderFormProps) {
             variant="outline"
             size="sm"
             onClick={() =>
-              append({ style_name: "", size: "", color: "", quantity: 1, unit_price: 0, hsn_code: "" })
+              append({ product_variant: "", size: "", color: "", quantity: 1, unit_price: 0, hsn_code: "" })
             }
           >
             <Plus className="mr-2 h-4 w-4" />

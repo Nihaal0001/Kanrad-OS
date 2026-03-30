@@ -55,7 +55,7 @@ export async function sendOwnerDailyDigest(data: {
   totalWorkers: number
 }): Promise<WhatsAppResult> {
   const lines = [
-    `📊 *JUST CLOTHING — Daily Digest*`,
+    `📊 *KANRAD ERP — Daily Digest*`,
     `📅 ${data.date}`,
     ``,
     `🏭 *Operations*`,
@@ -69,7 +69,7 @@ export async function sendOwnerDailyDigest(data: {
     `📦 *Inventory*`,
     `• Low Stock Items: ${data.lowStockItems}`,
     ``,
-    `_Sent by KYRE · JUST CLOTHING ERP_`,
+    `_Sent by KYRE · KANRAD ERP_`,
   ]
 
   return sendWhatsApp(lines.join("\n"))

@@ -30,7 +30,7 @@ export async function getProductionOverview() {
   const { data, error } = await supabase
     .from("orders")
     .select(`
-      id, order_number, style_name, total_quantity, status, deadline, priority,
+      id, order_number, product_variant, total_quantity, status, deadline, priority,
       customer:customers(id, name, company),
       production_tracking(
         id, status, quantity_completed, quantity_rejected, stage_id,
@@ -61,7 +61,7 @@ export async function getOrderProduction(orderId: string) {
   const { data, error } = await supabase
     .from("orders")
     .select(`
-      id, order_number, style_name, total_quantity, status, deadline, priority,
+      id, order_number, product_variant, total_quantity, status, deadline, priority,
       customer:customers(id, name, company),
       production_tracking(
         id, status, quantity_completed, quantity_rejected, quantity_input, waste_notes, notes, started_at, completed_at, stage_id, assigned_to,
@@ -91,7 +91,7 @@ export async function getOrderProduction(orderId: string) {
       const { data: refreshed, error: refreshErr } = await supabase
         .from("orders")
         .select(`
-          id, order_number, style_name, total_quantity, status, deadline, priority,
+          id, order_number, product_variant, total_quantity, status, deadline, priority,
           customer:customers(id, name, company),
           production_tracking(
             id, status, quantity_completed, quantity_rejected, quantity_input, waste_notes, notes, started_at, completed_at, stage_id, assigned_to,
@@ -175,7 +175,7 @@ export async function getQualityChecks(filters?: {
     .from("quality_checks")
     .select(`
       *,
-      order:orders(id, order_number, style_name),
+      order:orders(id, order_number, product_variant),
       stage:production_stages(id, name)
     `)
     .order("checked_at", { ascending: false })

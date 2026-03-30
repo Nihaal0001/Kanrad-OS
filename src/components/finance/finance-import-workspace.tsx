@@ -63,7 +63,7 @@ interface FinanceImportWorkspaceProps {
   targetHint?: "purchase_invoice" | "expense"
   purchaseOrders: { id: string; po_number: string; supplier_name: string }[]
   categories: { id: string; name: string }[]
-  orders: { id: string; order_number: string; style_name: string }[]
+  orders: { id: string; order_number: string; product_variant: string }[]
 }
 
 const STATUS_STYLES: Record<string, string> = {
@@ -817,7 +817,7 @@ export function FinanceImportWorkspace({
                                 <SelectItem value="none">No order</SelectItem>
                                 {orders.map((order) => (
                                   <SelectItem key={order.id} value={order.id}>
-                                    {order.order_number} — {order.style_name}
+                                    {order.order_number} — {order.product_variant}
                                   </SelectItem>
                                 ))}
                               </SelectContent>

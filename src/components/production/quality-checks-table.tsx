@@ -37,7 +37,7 @@ interface QCRow {
   severity: string | null
   notes: string | null
   checked_at: string
-  order: { id: string; order_number: string; style_name: string } | null
+  order: { id: string; order_number: string; product_variant: string } | null
   stage: { id: string; name: string } | null
 }
 
@@ -69,7 +69,7 @@ export function QualityChecksTable({ checks }: QualityChecksTableProps) {
       result = result.filter(
         (c) =>
           c.order?.order_number.toLowerCase().includes(q) ||
-          c.order?.style_name.toLowerCase().includes(q)
+          c.order?.product_variant.toLowerCase().includes(q)
       )
     }
     return result
@@ -166,7 +166,7 @@ export function QualityChecksTable({ checks }: QualityChecksTableProps) {
                         {check.order?.order_number ?? "—"}
                       </Link>
                       <div className="text-xs text-muted-foreground">
-                        {check.order?.style_name}
+                        {check.order?.product_variant}
                       </div>
                     </TableCell>
                     <TableCell>

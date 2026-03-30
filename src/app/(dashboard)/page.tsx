@@ -59,7 +59,7 @@ export default async function DashboardPage() {
       {/* Greeting header */}
       <div>
         <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{getGreeting()}, {firstName}</h1>
-        <p className="mt-1 max-w-2xl text-sm text-muted-foreground sm:text-base">Here&apos;s what&apos;s happening at JUST CLOTHING today.</p>
+        <p className="mt-1 max-w-2xl text-sm text-muted-foreground sm:text-base">Here&apos;s what&apos;s happening at KANRAD ERP today.</p>
       </div>
 
       {/* KPI Cards */}
@@ -153,7 +153,7 @@ export default async function DashboardPage() {
                         <PriorityIndicator priority={order.priority} />
                       </div>
                       <p className="mt-0.5 text-xs text-muted-foreground">
-                        {order.style_name}
+                        {order.product_variant}
                         {order.customer && ` — ${order.customer.name}`}
                       </p>
                       <p className="mt-0.5 text-xs text-muted-foreground">

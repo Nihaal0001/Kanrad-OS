@@ -110,7 +110,7 @@ export async function GET(request: Request) {
   let report = context
   try {
     const geminiResponse = await askGemini(
-      "You are an HR analyst for JUST CLOTHING garment factory. Analyze attendance anomalies and write a concise, actionable report for the factory manager. Be specific about concerns and recommendations.",
+      "You are an HR analyst for KANRAD ERP houseware factory. Analyze attendance anomalies and write a concise, actionable report for the factory manager. Be specific about concerns and recommendations.",
       context
     )
     report = geminiResponse
