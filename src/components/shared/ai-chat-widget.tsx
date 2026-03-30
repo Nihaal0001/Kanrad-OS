@@ -347,7 +347,7 @@ export function AIChatWidget() {
                 </p>
                 <div className="mt-4 flex flex-wrap gap-1.5 justify-center">
                   {agentMode
-                    ? ["Create an order for 500 polo shirts", "Show me low stock items", "Log QC for cutting stage"].map((q) => (
+                    ? ["Create an order for 300 Kadai 240mm", "Show me low stock items", "Log QC for forming stage"].map((q) => (
                         <button key={q} onClick={() => handleSend(q)}
                           className="rounded-full border border-blue-400/30 bg-blue-500/10 px-3 py-1.5 text-xs text-blue-400 dark:text-blue-300 transition-all hover:bg-blue-500/20">
                           {q}

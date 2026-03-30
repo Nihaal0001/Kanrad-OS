@@ -207,13 +207,13 @@ export function getMobileMoreSections(allowedPermissions?: string[]) {
 }
 
 export const productionStages = [
-  "Raw Material Sourcing",
-  "Cutting",
-  "Stitching",
+  "Raw Material Receipt",
+  "Cutting / Pressing",
+  "Forming / Shaping",
+  "Assembly / Welding",
+  "Surface Treatment",
   "Quality Check",
-  "Finishing",
   "Packing",
-  "Dispatch",
 ] as const
 
 export type ProductionStage = (typeof productionStages)[number]

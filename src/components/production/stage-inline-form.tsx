@@ -202,7 +202,7 @@ export function StageInlineForm({
         <Input
           id={`waste-${trackingId}`}
           className="h-9"
-          placeholder="e.g. Fabric defect, cutting error..."
+          placeholder="e.g. Coating defect, welding error..."
           {...form.register("waste_notes")}
         />
       </div>

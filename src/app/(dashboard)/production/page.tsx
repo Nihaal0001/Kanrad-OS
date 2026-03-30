@@ -17,7 +17,7 @@ export default async function ProductionPage() {
     <>
       <PageHeader
         title="Production"
-        description="Track active orders through the 7-stage pipeline"
+        description="Track production batches and efficiency through the 7-stage cookware manufacturing pipeline"
       />
 
       {orders.length === 0 ? (

@@ -116,9 +116,9 @@ export default async function ProductionDetailPage({
               </div>
               <Progress value={progressPct} className="h-3 rounded-full" />
               <div className="mt-2 flex justify-between text-xs text-muted-foreground">
-                <span>Raw Material Sourcing</span>
+                <span>Raw Material Receipt</span>
                 <span>{progressPct}%</span>
-                <span>Dispatch</span>
+                <span>Packing</span>
               </div>
             </CardContent>
           </Card>

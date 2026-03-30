@@ -17,7 +17,7 @@ export default async function InventoryPage() {
     <>
       <PageHeader
         title="Inventory"
-        description="Track raw materials and stock levels"
+        description="Track materials and stock levels by category. Stock is automatically managed — Purchase Orders increase stock, Production decreases it."
       >
         <Button variant="outline" asChild>
           <Link href="/inventory/history">

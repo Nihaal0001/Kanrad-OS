@@ -20,7 +20,7 @@ export default async function SuppliersPage({
     <>
       <PageHeader
         title="Suppliers"
-        description="Purchase contacts — fabric vendors, trims suppliers, service providers"
+        description="Purchase contacts — raw material suppliers, component vendors, service providers"
         breadcrumbs={[{ label: "Suppliers" }]}
       >
         <Link href="/suppliers/new">
@@ -35,7 +35,7 @@ export default async function SuppliersPage({
         <EmptyState
           icon={Truck}
           title="No suppliers yet"
-          description="Add your fabric vendors, trims suppliers, and service providers"
+          description="Add your raw material suppliers, component vendors, and service providers"
           action={{ label: "Add Supplier", href: "/suppliers/new" }}
         />
       ) : (

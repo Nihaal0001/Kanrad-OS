@@ -264,7 +264,7 @@ const toolDeclarations: FunctionDeclaration[] = [
       type: SchemaType.OBJECT,
       properties: {
         order_number: { type: SchemaType.STRING, description: "The order number" },
-        stage_name: { type: SchemaType.STRING, description: "Stage name, e.g. Cutting, Stitching" },
+        stage_name: { type: SchemaType.STRING, description: "Stage name, e.g. Cutting / Pressing, Forming / Shaping, Assembly / Welding, Surface Treatment" },
         status: { type: SchemaType.STRING, description: "pending, in_progress, completed, or blocked" },
       },
       required: ["order_number", "stage_name", "status"],
@@ -334,7 +334,7 @@ const toolDeclarations: FunctionDeclaration[] = [
       type: SchemaType.OBJECT,
       properties: {
         order_number: { type: SchemaType.STRING, description: "The order number" },
-        stage_name: { type: SchemaType.STRING, description: "Production stage, e.g. Cutting, Stitching" },
+        stage_name: { type: SchemaType.STRING, description: "Production stage, e.g. Forming / Shaping, Assembly / Welding, Surface Treatment" },
         quantity_checked: { type: SchemaType.NUMBER, description: "Number of pieces checked" },
         quantity_passed: { type: SchemaType.NUMBER, description: "Number that passed" },
         quantity_failed: { type: SchemaType.NUMBER, description: "Number that failed" },

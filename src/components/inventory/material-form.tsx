@@ -140,7 +140,7 @@ export function MaterialForm({ material, categories }: MaterialFormProps) {
               <Label htmlFor="name">Name</Label>
               <Input
                 id="name"
-                placeholder="e.g., White Cotton Fabric 60 inch"
+                placeholder="e.g., Alu Circle 263 x 3mm"
                 {...form.register("name")}
               />
               {form.formState.errors.name && (

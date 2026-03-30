@@ -25,7 +25,7 @@ export function ExportAllButton() {
         data: rows as any[],
       }))
 
-      const filename = `JustClothing_Export_${new Date().toISOString().split("T")[0]}`
+      const filename = `Kanrad_ERP_Export_${new Date().toISOString().split("T")[0]}`
       await downloadExcelStyled(sheets, filename)
       toast.success("Export downloaded successfully")
     } catch (err) {
