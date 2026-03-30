@@ -16,8 +16,8 @@ export default async function InventoryPage() {
   return (
     <>
       <PageHeader
-        title="Inventory"
-        description="Track materials and stock levels by category. Stock is automatically managed — Purchase Orders increase stock, Production decreases it."
+        title="Master Inventory"
+        description="All raw materials and their stock levels. Set cost_per_unit here to enable BOM-based product costing."
       >
         <Button variant="outline" asChild>
           <Link href="/inventory/history">

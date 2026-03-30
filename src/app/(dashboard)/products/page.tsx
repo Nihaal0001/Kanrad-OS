@@ -27,9 +27,15 @@ export default async function ProductsPage() {
     <>
       <PageHeader
         title="Product Master"
-        description="Define products with Bill of Materials (BOM) to auto-calculate material costs for costing and pricing"
+        description="Define products with Bill of Materials linked to Master Inventory"
         breadcrumbs={[{ label: "Products" }]}
       >
+        <Button asChild variant="outline">
+          <Link href="/products/costing">
+            <Calculator className="h-4 w-4" />
+            Product Costing
+          </Link>
+        </Button>
         <Button asChild>
           <Link href="/products/new">
             <Plus className="h-4 w-4" />
@@ -55,17 +61,13 @@ export default async function ProductsPage() {
                   <TableHead>Product Name</TableHead>
                   <TableHead>Category</TableHead>
                   <TableHead className="text-center">Materials</TableHead>
-                  <TableHead className="text-right">
-                    <span className="inline-flex items-center gap-1">
-                      <Calculator className="h-3.5 w-3.5" />
-                      BOM Cost / Unit
-                    </span>
-                  </TableHead>
+                  <TableHead className="text-right">BOM Cost / Unit</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {products.map((p) => (
-                  <TableRow key={p.id} className="cursor-pointer hover:bg-muted/40">
+                  <TableRow key={p.id} className="hover:bg-muted/40">
                     <TableCell>
                       <Link href={`/products/${p.id}`} className="font-mono text-xs hover:underline">
                         {p.product_sku}
@@ -87,7 +89,17 @@ export default async function ProductsPage() {
                       <Badge variant="secondary">{p.bom_items.length}</Badge>
                     </TableCell>
                     <TableCell className="text-right font-semibold tabular-nums">
-                      ₹{formatCurrency(p.materialCost)}
+                      {p.materialCost > 0
+                        ? `₹${formatCurrency(p.materialCost)}`
+                        : <span className="text-amber-500 text-sm">No prices</span>}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button asChild size="sm" variant="outline" className="gap-1.5">
+                        <Link href={`/products/costing?product=${p.id}`}>
+                          <Calculator className="h-3.5 w-3.5" />
+                          Costing
+                        </Link>
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}

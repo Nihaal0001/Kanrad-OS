@@ -120,8 +120,9 @@ export const navigation: NavSection[] = [
     icon: Factory,
     items: [
       { title: "Products / BOM", href: "/products", icon: Grid2x2, permission: "inventory" },
+      { title: "Product Costing", href: "/products/costing", icon: Calculator, permission: "inventory" },
       { title: "Suppliers", href: "/suppliers", icon: Truck, permission: "inventory" },
-      { title: "Raw Materials", href: "/inventory", icon: Package, permission: "inventory" },
+      { title: "Master Inventory", href: "/inventory", icon: Package, permission: "inventory" },
       { title: "Purchase Orders", href: "/inventory/purchase-orders", icon: ShoppingCart, permission: "inventory" },
       { title: "PO Approvals", href: "/inventory/approvals", icon: ClipboardCheck, permission: "inventory" },
       { title: "Warehouse", href: "/warehouse", icon: Warehouse, permission: "inventory" },

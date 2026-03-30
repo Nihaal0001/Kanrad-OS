@@ -20,7 +20,7 @@ export default async function CostingPage() {
     supabase
       .from("orders")
       .select("id, order_number, product_variant, status")
-      .in("status", ["in_production", "completed", "dispatched"])
+      .neq("status", "cancelled")
       .order("created_at", { ascending: false }),
   ])
 
@@ -37,8 +37,9 @@ export default async function CostingPage() {
       {costings.length === 0 && uncostedOrders.length === 0 ? (
         <EmptyState
           icon={Calculator}
-          title="No costing data"
-          description="Cost breakdowns will appear here as orders are processed"
+          title="No orders to cost"
+          description="Create an order first, then add a cost breakdown here."
+          action={{ label: "New Order", href: "/orders/new" }}
         />
       ) : (
         <div className="space-y-6">
