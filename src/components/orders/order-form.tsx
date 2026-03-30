@@ -52,6 +52,7 @@ export function OrderForm({ order, customers }: OrderFormProps) {
       description: order?.description ?? "",
       deadline: order?.deadline ?? "",
       priority: order?.priority ?? "normal",
+      gst_rate: 18,
       notes: order?.notes ?? "",
       items: order?.order_items?.length
         ? order.order_items.map((item) => ({
@@ -222,6 +223,28 @@ export function OrderForm({ order, customers }: OrderFormProps) {
                 </p>
               )}
             </div>
+          </div>
+
+          {/* GST Rate */}
+          <div className="space-y-2">
+            <Label htmlFor="gst_rate">GST Rate (%)</Label>
+            <Select
+              value={String(form.watch("gst_rate") ?? 18)}
+              onValueChange={(value) =>
+                form.setValue("gst_rate", Number(value), { shouldValidate: true })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select GST rate" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="0">0% — Exempt</SelectItem>
+                <SelectItem value="5">5%</SelectItem>
+                <SelectItem value="12">12%</SelectItem>
+                <SelectItem value="18">18%</SelectItem>
+                <SelectItem value="28">28%</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Notes */}
