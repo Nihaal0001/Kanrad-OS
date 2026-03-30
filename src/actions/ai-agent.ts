@@ -281,7 +281,7 @@ export async function executeAgentTool(
       // ── Order write tools ──
       case "create_order": {
         const styleName = String(args.product_variant ?? "").trim()
-        if (!styleName) return { success: false, message: "Style name is required." }
+        if (!styleName) return { success: false, message: "Product name is required." }
 
         const totalQuantity = Number(args.total_quantity ?? 0)
         if (totalQuantity <= 0) return { success: false, message: "Total quantity must be greater than 0." }

@@ -136,7 +136,7 @@ export function ChallanPDFDocument({ order, org }: Props) {
             <Text style={s.metaValue}>{order.order_number}</Text>
           </View>
           <View style={s.metaItem}>
-            <Text style={s.metaLabel}>Style</Text>
+            <Text style={s.metaLabel}>Product</Text>
             <Text style={s.metaValue}>{order.product_variant}</Text>
           </View>
           <View style={s.metaItem}>
@@ -151,8 +151,8 @@ export function ChallanPDFDocument({ order, org }: Props) {
         <View style={s.tableHeader}>
           <View style={s.colSl}><Text style={s.tableHeaderText}>#</Text></View>
           <View style={s.colDesc}><Text style={s.tableHeaderText}>DESCRIPTION</Text></View>
-          <View style={s.colSize}><Text style={s.tableHeaderText}>SIZE</Text></View>
-          <View style={s.colColor}><Text style={s.tableHeaderText}>COLOR</Text></View>
+          <View style={s.colSize}><Text style={s.tableHeaderText}>SIZE/DIA</Text></View>
+          <View style={s.colColor}><Text style={s.tableHeaderText}>COATING</Text></View>
           <View style={s.colQty}><Text style={[s.tableHeaderText, { textAlign: "right" }]}>QTY</Text></View>
         </View>
 

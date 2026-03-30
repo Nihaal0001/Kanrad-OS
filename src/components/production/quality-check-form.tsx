@@ -33,12 +33,15 @@ import {
 } from "@/components/ui/select"
 
 const DEFECT_TYPES = [
-  "Stitching",
-  "Measurement",
-  "Fabric",
-  "Finishing",
-  "Label",
-  "Colour",
+  "Dent / Scratch",
+  "Coating Peel",
+  "Thickness Variation",
+  "Welding Defect",
+  "Handle Loose",
+  "Warping / Deformation",
+  "Surface Finish",
+  "Dimension Out of Spec",
+  "Label / Sticker",
   "Other",
 ]
 

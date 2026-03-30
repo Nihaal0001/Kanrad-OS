@@ -140,7 +140,7 @@ export function OrdersTable({ orders }: OrdersTableProps) {
             <TableHeader>
               <TableRow>
                 <TableHead>Order #</TableHead>
-                <TableHead>Styles</TableHead>
+                <TableHead>Products</TableHead>
                 <TableHead>Customer</TableHead>
                 <TableHead className="text-right">Qty</TableHead>
                 <TableHead>Deadline</TableHead>

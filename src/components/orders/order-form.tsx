@@ -247,15 +247,15 @@ export function OrderForm({ order, customers }: OrderFormProps) {
         <CardHeader>
           <CardTitle>Order Line Items</CardTitle>
           <CardDescription>
-            Add style, size, color, and quantity details for each line item
+            Add product, size, and coating details for each line item
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Column headers for desktop */}
           <div className="hidden sm:grid sm:grid-cols-[1.3fr_0.9fr_0.9fr_90px_90px_120px_40px] sm:gap-3 sm:px-1">
-            <Label className="text-xs text-muted-foreground">Style</Label>
-            <Label className="text-xs text-muted-foreground">Size</Label>
-            <Label className="text-xs text-muted-foreground">Color</Label>
+            <Label className="text-xs text-muted-foreground">Product</Label>
+            <Label className="text-xs text-muted-foreground">Size (mm/ltr)</Label>
+            <Label className="text-xs text-muted-foreground">Coating / Finish</Label>
             <Label className="text-xs text-muted-foreground">HSN/SAC</Label>
             <Label className="text-xs text-muted-foreground">Quantity</Label>
             <Label className="text-xs text-muted-foreground">Unit Price</Label>
@@ -267,13 +267,13 @@ export function OrderForm({ order, customers }: OrderFormProps) {
               key={field.id}
               className="grid gap-3 sm:grid-cols-[1.3fr_0.9fr_0.9fr_90px_90px_120px_40px] items-start"
             >
-              {/* Style */}
+              {/* Product */}
               <div className="space-y-1">
                 <Label className="sm:hidden text-xs text-muted-foreground">
-                  Style
+                  Product
                 </Label>
                 <Input
-                  placeholder="e.g., Classic Polo"
+                  placeholder="e.g., Kadai 240mm"
                   {...form.register(`items.${index}.product_variant`)}
                 />
                 {form.formState.errors.items?.[index]?.product_variant && (
@@ -286,27 +286,12 @@ export function OrderForm({ order, customers }: OrderFormProps) {
               {/* Size */}
               <div className="space-y-1">
                 <Label className="sm:hidden text-xs text-muted-foreground">
-                  Size
+                  Size (mm/ltr)
                 </Label>
-                <Select
-                  value={form.watch(`items.${index}.size`)}
-                  onValueChange={(value) =>
-                    form.setValue(`items.${index}.size`, value, {
-                      shouldValidate: true,
-                    })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Size" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {["XS", "S", "M", "L", "XL", "XXL", "Custom"].map((s) => (
-                      <SelectItem key={s} value={s}>
-                        {s}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Input
+                  placeholder="e.g., 240mm"
+                  {...form.register(`items.${index}.size`)}
+                />
                 {form.formState.errors.items?.[index]?.size && (
                   <p className="text-xs text-destructive">
                     {form.formState.errors.items[index]?.size?.message}
@@ -314,13 +299,13 @@ export function OrderForm({ order, customers }: OrderFormProps) {
                 )}
               </div>
 
-              {/* Color */}
+              {/* Coating / Finish */}
               <div className="space-y-1">
                 <Label className="sm:hidden text-xs text-muted-foreground">
-                  Color
+                  Coating / Finish
                 </Label>
                 <Input
-                  placeholder="Color"
+                  placeholder="e.g., Nonstick, IB"
                   {...form.register(`items.${index}.color`)}
                 />
                 {form.formState.errors.items?.[index]?.color && (
@@ -334,7 +319,7 @@ export function OrderForm({ order, customers }: OrderFormProps) {
               <div className="space-y-1">
                 <Label className="sm:hidden text-xs text-muted-foreground">HSN/SAC</Label>
                 <Input
-                  placeholder="e.g. 6205"
+                  placeholder="e.g. 7615"
                   {...form.register(`items.${index}.hsn_code`)}
                 />
               </div>

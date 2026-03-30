@@ -427,7 +427,7 @@ async function executeReadTool(
       const customer = Array.isArray(data.customer) ? data.customer[0] : data.customer
       return {
         order_number: data.order_number,
-        style: data.product_variant,
+        product: data.product_variant,
         status: data.status,
         priority: data.priority,
         deadline: data.deadline,
@@ -448,7 +448,7 @@ async function executeReadTool(
         count: (data ?? []).length,
         orders: (data ?? []).map((o) => ({
           order_number: o.order_number,
-          style: o.product_variant,
+          product: o.product_variant,
           status: o.status,
           priority: o.priority,
           deadline: o.deadline,

@@ -120,7 +120,7 @@ export function PackingSlipPDFDocument({ order, org }: Props) {
           <View style={[s.shipBox, { alignItems: "flex-end" }]}>
             <Text style={s.sectionLabel}>ORDER DETAILS</Text>
             <Text style={s.shipText}>Order: {order.order_number}</Text>
-            <Text style={s.shipText}>Style: {order.product_variant}</Text>
+            <Text style={s.shipText}>Product: {order.product_variant}</Text>
             <Text style={s.shipText}>Deadline: {fmtDate(order.deadline)}</Text>
             {order.transporter_name ? <Text style={s.shipText}>Via: {order.transporter_name}</Text> : null}
           </View>
@@ -131,8 +131,8 @@ export function PackingSlipPDFDocument({ order, org }: Props) {
         {/* Items Table */}
         <View style={s.tableHeader}>
           <View style={s.colSl}><Text style={s.tableHeaderText}>#</Text></View>
-          <View style={s.colSize}><Text style={s.tableHeaderText}>SIZE</Text></View>
-          <View style={s.colColor}><Text style={s.tableHeaderText}>COLOR</Text></View>
+          <View style={s.colSize}><Text style={s.tableHeaderText}>SIZE/DIA</Text></View>
+          <View style={s.colColor}><Text style={s.tableHeaderText}>COATING</Text></View>
           <View style={s.colUnit}><Text style={s.tableHeaderText}>UNIT</Text></View>
           <View style={s.colQty}><Text style={[s.tableHeaderText, { textAlign: "right" }]}>QTY</Text></View>
         </View>

@@ -232,13 +232,9 @@ export function Sidebar({
         <div className="flex h-16 items-center justify-between px-4">
           <Link href="/" className="flex items-center gap-2 overflow-hidden">
             {collapsed ? (
-              <span className="font-serif text-lg font-bold text-sidebar-foreground">
-                KH
-              </span>
+              <span className="font-serif text-lg font-bold text-white">K</span>
             ) : (
-              <h1 className="font-serif text-xl font-bold tracking-tight text-sidebar-foreground">
-                KANRAD ERP
-              </h1>
+              <span className="font-serif text-xl font-bold tracking-widest text-white">KANRAD</span>
             )}
           </Link>
           {onToggleCollapse && (

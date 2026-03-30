@@ -84,7 +84,7 @@ export async function GET(
       SlNo: String(idx + 1),
       PrdDesc: item.description,
       IsServc: "N",
-      HsnCd: item.hsn_code ?? "6201",
+      HsnCd: item.hsn_code ?? "7615",
       Qty: item.quantity,
       Unit: "PCS",
       UnitPrice: item.unit_price,
