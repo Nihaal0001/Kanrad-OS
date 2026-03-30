@@ -94,11 +94,11 @@ export default async function SettingsPage() {
           <CardContent className="space-y-3">
             <div className="flex items-center justify-between rounded-lg border border-border p-3 text-sm max-sm:flex-col max-sm:items-start max-sm:gap-1">
               <span className="text-muted-foreground">Project Ref</span>
-              <code className="font-mono text-xs max-sm:break-all">spwighzxkaeibutmijus</code>
+              <code className="font-mono text-xs max-sm:break-all">bdskmkfubdmmzvntzzgu</code>
             </div>
             <div className="flex items-center justify-between rounded-lg border border-border p-3 text-sm max-sm:flex-col max-sm:items-start max-sm:gap-1">
               <span className="text-muted-foreground">Migrations Applied</span>
-              <span className="font-medium">00001 — 00014</span>
+              <span className="font-medium">00001 — 00025</span>
             </div>
             <div className="flex items-center justify-between rounded-lg border border-border p-3 text-sm max-sm:flex-col max-sm:items-start max-sm:gap-2">
               <span className="text-muted-foreground">RLS</span>

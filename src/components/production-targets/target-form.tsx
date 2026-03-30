@@ -7,7 +7,9 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { toast } from "sonner"
 import { Plus } from "lucide-react"
 
-import { productionTargetSchema, createProductionTarget, type ProductionTargetFormData } from "@/actions/production-targets"
+import { productionTargetSchema } from "@/lib/validators/production-targets"
+import type { ProductionTargetFormData } from "@/lib/validators/production-targets"
+import { createProductionTarget } from "@/actions/production-targets"
 import { friendlyError } from "@/lib/utils"
 
 import { Button } from "@/components/ui/button"

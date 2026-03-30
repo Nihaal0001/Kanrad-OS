@@ -7,7 +7,9 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { toast } from "sonner"
 import { Plus } from "lucide-react"
 
-import { shipmentSchema, createShipment, type ShipmentFormData } from "@/actions/logistics"
+import { shipmentSchema } from "@/lib/validators/logistics"
+import type { ShipmentFormData } from "@/lib/validators/logistics"
+import { createShipment } from "@/actions/logistics"
 import { friendlyError } from "@/lib/utils"
 
 import { Button } from "@/components/ui/button"

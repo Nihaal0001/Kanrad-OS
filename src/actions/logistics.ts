@@ -1,22 +1,10 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
-import { z } from "zod"
 import { createClient } from "@/lib/supabase/server"
 import { logAudit } from "@/actions/audit"
-
-// ── Validators ───────────────────────────────────────────────
-
-export const shipmentSchema = z.object({
-  order_id: z.string().optional().or(z.literal("")),
-  customer_name: z.string().max(200).optional().or(z.literal("")),
-  courier_name: z.string().max(200).optional().or(z.literal("")),
-  tracking_number: z.string().max(200).optional().or(z.literal("")),
-  expected_delivery_date: z.string().optional().or(z.literal("")),
-  notes: z.string().max(2000).optional().or(z.literal("")),
-})
-
-export type ShipmentFormData = z.infer<typeof shipmentSchema>
+import { shipmentSchema } from "@/lib/validators/logistics"
+import type { ShipmentFormData } from "@/lib/validators/logistics"
 
 const VALID_STATUSES = ["pending", "dispatched", "in_transit", "delivered", "delayed"] as const
 

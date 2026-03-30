@@ -47,11 +47,13 @@ export async function GET(
   }
 
   // Fetch org settings for seller details
-  const { data: settings } = await supabase
-    .from("org_settings")
-    .select("org_name, gstin, address, state_code, pincode")
+  const { data: orgRow } = await supabase
+    .from("app_settings")
+    .select("value")
+    .eq("key", "org")
     .single()
 
+  const settings = orgRow?.value as Record<string, string> | null
   const sellerGstin = settings?.gstin ?? "29AABCU9603R1ZX" // placeholder
   const sellerName = settings?.org_name ?? "KANRAD ERP"
   const sellerAddr = settings?.address ?? ""

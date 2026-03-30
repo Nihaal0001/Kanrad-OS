@@ -6,7 +6,7 @@ export async function getHistoryOrders() {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from("orders")
-    .select("id, order_number, product_variant, status, quantity, created_at, customer:customers(name, company)")
+    .select("id, order_number, product_variant, status, total_quantity, created_at, customer:customers(name, company)")
     .in("status", ["completed", "dispatched", "cancelled"])
     .order("created_at", { ascending: false })
 
@@ -22,7 +22,7 @@ export async function getHistoryProduction() {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from("production_tracking")
-    .select("id, batch_number, status, created_at, order:orders(order_number, product_variant)")
+    .select("id, status, created_at, order:orders(order_number, product_variant)")
     .eq("status", "completed")
     .order("created_at", { ascending: false })
 
@@ -61,9 +61,9 @@ export async function getHistoryLogistics() {
 export async function getHistoryFinance() {
   const supabase = await createClient()
   const { data, error } = await supabase
-    .from("finance_transactions")
-    .select("id, transaction_date, description, amount, transaction_type, payment_status, created_at")
-    .eq("payment_status", "paid")
+    .from("invoices")
+    .select("id, invoice_number, customer_name, total_amount, amount_paid, status, issue_date, created_at")
+    .eq("status", "paid")
     .order("created_at", { ascending: false })
 
   if (error) throw new Error(error.message)

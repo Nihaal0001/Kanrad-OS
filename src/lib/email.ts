@@ -8,7 +8,7 @@ import { Resend } from "resend"
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
-const FROM = process.env.EMAIL_FROM || "KANRAD ERP <notifications@justclothing.in>"
+const FROM = process.env.EMAIL_FROM || "KANRAD ERP <notifications@kanraderp.in>"
 const OWNER_EMAIL = process.env.OWNER_EMAIL || ""
 
 export interface EmailResult {

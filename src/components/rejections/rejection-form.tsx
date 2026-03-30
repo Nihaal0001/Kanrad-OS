@@ -7,7 +7,9 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { toast } from "sonner"
 import { Plus } from "lucide-react"
 
-import { rejectionSchema, createRejection, type RejectionFormData } from "@/actions/rejections"
+import { rejectionSchema } from "@/lib/validators/rejections"
+import type { RejectionFormData } from "@/lib/validators/rejections"
+import { createRejection } from "@/actions/rejections"
 import { friendlyError } from "@/lib/utils"
 
 import { Button } from "@/components/ui/button"

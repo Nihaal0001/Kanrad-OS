@@ -45,7 +45,7 @@ export function OrgSettingsForm({ defaults }: OrgSettingsFormProps) {
         </div>
         <div className="space-y-2">
           <Label htmlFor="org_type">Business Type</Label>
-          <Input id="org_type" name="org_type" defaultValue={defaults.org_type} placeholder="e.g., Houseware Manufacturing" />
+          <Input id="org_type" name="org_type" defaultValue={defaults.org_type} placeholder="e.g., Houseware Manufacturing Unit" />
         </div>
       </div>
       <div className="space-y-2">

@@ -5,15 +5,7 @@ import { createClient } from "@/lib/supabase/server"
 import { userRoles, type UserRole } from "@/lib/constants"
 import { DEFAULT_ROLE_PERMISSIONS } from "@/lib/permissions"
 
-export type UserRow = {
-  id: string
-  full_name: string
-  email: string | null
-  role: string
-  department: string | null
-  is_active: boolean
-  created_at: string
-}
+export type { UserRow } from "@/lib/validators/users"
 
 // Finding #3 — admin-only helper; checks role via profiles table
 async function requireAdmin(): Promise<{ supabase: Awaited<ReturnType<typeof createClient>>; userId: string } | { error: string }> {

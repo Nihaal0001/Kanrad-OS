@@ -20,14 +20,13 @@ interface HistoryOrder {
   order_number: string
   product_variant: string | null
   status: string
-  quantity: number | null
+  total_quantity: number | null
   created_at: string
   customer: { name: string; company: string | null } | null
 }
 
 interface HistoryBatch {
   id: string
-  batch_number: string | null
   status: string
   created_at: string
   order: { order_number: string; product_variant: string | null } | null
@@ -55,11 +54,12 @@ interface HistoryShipment {
 
 interface HistoryTransaction {
   id: string
-  transaction_date: string | null
-  description: string | null
-  amount: number | null
-  transaction_type: string | null
-  payment_status: string | null
+  invoice_number: string | null
+  customer_name: string | null
+  total_amount: number | null
+  amount_paid: number | null
+  status: string | null
+  issue_date: string | null
   created_at: string
 }
 
@@ -119,7 +119,7 @@ function OrdersTab({ orders }: { orders: HistoryOrder[] }) {
                   )}
                 </TableCell>
                 <TableCell>{o.product_variant ?? "--"}</TableCell>
-                <TableCell className="text-right tabular-nums">{o.quantity ?? "--"}</TableCell>
+                <TableCell className="text-right tabular-nums">{o.total_quantity ?? "--"}</TableCell>
                 <TableCell><StatusBadge status={o.status} /></TableCell>
                 <TableCell className="text-sm">{formatDate(o.created_at)}</TableCell>
               </TableRow>
@@ -150,7 +150,7 @@ function ProductionTab({ batches }: { batches: HistoryBatch[] }) {
           ) : (
             batches.map((b) => (
               <TableRow key={b.id}>
-                <TableCell className="font-mono text-xs">{b.batch_number ?? "--"}</TableCell>
+                <TableCell className="font-mono text-xs">{b.id.slice(0, 8)}</TableCell>
                 <TableCell className="font-mono text-xs">
                   {b.order?.order_number ?? "--"}
                 </TableCell>
@@ -244,33 +244,33 @@ function FinanceTab({ transactions }: { transactions: HistoryTransaction[] }) {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Date</TableHead>
-            <TableHead>Description</TableHead>
-            <TableHead>Type</TableHead>
-            <TableHead className="text-right">Amount</TableHead>
+            <TableHead>Invoice #</TableHead>
+            <TableHead>Customer</TableHead>
+            <TableHead className="text-right">Total</TableHead>
+            <TableHead className="text-right">Paid</TableHead>
             <TableHead>Status</TableHead>
+            <TableHead>Date</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {transactions.length === 0 ? (
-            <EmptyRow cols={5} />
+            <EmptyRow cols={6} />
           ) : (
             transactions.map((t) => (
               <TableRow key={t.id}>
-                <TableCell className="text-sm">
-                  {t.transaction_date ? formatDate(t.transaction_date) : formatDate(t.created_at)}
-                </TableCell>
-                <TableCell className="max-w-[240px] truncate">{t.description ?? "--"}</TableCell>
-                <TableCell>
-                  <span className="rounded-md bg-muted px-2 py-0.5 text-xs font-medium capitalize">
-                    {t.transaction_type ?? "--"}
-                  </span>
+                <TableCell className="font-mono text-xs">{t.invoice_number ?? "--"}</TableCell>
+                <TableCell>{t.customer_name ?? "--"}</TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {t.total_amount !== null ? formatCurrency(t.total_amount) : "--"}
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
-                  {t.amount !== null ? formatCurrency(t.amount) : "--"}
+                  {t.amount_paid !== null ? formatCurrency(t.amount_paid) : "--"}
                 </TableCell>
                 <TableCell>
-                  {t.payment_status && <StatusBadge status={t.payment_status} />}
+                  {t.status && <StatusBadge status={t.status} />}
+                </TableCell>
+                <TableCell className="text-sm">
+                  {t.issue_date ? formatDate(t.issue_date) : formatDate(t.created_at)}
                 </TableCell>
               </TableRow>
             ))

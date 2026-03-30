@@ -7,7 +7,9 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { toast } from "sonner"
 import { Plus } from "lucide-react"
 
-import { warehouseItemSchema, createWarehouseItem, type WarehouseItemFormData } from "@/actions/warehouse"
+import { warehouseItemSchema } from "@/lib/validators/warehouse"
+import type { WarehouseItemFormData } from "@/lib/validators/warehouse"
+import { createWarehouseItem } from "@/actions/warehouse"
 import { friendlyError } from "@/lib/utils"
 
 import { Button } from "@/components/ui/button"

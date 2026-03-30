@@ -1,20 +1,10 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
-import { z } from "zod"
 import { createClient } from "@/lib/supabase/server"
 import { logAudit } from "@/actions/audit"
-
-// ── Validators ───────────────────────────────────────────────
-
-export const issueSchema = z.object({
-  module: z.string().min(1, "Module is required"),
-  issue_type: z.string().min(1, "Issue type is required").max(200),
-  description: z.string().min(1, "Description is required").max(2000),
-  severity: z.enum(["medium", "high", "critical"]),
-})
-
-export type IssueFormData = z.infer<typeof issueSchema>
+import { issueSchema } from "@/lib/validators/issues"
+import type { IssueFormData } from "@/lib/validators/issues"
 
 const VALID_STATUSES = ["open", "in_progress", "resolved"] as const
 

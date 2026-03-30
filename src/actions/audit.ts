@@ -2,7 +2,8 @@
 
 import { createClient } from "@/lib/supabase/server"
 
-export type AuditAction = "created" | "updated" | "deleted" | "status_changed" | "approved" | "rejected"
+// Re-export from validators to avoid "use server" object export restriction
+export type { AuditAction } from "@/lib/validators/audit"
 
 /**
  * Log an audit entry. Call this from other server actions after a successful mutation.

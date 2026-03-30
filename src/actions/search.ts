@@ -2,13 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server"
 
-export type SearchResult = {
-  id: string
-  type: "order" | "material" | "worker"
-  title: string
-  subtitle: string
-  href: string
-}
+export type { SearchResult } from "@/lib/validators/search"
 
 export async function globalSearch(query: string): Promise<SearchResult[]> {
   if (!query || query.trim().length < 2) return []
