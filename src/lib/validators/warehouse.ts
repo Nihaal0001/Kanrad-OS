@@ -4,7 +4,7 @@ export const warehouseItemSchema = z.object({
   item_name: z.string().min(1, "Item name is required").max(200),
   sku: z.string().max(100).optional().or(z.literal("")),
   category: z.string().max(100).optional().or(z.literal("")),
-  quantity: z.number({ invalid_type_error: "Quantity must be a number" }).min(0),
+  quantity: z.number().min(0),
   unit: z.string().min(1, "Unit is required").max(50),
   location: z.string().max(200).optional().or(z.literal("")),
   remarks: z.string().max(1000).optional().or(z.literal("")),

@@ -119,6 +119,7 @@ export const navigation: NavSection[] = [
     title: "Operations",
     icon: Factory,
     items: [
+      { title: "Products / BOM", href: "/products", icon: Grid2x2, permission: "inventory" },
       { title: "Suppliers", href: "/suppliers", icon: Truck, permission: "inventory" },
       { title: "Raw Materials", href: "/inventory", icon: Package, permission: "inventory" },
       { title: "Purchase Orders", href: "/inventory/purchase-orders", icon: ShoppingCart, permission: "inventory" },

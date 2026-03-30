@@ -315,6 +315,7 @@ export async function executeAgentTool(
           description: args.description ? String(args.description) : "",
           deadline,
           priority: priority as "low" | "normal" | "high" | "urgent",
+          gst_rate: 18,
           notes: "",
           status: "draft",
           items: [{

@@ -1,7 +1,7 @@
 "use server"
 
 import { createClient } from "@/lib/supabase/server"
-
+import type { SearchResult } from "@/lib/validators/search"
 export type { SearchResult } from "@/lib/validators/search"
 
 export async function globalSearch(query: string): Promise<SearchResult[]> {

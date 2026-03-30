@@ -146,7 +146,8 @@ export async function buildERPContext(): Promise<string> {
   if (dueThisWeek.length > 0) {
     lines.push(`Orders due this week (${dueThisWeek.length}):`)
     for (const o of dueThisWeek) {
-      const customer = Array.isArray(o.customer) ? o.customer[0]?.name : o.customer?.name
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const customer = Array.isArray(o.customer) ? (o.customer[0] as any)?.name : (o.customer as any)?.name
       lines.push(`  - ${o.order_number}: ${o.product_variant}${customer ? ` for ${customer}` : ""}, deadline ${o.deadline}, status: ${o.status}`)
     }
     lines.push("")

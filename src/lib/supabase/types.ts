@@ -64,6 +64,40 @@ export type OrderMaterial = {
   created_at: string
 }
 
+// ==================== Products / BOM ====================
+
+export type BomHeader = {
+  id: string
+  product_sku: string
+  product_name: string
+  category: string | null
+  version: number
+  is_active: boolean
+  notes: string | null
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type BomItem = {
+  id: string
+  bom_id: string
+  material_id: string
+  qty_required: number
+  unit: string
+  wastage_pct: number
+  notes: string | null
+  created_at: string
+}
+
+export type BomItemWithMaterial = BomItem & {
+  material: Pick<Material, "id" | "name" | "sku" | "cost_per_unit" | "unit" | "current_stock"> | null
+}
+
+export type BomDetail = BomHeader & {
+  bom_items: BomItemWithMaterial[]
+}
+
 // ==================== Inventory ====================
 
 export type MaterialCategory = {

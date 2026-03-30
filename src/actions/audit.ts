@@ -1,8 +1,9 @@
 "use server"
 
 import { createClient } from "@/lib/supabase/server"
+import type { AuditAction } from "@/lib/validators/audit"
 
-// Re-export from validators to avoid "use server" object export restriction
+// Re-export for other modules
 export type { AuditAction } from "@/lib/validators/audit"
 
 /**

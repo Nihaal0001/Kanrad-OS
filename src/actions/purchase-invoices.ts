@@ -127,8 +127,6 @@ export async function createPurchaseInvoice(formData: PurchaseInvoiceFormData) {
       invoice_date: validated.invoice_date,
       due_date: validated.due_date || null,
       notes: validated.notes || null,
-      document_path: validated.document_path || null,
-      document_url: validated.document_url || null,
     })
     .select()
     .single()

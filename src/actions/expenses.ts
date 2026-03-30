@@ -125,7 +125,6 @@ export async function createExpense(formData: ExpenseFormData) {
       expense_date: validated.expense_date,
       description: validated.description || null,
       notes: validated.notes || null,
-      receipt_url: validated.receipt_url || null,
     })
     .select()
     .single()
@@ -212,7 +211,6 @@ export async function updateExpense(id: string, formData: ExpenseFormData) {
       expense_date: validated.expense_date,
       description: validated.description || null,
       notes: validated.notes || null,
-      receipt_url: validated.receipt_url || null,
     })
     .eq("id", id)
 

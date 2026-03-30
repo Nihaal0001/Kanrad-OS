@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server"
 import { userRoles, type UserRole } from "@/lib/constants"
 import { DEFAULT_ROLE_PERMISSIONS } from "@/lib/permissions"
 
+import type { UserRow } from "@/lib/validators/users"
 export type { UserRow } from "@/lib/validators/users"
 
 // Finding #3 — admin-only helper; checks role via profiles table

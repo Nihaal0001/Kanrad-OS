@@ -11,11 +11,12 @@ export const orderItemSchema = z.object({
 
 export const orderSchema = z.object({
   customer_id: z.string().min(1, "Customer is required"),
+  bom_id: z.string().optional().or(z.literal("")),
   description: z.string().max(1000).optional().or(z.literal("")),
   deadline: z.string().min(1, "Deadline is required"),
   priority: z.enum(["low", "normal", "high", "urgent"]),
   status: z.enum(["draft", "confirmed", "in_production", "completed", "dispatched", "cancelled"]).optional(),
-  gst_rate: z.number().min(0).max(28).default(18),
+  gst_rate: z.number().min(0).max(28),
   notes: z.string().max(1000).optional().or(z.literal("")),
   items: z.array(orderItemSchema).min(1, "At least one item is required"),
 })

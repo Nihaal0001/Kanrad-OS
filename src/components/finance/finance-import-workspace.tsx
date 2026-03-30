@@ -134,7 +134,9 @@ function ImportUploader({
 
       toast.success(existingBatchId ? "Documents added to batch" : "Documents uploaded for review")
       setFiles([])
-      router.push(`/finance/import?batch=${result.data.batchId}${targetHint ? `&target=${targetHint}` : ""}`)
+      if ("data" in result && result.data) {
+        router.push(`/finance/import?batch=${result.data.batchId}${targetHint ? `&target=${targetHint}` : ""}`)
+      }
       router.refresh()
     })
   }
@@ -648,9 +650,10 @@ export function FinanceImportWorkspace({
                               size="sm"
                               className="w-full sm:w-auto"
                               onClick={() =>
-                                updateDraft((current) => ({
+                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                updateDraft((current: any) => ({
                                   ...current,
-                                  items: [...current.items, { description: "", quantity: 1, unit_price: 0, hsn_code: "" }],
+                                  items: [...(current.items ?? []), { description: "", quantity: 1, unit_price: 0, hsn_code: "" }],
                                 }))
                               }
                             >
@@ -673,9 +676,10 @@ export function FinanceImportWorkspace({
                                     <Input
                                       value={line.description}
                                       onChange={(event) =>
-                                        updateDraft((current) => ({
+                                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                        updateDraft((current: any) => ({
                                           ...current,
-                                          items: current.items.map((item, itemIndex) =>
+                                          items: current.items.map((item: any, itemIndex: number) =>
                                             itemIndex === index ? { ...item, description: event.target.value } : item
                                           ),
                                         }))
@@ -689,9 +693,10 @@ export function FinanceImportWorkspace({
                                       min="0"
                                       value={line.quantity}
                                       onChange={(event) =>
-                                        updateDraft((current) => ({
+                                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                        updateDraft((current: any) => ({
                                           ...current,
-                                          items: current.items.map((item, itemIndex) =>
+                                          items: current.items.map((item: any, itemIndex: number) =>
                                             itemIndex === index ? { ...item, quantity: Number(event.target.value) || 0 } : item
                                           ),
                                         }))
@@ -706,9 +711,10 @@ export function FinanceImportWorkspace({
                                       step="0.01"
                                       value={line.unit_price}
                                       onChange={(event) =>
-                                        updateDraft((current) => ({
+                                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                        updateDraft((current: any) => ({
                                           ...current,
-                                          items: current.items.map((item, itemIndex) =>
+                                          items: current.items.map((item: any, itemIndex: number) =>
                                             itemIndex === index ? { ...item, unit_price: Number(event.target.value) || 0 } : item
                                           ),
                                         }))
@@ -720,9 +726,10 @@ export function FinanceImportWorkspace({
                                     <Input
                                       value={line.hsn_code}
                                       onChange={(event) =>
-                                        updateDraft((current) => ({
+                                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                        updateDraft((current: any) => ({
                                           ...current,
-                                          items: current.items.map((item, itemIndex) =>
+                                          items: current.items.map((item: any, itemIndex: number) =>
                                             itemIndex === index ? { ...item, hsn_code: event.target.value } : item
                                           ),
                                         }))

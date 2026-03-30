@@ -2,8 +2,8 @@ import { z } from "zod"
 
 export const creditNoteItemSchema = z.object({
   description: z.string().min(1, "Description required"),
-  quantity: z.number({ invalid_type_error: "Required" }).min(0.01),
-  unit_price: z.number({ invalid_type_error: "Required" }).min(0),
+  quantity: z.number().min(0.01, "Required"),
+  unit_price: z.number().min(0),
   amount: z.number().min(0),
 })
 

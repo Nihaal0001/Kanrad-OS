@@ -55,7 +55,7 @@ export function CustomerForm({
       gstin: customer?.gstin ?? "",
       notes: customer?.notes ?? "",
       credit_limit: customer?.credit_limit ?? undefined,
-      payment_terms: customer?.payment_terms ?? "",
+      payment_terms: customer?.payment_terms ?? undefined,
     },
   })
 

@@ -453,7 +453,8 @@ async function executeReadTool(
           priority: o.priority,
           deadline: o.deadline,
           quantity: o.total_quantity,
-          customer: (Array.isArray(o.customer) ? o.customer[0]?.name : o.customer?.name) ?? "N/A",
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          customer: (Array.isArray(o.customer) ? (o.customer[0] as any)?.name : (o.customer as any)?.name) ?? "N/A",
         })),
       }
     }

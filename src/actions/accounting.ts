@@ -148,10 +148,13 @@ export async function getLedger(accountCode: string, filters?: { from?: string; 
   const { data, error } = await query
   if (error) throw new Error(error.message)
 
-  const lines = (data ?? []).map((line: Record<string, unknown>) => ({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rawLines: any[] = (data ?? []).map((line: Record<string, unknown>) => ({
     ...line,
     journal_entry: Array.isArray(line.journal_entry) ? (line.journal_entry[0] ?? null) : line.journal_entry,
-  })).filter((line) => {
+  }))
+
+  const lines = rawLines.filter((line) => {
     const je = line.journal_entry as { entry_date: string } | null
     const entryDate = je?.entry_date ?? ""
     if (filters?.from && entryDate < filters.from) return false
