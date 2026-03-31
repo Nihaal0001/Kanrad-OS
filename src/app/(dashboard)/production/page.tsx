@@ -1,14 +1,17 @@
 import { Factory } from "lucide-react"
 
-import { getProductionOverview, getProductionStages } from "@/actions/production"
+import { getProductionOverview, getProductionStages, getOrdersForProduction, getOrdersForBatch } from "@/actions/production"
 import { PageHeader } from "@/components/shared/page-header"
 import { EmptyState } from "@/components/shared/empty-state"
 import { PipelineView } from "@/components/production/pipeline-view"
+import { RecordProductionSheet } from "@/components/production/record-production-sheet"
 
 export default async function ProductionPage() {
-  const [orders, stages] = await Promise.all([
+  const [orders, stages, activeOrders, batchOrders] = await Promise.all([
     getProductionOverview(),
     getProductionStages(),
+    getOrdersForProduction(),
+    getOrdersForBatch(),
   ])
 
   const stageNames = stages.map((s) => s.name)
@@ -17,8 +20,12 @@ export default async function ProductionPage() {
     <>
       <PageHeader
         title="Production"
-        description="Track production batches and efficiency through the 7-stage cookware manufacturing pipeline"
-      />
+        description="Track production batches and record daily output through the manufacturing pipeline"
+      >
+        {batchOrders.length > 0 && (
+          <RecordProductionSheet orders={batchOrders} />
+        )}
+      </PageHeader>
 
       {orders.length === 0 ? (
         <EmptyState

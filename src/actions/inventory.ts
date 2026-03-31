@@ -222,6 +222,24 @@ export async function createPurchaseOrder(formData: PurchaseOrderFormData) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: "Not authenticated" }
 
+  // Enforce master inventory price ceiling on all items
+  const materialIds = validated.items.map((i) => i.material_id).filter(Boolean)
+  if (materialIds.length > 0) {
+    const { data: materials } = await supabase
+      .from("materials")
+      .select("id, name, cost_per_unit")
+      .in("id", materialIds)
+
+    for (const item of validated.items) {
+      const mat = (materials ?? []).find((m) => m.id === item.material_id)
+      if (mat && mat.cost_per_unit > 0 && item.unit_price > mat.cost_per_unit) {
+        return {
+          error: `Unit price for "${mat.name}" (₹${item.unit_price}) exceeds the master inventory price ceiling of ₹${mat.cost_per_unit}.`,
+        }
+      }
+    }
+  }
+
   const { items, ...poData } = validated
   const cleaned = Object.fromEntries(
     Object.entries(poData).map(([k, v]) => [k, v === "" ? null : v])

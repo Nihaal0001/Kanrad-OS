@@ -2,11 +2,55 @@
 
 import { revalidatePath } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { userRoles, type UserRole } from "@/lib/constants"
 import { DEFAULT_ROLE_PERMISSIONS } from "@/lib/permissions"
 
 import type { UserRow } from "@/lib/validators/users"
 export type { UserRow } from "@/lib/validators/users"
+
+export async function createUser(data: {
+  full_name: string
+  email: string
+  password: string
+  phone?: string
+  is_admin: boolean
+  departments: string[]
+}): Promise<{ error?: string } | { success: boolean }> {
+  const auth = await requireAdmin()
+  if ("error" in auth) return auth
+
+  const adminClient = createAdminClient()
+
+  const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
+    email: data.email,
+    password: data.password,
+    email_confirm: true,
+    user_metadata: { full_name: data.full_name },
+  })
+
+  if (authError) return { error: authError.message }
+
+  const role = data.is_admin ? "admin" : "worker"
+
+  // Upsert profile (trigger may already have created it)
+  const { error: profileError } = await adminClient
+    .from("profiles")
+    .upsert({
+      auth_id: authData.user.id,
+      full_name: data.full_name,
+      email: data.email,
+      role,
+      phone: data.phone || null,
+      department: data.departments.length > 0 ? data.departments.join(",") : null,
+      is_active: true,
+    }, { onConflict: "auth_id" })
+
+  if (profileError) return { error: profileError.message }
+
+  revalidatePath("/users")
+  return { success: true }
+}
 
 // Finding #3 — admin-only helper; checks role via profiles table
 async function requireAdmin(): Promise<{ supabase: Awaited<ReturnType<typeof createClient>>; userId: string } | { error: string }> {

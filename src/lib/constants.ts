@@ -5,13 +5,10 @@ import {
   Package,
   Factory,
   CheckCircle,
-  ListTodo,
-  FileText,
   Calculator,
   CreditCard,
   Clock,
   CalendarDays,
-  Wallet,
   RefreshCcw,
   Bell,
   Settings,
@@ -20,22 +17,14 @@ import {
   ScanLine,
   ClipboardCheck,
   ShoppingCart,
-  Receipt,
-  BarChart3,
   IndianRupee,
-  ArrowLeftRight,
-  BookOpen,
-  Scale,
   History,
-  UserCircle,
   Truck,
-  Undo2,
-  Landmark,
   Warehouse,
   XCircle,
-  Target,
   AlertTriangle,
   Archive,
+  Send,
   type LucideIcon,
 } from "lucide-react"
 
@@ -65,14 +54,10 @@ export function isNavItemActive(pathname: string, href: string) {
   if (href === "/") {
     return pathname === href
   }
-
   return pathname === href || pathname.startsWith(`${href}/`)
 }
 
-export function getActiveNavItem(
-  pathname: string,
-  items: NavItem[]
-) {
+export function getActiveNavItem(pathname: string, items: NavItem[]) {
   return items
     .filter((item) => isNavItemActive(pathname, item.href))
     .sort((a, b) => b.href.length - a.href.length)[0] ?? null
@@ -84,7 +69,6 @@ export function isNavSectionActive(pathname: string, section: NavSection) {
 
 export function filterNavigationByPermissions(allowedPermissions?: string[]) {
   const allowed = new Set(allowedPermissions ?? [])
-
   return navigation
     .map((section) => ({
       ...section,
@@ -95,23 +79,49 @@ export function filterNavigationByPermissions(allowedPermissions?: string[]) {
     .filter((section) => section.items.length > 0)
 }
 
+// Flat ordered list for mobile nav — exact order from user's list
+export const flatNavItems: NavItem[] = [
+  { title: "Dashboard",        href: "/",                          icon: LayoutDashboard, permission: "dashboard" },
+  { title: "Master Inventory", href: "/master-inventory",          icon: Package,         permission: "inventory" },
+  { title: "Purchase Orders",  href: "/inventory/purchase-orders", icon: ShoppingCart,    permission: "inventory" },
+  { title: "Inventory",        href: "/inventory",                 icon: Archive,         permission: "inventory" },
+  { title: "Orders",           href: "/orders",                    icon: ShoppingBag,     permission: "orders" },
+  { title: "Production",       href: "/production",                icon: Factory,         permission: "production" },
+  { title: "Warehouse",        href: "/warehouse",                 icon: Warehouse,       permission: "inventory" },
+  { title: "BOM",              href: "/products",                  icon: Grid2x2,         permission: "inventory" },
+  { title: "Approvals",        href: "/inventory/approvals",       icon: ClipboardCheck,  permission: "inventory" },
+  { title: "Costing",          href: "/finance/costing",           icon: Calculator,      permission: "finance" },
+  { title: "Logistics",        href: "/logistics",                 icon: Truck,           permission: "orders" },
+  { title: "Finance",          href: "/finance",                   icon: IndianRupee,     permission: "finance" },
+  { title: "Rejections",       href: "/rejections",                icon: XCircle,         permission: "production" },
+  { title: "History",          href: "/history",                   icon: History,         permission: "settings" },
+  { title: "Reach Out",        href: "/reach-out",                 icon: Send,            permission: "settings" },
+  { title: "Issues",           href: "/issues",                    icon: AlertTriangle,   permission: "settings" },
+  { title: "Users",            href: "/users",                     icon: Users,           permission: "users" },
+  { title: "Notifications",    href: "/notifications",             icon: Bell,            permission: "notifications" },
+  { title: "Attendance",       href: "/hr/attendance",             icon: Clock,           permission: "hr" },
+  { title: "QR Kiosk",         href: "/kiosk",                     icon: QrCode,          permission: "hr" },
+  { title: "Scan QR",          href: "/scan",                      icon: ScanLine },
+  { title: "Leaves",           href: "/hr/leaves",                 icon: CalendarDays,    permission: "hr" },
+  { title: "Payroll",          href: "/hr/payroll",                icon: CheckCircle,     permission: "hr" },
+  { title: "Shifts",           href: "/hr/shifts",                 icon: RefreshCcw,      permission: "hr" },
+  { title: "Settings",         href: "/settings",                  icon: Settings,        permission: "settings" },
+]
+
+export function getFilteredFlatNavItems(allowedPermissions?: string[]) {
+  const allowed = new Set(allowedPermissions ?? [])
+  return flatNavItems.filter((item) => !item.permission || allowed.has(item.permission))
+}
+
+// Desktop sidebar — grouped sections
 export const navigation: NavSection[] = [
   {
     id: "overview",
     title: "Overview",
     icon: LayoutDashboard,
     items: [
-      { title: "Dashboard", href: "/", icon: LayoutDashboard, permission: "dashboard" },
-      { title: "Notifications", href: "/notifications", icon: Bell, permission: "notifications" },
-    ],
-  },
-  {
-    id: "sales",
-    title: "Sales",
-    icon: FileText,
-    items: [
-      { title: "Work Orders", href: "/orders", icon: ShoppingBag, permission: "orders" },
-      { title: "Customers", href: "/customers", icon: UserCircle, permission: "orders" },
+      { title: "Dashboard",     href: "/",              icon: LayoutDashboard, permission: "dashboard" },
+      { title: "Notifications", href: "/notifications", icon: Bell,            permission: "notifications" },
     ],
   },
   {
@@ -119,19 +129,16 @@ export const navigation: NavSection[] = [
     title: "Operations",
     icon: Factory,
     items: [
-      { title: "Products / BOM", href: "/products", icon: Grid2x2, permission: "inventory" },
-      { title: "Product Costing", href: "/products/costing", icon: Calculator, permission: "inventory" },
-      { title: "Suppliers", href: "/suppliers", icon: Truck, permission: "inventory" },
-      { title: "Master Inventory", href: "/inventory", icon: Package, permission: "inventory" },
-      { title: "Purchase Orders", href: "/inventory/purchase-orders", icon: ShoppingCart, permission: "inventory" },
-      { title: "PO Approvals", href: "/inventory/approvals", icon: ClipboardCheck, permission: "inventory" },
-      { title: "Warehouse", href: "/warehouse", icon: Warehouse, permission: "inventory" },
-      { title: "Production", href: "/production", icon: Factory, permission: "production" },
-      { title: "Prod. Targets", href: "/production/targets", icon: Target, permission: "production" },
-      { title: "Quality", href: "/quality", icon: CheckCircle, permission: "production" },
-      { title: "Rejections", href: "/rejections", icon: XCircle, permission: "production" },
-      { title: "Logistics", href: "/logistics", icon: Truck, permission: "orders" },
-      { title: "Tasks", href: "/tasks", icon: ListTodo, permission: "tasks" },
+      { title: "Orders",           href: "/orders",                    icon: ShoppingBag,  permission: "orders" },
+      { title: "Production",       href: "/production",                icon: Factory,      permission: "production" },
+      { title: "Logistics",        href: "/logistics",                 icon: Truck,        permission: "orders" },
+      { title: "Rejections",       href: "/rejections",                icon: XCircle,      permission: "production" },
+      { title: "Master Inventory", href: "/master-inventory",          icon: Package,      permission: "inventory" },
+      { title: "Inventory",        href: "/inventory",                 icon: Archive,      permission: "inventory" },
+      { title: "Purchase Orders",  href: "/inventory/purchase-orders", icon: ShoppingCart, permission: "inventory" },
+      { title: "Approvals",        href: "/inventory/approvals",       icon: ClipboardCheck, permission: "inventory" },
+      { title: "Warehouse",        href: "/warehouse",                 icon: Warehouse,    permission: "inventory" },
+      { title: "BOM",              href: "/products",                  icon: Grid2x2,      permission: "inventory" },
     ],
   },
   {
@@ -139,19 +146,8 @@ export const navigation: NavSection[] = [
     title: "Finance",
     icon: IndianRupee,
     items: [
-      { title: "Overview", href: "/finance", icon: IndianRupee, permission: "finance" },
-      { title: "Sales", href: "/finance/invoices", icon: FileText, permission: "finance" },
-      { title: "Purchases", href: "/finance/purchases", icon: Receipt, permission: "finance" },
-      { title: "Expenses", href: "/finance/expenses", icon: Wallet, permission: "finance" },
-      { title: "Payments", href: "/finance/payments", icon: CreditCard, permission: "finance" },
-      { title: "Cash Flow", href: "/finance/cash-flow", icon: ArrowLeftRight, permission: "finance" },
-      { title: "Costing", href: "/finance/costing", icon: Calculator, permission: "finance" },
-      { title: "Reports", href: "/finance/reports", icon: BarChart3, permission: "finance" },
-      { title: "Credit Notes", href: "/finance/credit-notes", icon: Undo2, permission: "finance" },
-      { title: "Reconciliation", href: "/finance/bank-recon", icon: Landmark, permission: "finance" },
-      { title: "Journal", href: "/finance/journal", icon: BookOpen, permission: "finance" },
-      { title: "Ledger", href: "/finance/ledger", icon: Scale, permission: "finance" },
-      { title: "Trial Balance", href: "/finance/trial-balance", icon: BarChart3, permission: "finance" },
+      { title: "Finance",  href: "/finance",         icon: IndianRupee, permission: "finance" },
+      { title: "Costing",  href: "/finance/costing", icon: Calculator,  permission: "finance" },
     ],
   },
   {
@@ -159,13 +155,12 @@ export const navigation: NavSection[] = [
     title: "People",
     icon: Users,
     items: [
-      { title: "Overview", href: "/hr", icon: Users, permission: "hr" },
-      { title: "Attendance", href: "/hr/attendance", icon: Clock, permission: "hr" },
-      { title: "QR Kiosk", href: "/kiosk", icon: QrCode, permission: "hr" },
-      { title: "Scan QR", href: "/scan", icon: ScanLine },
-      { title: "Leaves", href: "/hr/leaves", icon: CalendarDays, permission: "hr" },
-      { title: "Payroll", href: "/hr/payroll", icon: CheckCircle, permission: "hr" },
-      { title: "Shifts", href: "/hr/shifts", icon: RefreshCcw, permission: "hr" },
+      { title: "Attendance", href: "/hr/attendance", icon: Clock,        permission: "hr" },
+      { title: "QR Kiosk",   href: "/kiosk",         icon: QrCode,       permission: "hr" },
+      { title: "Scan QR",    href: "/scan",           icon: ScanLine },
+      { title: "Leaves",     href: "/hr/leaves",      icon: CalendarDays, permission: "hr" },
+      { title: "Payroll",    href: "/hr/payroll",     icon: CheckCircle,  permission: "hr" },
+      { title: "Shifts",     href: "/hr/shifts",      icon: RefreshCcw,   permission: "hr" },
     ],
   },
   {
@@ -173,39 +168,27 @@ export const navigation: NavSection[] = [
     title: "Admin",
     icon: Settings,
     items: [
-      { title: "Audit Log", href: "/audit", icon: History, permission: "settings" },
-      { title: "Issues", href: "/issues", icon: AlertTriangle, permission: "settings" },
-      { title: "History", href: "/history", icon: Archive, permission: "settings" },
-      { title: "Users", href: "/users", icon: Users, permission: "users" },
-      { title: "Settings", href: "/settings", icon: Settings, permission: "settings" },
+      { title: "History",   href: "/history",   icon: History,       permission: "settings" },
+      { title: "Reach Out", href: "/reach-out", icon: Send,          permission: "settings" },
+      { title: "Issues",    href: "/issues",     icon: AlertTriangle, permission: "settings" },
+      { title: "Users",     href: "/users",      icon: Users,         permission: "users" },
+      { title: "Settings",  href: "/settings",   icon: Settings,      permission: "settings" },
     ],
   },
 ]
 
 export const mobilePrimaryTabs: MobilePrimaryTab[] = [
-  { id: "home", title: "Home", href: "/", icon: LayoutDashboard },
+  { id: "home",       title: "Home",       href: "/",           icon: LayoutDashboard },
   { id: "production", title: "Production", href: "/production", icon: Factory },
-  { id: "finance", title: "Finance", href: "/finance", icon: IndianRupee },
-  { id: "more", title: "More", href: "/more", icon: Grid2x2 },
+  { id: "finance",    title: "Finance",    href: "/finance",    icon: IndianRupee },
+  { id: "more",       title: "More",       href: "/more",       icon: Grid2x2 },
 ]
 
 export function getActiveMobileTab(pathname: string) {
   if (pathname === "/") return "home"
   if (pathname === "/production" || pathname.startsWith("/production/")) return "production"
   if (pathname === "/finance" || pathname.startsWith("/finance/")) return "finance"
-
   return "more"
-}
-
-export function getMobileMoreSections(allowedPermissions?: string[]) {
-  const primaryTabHrefs = new Set(["/", "/production", "/finance"])
-
-  return filterNavigationByPermissions(allowedPermissions)
-    .map((section) => ({
-      ...section,
-      items: section.items.filter((item) => !primaryTabHrefs.has(item.href)),
-    }))
-    .filter((section) => section.items.length > 0)
 }
 
 export const productionStages = [

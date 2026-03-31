@@ -1,22 +1,13 @@
 import { notFound } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, TrendingUp, TrendingDown, Package } from "lucide-react"
+import { ArrowLeft, TrendingUp, TrendingDown } from "lucide-react"
 
 import { getOrderCosting } from "@/actions/finance"
 import { PageHeader } from "@/components/shared/page-header"
 import { CostingForm } from "@/components/finance/costing-form"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
 
 interface Props {
   params: Promise<{ orderId: string }>
@@ -42,9 +33,6 @@ export default async function OrderCostingPage({ params }: Props) {
     computedMaterialCost,
     totalRevenue,
     totalReceived,
-    bomProduct,
-    bomBreakdown,
-    bomMaterialCost,
     manualMaterialCost,
   } = result!
 
@@ -75,61 +63,6 @@ export default async function OrderCostingPage({ params }: Props) {
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
-          {/* BOM Breakdown (if order has a BOM) */}
-          {bomProduct && bomBreakdown.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Package className="h-4 w-4" />
-                  BOM Material Cost
-                </CardTitle>
-                <CardDescription>
-                  Auto-calculated from{" "}
-                  <Link href={`/products/${bomProduct.id}`} className="underline underline-offset-2 hover:text-foreground">
-                    {bomProduct.product_name}
-                  </Link>
-                  {" "}({bomProduct.product_sku}) × {order.total_quantity.toLocaleString("en-IN")} units
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-muted/40">
-                      <TableHead>Material</TableHead>
-                      <TableHead className="text-right">Qty/Unit</TableHead>
-                      <TableHead className="text-right">Wastage</TableHead>
-                      <TableHead className="text-right">Total Qty</TableHead>
-                      <TableHead className="text-right">Rate</TableHead>
-                      <TableHead className="text-right">Cost</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                    {bomBreakdown.map((line: any, i: number) => (
-                      <TableRow key={i}>
-                        <TableCell>
-                          <p className="text-sm font-medium">{line.materialName}</p>
-                          <p className="text-xs text-muted-foreground font-mono">{line.materialSku}</p>
-                        </TableCell>
-                        <TableCell className="text-right tabular-nums">{line.qtyPerUnit}</TableCell>
-                        <TableCell className="text-right tabular-nums">
-                          {line.wastage > 0 ? `${line.wastage}%` : "—"}
-                        </TableCell>
-                        <TableCell className="text-right tabular-nums">{line.totalQty.toFixed(2)}</TableCell>
-                        <TableCell className="text-right tabular-nums">₹{formatCurrency(line.costPerUnit)}</TableCell>
-                        <TableCell className="text-right font-semibold tabular-nums">₹{formatCurrency(line.lineCost)}</TableCell>
-                      </TableRow>
-                    ))}
-                    <TableRow className="bg-muted/30 font-semibold">
-                      <TableCell colSpan={5} className="text-right">Total BOM Material Cost</TableCell>
-                      <TableCell className="text-right tabular-nums">₹{formatCurrency(bomMaterialCost)}</TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          )}
-
           {/* Cost Breakdown Form */}
           <Card>
             <CardHeader>
@@ -187,55 +120,14 @@ export default async function OrderCostingPage({ params }: Props) {
             </Card>
           )}
 
-          {/* Cost Source */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Material Cost Source</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-sm">
-              {bomProduct ? (
-                <>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="default">BOM</Badge>
-                    <span className="text-muted-foreground">Auto-calculated from product BOM</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">BOM Cost</span>
-                    <span className="font-semibold">₹{formatCurrency(bomMaterialCost)}</span>
-                  </div>
-                  {manualMaterialCost > 0 && (
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>Manual Allocation</span>
-                      <span>₹{formatCurrency(manualMaterialCost)}</span>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline">Manual</Badge>
-                    <span className="text-muted-foreground">From allocated materials</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Allocated Cost</span>
-                    <span className="font-semibold">₹{formatCurrency(manualMaterialCost)}</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Tip: Link a product BOM to this order to auto-calculate material costs.
-                  </p>
-                </>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Allocated Materials (manual) */}
+          {/* Allocated Materials */}
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Allocated Materials</CardTitle>
             </CardHeader>
             <CardContent>
               {order.order_materials.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No materials manually allocated for this order.</p>
+                <p className="text-sm text-muted-foreground">No materials allocated for this order.</p>
               ) : (
                 <div className="space-y-3">
                   {order.order_materials.map((om: { id: string; quantity_allocated: number; material: { name?: string; cost_per_unit?: number; unit?: string } | null }) => {
@@ -252,6 +144,11 @@ export default async function OrderCostingPage({ params }: Props) {
                       </div>
                     )
                   })}
+                  <Separator />
+                  <div className="flex justify-between text-sm font-semibold">
+                    <span>Material Cost</span>
+                    <span>₹{formatCurrency(manualMaterialCost)}</span>
+                  </div>
                 </div>
               )}
             </CardContent>

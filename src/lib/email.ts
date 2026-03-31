@@ -6,8 +6,6 @@
 
 import { Resend } from "resend"
 
-const resend = new Resend(process.env.RESEND_API_KEY)
-
 const FROM = process.env.EMAIL_FROM || "KANRAD ERP <notifications@kanraderp.in>"
 const OWNER_EMAIL = process.env.OWNER_EMAIL || ""
 
@@ -26,6 +24,8 @@ async function sendEmail(opts: {
     console.warn("[email] RESEND_API_KEY not set — skipping email")
     return { success: false, error: "RESEND_API_KEY not configured" }
   }
+
+  const resend = new Resend(process.env.RESEND_API_KEY)
 
   try {
     const { error } = await resend.emails.send({

@@ -348,11 +348,11 @@ export async function getOrderCosting(orderId: string) {
     .eq("order_id", orderId)
     .single()
 
-  // Fetch order + customer + bom_id
+  // Fetch order + customer
   const { data: order, error: orderErr } = await supabase
     .from("orders")
     .select(`
-      id, order_number, product_variant, total_quantity, status, bom_id,
+      id, order_number, product_variant, total_quantity, status,
       customer:customers(id, name),
       order_materials(id, quantity_required, quantity_allocated, material_id)
     `)
@@ -397,50 +397,7 @@ export async function getOrderCosting(orderId: string) {
     0
   )
 
-  // If order has a BOM, compute BOM-based material cost
-  let bomMaterialCost = 0
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let bomBreakdown: any[] = []
-  let bomProduct: { id: string; product_sku: string; product_name: string } | null = null
-
-  if (order.bom_id) {
-    const { data: bom } = await supabase
-      .from("bom_headers")
-      .select(`
-        id, product_sku, product_name,
-        bom_items(
-          id, material_id, qty_required, unit, wastage_pct,
-          material:materials(id, name, sku, cost_per_unit, unit)
-        )
-      `)
-      .eq("id", order.bom_id)
-      .single()
-
-    if (bom) {
-      bomProduct = { id: bom.id, product_sku: bom.product_sku, product_name: bom.product_name }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      bomBreakdown = (bom.bom_items ?? []).map((item: any) => {
-        const mat = Array.isArray(item.material) ? item.material[0] ?? null : item.material
-        const costPerUnit = mat?.cost_per_unit ?? 0
-        const effectiveQty = item.qty_required * (1 + (item.wastage_pct ?? 0) / 100)
-        const lineCost = effectiveQty * costPerUnit * order.total_quantity
-        bomMaterialCost += lineCost
-        return {
-          materialName: mat?.name ?? "Unknown",
-          materialSku: mat?.sku ?? "",
-          qtyPerUnit: item.qty_required,
-          wastage: item.wastage_pct,
-          effectiveQty,
-          costPerUnit,
-          totalQty: effectiveQty * order.total_quantity,
-          lineCost,
-        }
-      })
-    }
-  }
-
-  // Use BOM cost if available, otherwise use manually allocated cost
-  const computedMaterialCost = bomMaterialCost > 0 ? bomMaterialCost : manualMaterialCost
+  const computedMaterialCost = manualMaterialCost
 
   // Fetch revenue from paid/sent invoices for this order
   const { data: invoices } = await supabase
@@ -466,9 +423,6 @@ export async function getOrderCosting(orderId: string) {
     computedMaterialCost,
     totalRevenue,
     totalReceived,
-    bomProduct,
-    bomBreakdown,
-    bomMaterialCost,
     manualMaterialCost,
   }
 }

@@ -1,14 +1,19 @@
 import Link from "next/link"
-import { ShoppingBag, Plus } from "lucide-react"
+import { ShoppingBag } from "lucide-react"
 
 import { getOrders } from "@/actions/orders"
+import { getCustomers } from "@/actions/customers"
 import { PageHeader } from "@/components/shared/page-header"
 import { EmptyState } from "@/components/shared/empty-state"
 import { Button } from "@/components/ui/button"
 import { OrdersTable } from "@/components/orders/orders-table"
+import { CreateOrderSheet } from "@/components/orders/create-order-sheet"
 
 export default async function OrdersPage() {
-  const orders = await getOrders()
+  const [orders, customers] = await Promise.all([
+    getOrders(),
+    getCustomers(),
+  ])
 
   return (
     <>
@@ -19,12 +24,13 @@ export default async function OrdersPage() {
         <Button variant="outline" asChild>
           <Link href="/customers">Manage Customers</Link>
         </Button>
-        <Button asChild>
-          <Link href="/orders/new">
-            <Plus className="h-4 w-4" />
-            New Order
-          </Link>
-        </Button>
+        <CreateOrderSheet
+          customers={customers.map((c) => ({
+            id: c.id,
+            name: c.name,
+            company: c.company,
+          }))}
+        />
       </PageHeader>
 
       {orders.length === 0 ? (
@@ -32,7 +38,6 @@ export default async function OrdersPage() {
           icon={ShoppingBag}
           title="No orders yet"
           description="Create your first order to get started tracking production."
-          action={{ label: "Create Order", href: "/orders/new" }}
         />
       ) : (
         <OrdersTable orders={orders} />

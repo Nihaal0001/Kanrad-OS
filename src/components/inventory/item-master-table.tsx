@@ -3,14 +3,15 @@
 import { useState, useMemo, useCallback } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { MoreHorizontal, Search, Eye, Pencil, Trash2, AlertTriangle } from "lucide-react"
+import { MoreHorizontal, Search, Pencil, Trash2, AlertTriangle, IndianRupee, Lock } from "lucide-react"
 
 import type { MaterialWithCategory } from "@/lib/supabase/types"
-import { cn, friendlyError } from "@/lib/utils"
+import { friendlyError } from "@/lib/utils"
 import { deleteMaterial } from "@/actions/inventory"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
 import { ConfirmDialog } from "@/components/shared/confirm-dialog"
 import {
   Table,
@@ -27,18 +28,20 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { StockLevelBar } from "@/components/inventory/stock-level-bar"
 
-interface MaterialsTableProps {
+interface ItemMasterTableProps {
   materials: MaterialWithCategory[]
   categories: Array<{ id: string; name: string }>
 }
 
-export function MaterialsTable({ materials, categories }: MaterialsTableProps) {
+function formatCurrency(n: number) {
+  return n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+export function ItemMasterTable({ materials, categories }: ItemMasterTableProps) {
   const router = useRouter()
   const [search, setSearch] = useState("")
   const [categoryFilter, setCategoryFilter] = useState<string>("all")
-  const [showLowStock, setShowLowStock] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [confirmId, setConfirmId] = useState<string | null>(null)
 
@@ -47,12 +50,6 @@ export function MaterialsTable({ materials, categories }: MaterialsTableProps) {
 
     if (categoryFilter !== "all") {
       result = result.filter((m) => m.category_id === categoryFilter)
-    }
-
-    if (showLowStock) {
-      result = result.filter(
-        (m) => m.current_stock <= m.min_stock_level && m.min_stock_level > 0
-      )
     }
 
     if (search.trim()) {
@@ -66,13 +63,10 @@ export function MaterialsTable({ materials, categories }: MaterialsTableProps) {
     }
 
     return result
-  }, [materials, categoryFilter, showLowStock, search])
+  }, [materials, categoryFilter, search])
 
-  const lowStockCount = useMemo(
-    () =>
-      materials.filter(
-        (m) => m.current_stock <= m.min_stock_level && m.min_stock_level > 0
-      ).length,
+  const unpricedCount = useMemo(
+    () => materials.filter((m) => !m.cost_per_unit || m.cost_per_unit === 0).length,
     [materials]
   )
 
@@ -96,32 +90,38 @@ export function MaterialsTable({ materials, categories }: MaterialsTableProps) {
 
   return (
     <div className="space-y-4">
+      {/* Unpriced warning */}
+      {unpricedCount > 0 && (
+        <div className="flex items-center gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm">
+          <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
+          <span className="text-amber-700">
+            <strong>{unpricedCount} material{unpricedCount > 1 ? "s" : ""}</strong> have no cost set — BOM costing will be incomplete.
+          </span>
+        </div>
+      )}
+
       {/* Toolbar */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative max-w-sm flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search materials..."
+            placeholder="Search by name, SKU or supplier…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
           />
         </div>
-
         <p className="text-sm text-muted-foreground">
           {filteredMaterials.length} material{filteredMaterials.length !== 1 ? "s" : ""}
         </p>
       </div>
 
-      {/* Filters */}
+      {/* Category filters */}
       <div className="flex flex-wrap gap-1">
         <Button
-          variant={categoryFilter === "all" && !showLowStock ? "secondary" : "ghost"}
+          variant={categoryFilter === "all" ? "secondary" : "ghost"}
           size="sm"
-          onClick={() => {
-            setCategoryFilter("all")
-            setShowLowStock(false)
-          }}
+          onClick={() => setCategoryFilter("all")}
           className="h-8 text-xs"
         >
           All
@@ -131,40 +131,18 @@ export function MaterialsTable({ materials, categories }: MaterialsTableProps) {
             key={cat.id}
             variant={categoryFilter === cat.id ? "secondary" : "ghost"}
             size="sm"
-            onClick={() => {
-              setCategoryFilter(cat.id)
-              setShowLowStock(false)
-            }}
-            className={cn(
-              "h-8 text-xs",
-              categoryFilter === cat.id && "font-semibold"
-            )}
+            onClick={() => setCategoryFilter(cat.id)}
+            className="h-8 text-xs"
           >
             {cat.name}
           </Button>
         ))}
-        {lowStockCount > 0 && (
-          <Button
-            variant={showLowStock ? "destructive" : "ghost"}
-            size="sm"
-            onClick={() => {
-              setShowLowStock(!showLowStock)
-              setCategoryFilter("all")
-            }}
-            className="h-8 text-xs"
-          >
-            <AlertTriangle className="mr-1 h-3 w-3" />
-            Low Stock ({lowStockCount})
-          </Button>
-        )}
       </div>
 
       {/* Table */}
       {filteredMaterials.length === 0 ? (
         <div className="flex min-h-[200px] items-center justify-center rounded-lg border border-dashed border-border">
-          <p className="text-sm text-muted-foreground">
-            No materials found matching your criteria.
-          </p>
+          <p className="text-sm text-muted-foreground">No materials found.</p>
         </div>
       ) : (
         <div className="rounded-lg border border-border">
@@ -174,10 +152,14 @@ export function MaterialsTable({ materials, categories }: MaterialsTableProps) {
                 <TableHead>SKU</TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Category</TableHead>
-                <TableHead>Stock Level</TableHead>
-                <TableHead className="text-right">Current</TableHead>
-                <TableHead className="text-right">Min</TableHead>
                 <TableHead>Unit</TableHead>
+                <TableHead className="text-right">
+                  <span className="inline-flex items-center gap-1 justify-end">
+                    <Lock className="h-3 w-3 text-muted-foreground" />
+                    Max Purchase Price
+                  </span>
+                </TableHead>
+                <TableHead>Supplier</TableHead>
                 <TableHead className="w-[50px]">
                   <span className="sr-only">Actions</span>
                 </TableHead>
@@ -200,26 +182,32 @@ export function MaterialsTable({ materials, categories }: MaterialsTableProps) {
                     </Link>
                   </TableCell>
                   <TableCell>
-                    {material.category?.name ?? (
+                    {material.category?.name ? (
+                      <Badge variant="outline">{material.category.name}</Badge>
+                    ) : (
                       <span className="text-muted-foreground">—</span>
                     )}
                   </TableCell>
+                  <TableCell className="text-muted-foreground">{material.unit}</TableCell>
+                  <TableCell className="text-right">
+                    {material.cost_per_unit > 0 ? (
+                      <span className="tabular-nums font-semibold">
+                        ₹{formatCurrency(material.cost_per_unit)}
+                      </span>
+                    ) : (
+                      <Link
+                        href={`/inventory/${material.id}/edit`}
+                        className="inline-flex items-center gap-1 text-xs text-amber-600 hover:underline"
+                      >
+                        <IndianRupee className="h-3 w-3" />
+                        Set price
+                      </Link>
+                    )}
+                  </TableCell>
                   <TableCell>
-                    <StockLevelBar
-                      current={material.current_stock}
-                      minimum={material.min_stock_level}
-                    />
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums font-semibold">
-                    {material.current_stock.toLocaleString("en-IN")}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums text-muted-foreground">
-                    {material.min_stock_level > 0
-                      ? material.min_stock_level.toLocaleString("en-IN")
-                      : "—"}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {material.unit}
+                    {material.supplier_name ?? (
+                      <span className="text-muted-foreground">—</span>
+                    )}
                   </TableCell>
                   <TableCell>
                     <DropdownMenu>
@@ -235,12 +223,6 @@ export function MaterialsTable({ materials, categories }: MaterialsTableProps) {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem asChild>
-                          <Link href={`/inventory/${material.id}`}>
-                            <Eye className="h-4 w-4" />
-                            View
-                          </Link>
-                        </DropdownMenuItem>
                         <DropdownMenuItem asChild>
                           <Link href={`/inventory/${material.id}/edit`}>
                             <Pencil className="h-4 w-4" />

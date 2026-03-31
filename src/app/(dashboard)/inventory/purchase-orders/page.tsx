@@ -1,16 +1,18 @@
 import Link from "next/link"
-import { ShoppingCart, Plus, ClipboardCheck } from "lucide-react"
+import { ShoppingCart, ClipboardCheck } from "lucide-react"
 
-import { getPurchaseOrders } from "@/actions/inventory"
+import { getPurchaseOrders, getMaterials } from "@/actions/inventory"
 import { PageHeader } from "@/components/shared/page-header"
 import { EmptyState } from "@/components/shared/empty-state"
 import { Button } from "@/components/ui/button"
 import { PurchaseOrdersTable } from "@/components/inventory/purchase-orders-table"
+import { CreatePurchaseOrderSheet } from "@/components/inventory/create-po-sheet"
 
 export default async function PurchaseOrdersPage() {
-  const [purchaseOrders, pendingCount] = await Promise.all([
+  const [purchaseOrders, pendingCount, materials] = await Promise.all([
     getPurchaseOrders(),
     getPurchaseOrders({ approval_status: "pending_approval" }).then((r) => r.length),
+    getMaterials(),
   ])
 
   return (
@@ -33,12 +35,15 @@ export default async function PurchaseOrdersPage() {
         <Button variant="outline" asChild>
           <Link href="/inventory">Back to Inventory</Link>
         </Button>
-        <Button asChild>
-          <Link href="/inventory/purchase-orders/new">
-            <Plus className="h-4 w-4" />
-            New Purchase Order
-          </Link>
-        </Button>
+        <CreatePurchaseOrderSheet
+          materials={materials.map((m) => ({
+            id: m.id,
+            name: m.name,
+            sku: m.sku,
+            unit: m.unit,
+            cost_per_unit: m.cost_per_unit,
+          }))}
+        />
       </PageHeader>
 
       {purchaseOrders.length === 0 ? (
@@ -46,10 +51,6 @@ export default async function PurchaseOrdersPage() {
           icon={ShoppingCart}
           title="No purchase orders yet"
           description="Create your first purchase order to start tracking material procurement."
-          action={{
-            label: "Create Purchase Order",
-            href: "/inventory/purchase-orders/new",
-          }}
         />
       ) : (
         <PurchaseOrdersTable purchaseOrders={purchaseOrders} />

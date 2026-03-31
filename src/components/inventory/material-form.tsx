@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 
 import { toast } from "sonner"
+import { Lock } from "lucide-react"
 import { materialSchema, type MaterialFormData } from "@/lib/validators/inventory"
 import { createMaterial, updateMaterial } from "@/actions/inventory"
 import type { MaterialWithCategory, MaterialCategory } from "@/lib/supabase/types"
@@ -196,9 +197,12 @@ export function MaterialForm({ material, categories }: MaterialFormProps) {
               </Select>
             </div>
 
-            {/* Cost per unit */}
+            {/* Cost per unit — price ceiling */}
             <div className="space-y-2">
-              <Label htmlFor="cost_per_unit">Cost per Unit (₹)</Label>
+              <Label htmlFor="cost_per_unit" className="flex items-center gap-1.5">
+                <Lock className="h-3.5 w-3.5 text-muted-foreground" />
+                Max Purchase Price (₹)
+              </Label>
               <Input
                 id="cost_per_unit"
                 type="number"
@@ -206,6 +210,9 @@ export function MaterialForm({ material, categories }: MaterialFormProps) {
                 step="0.01"
                 {...form.register("cost_per_unit", { valueAsNumber: true })}
               />
+              <p className="text-xs text-muted-foreground">
+                Purchase Orders cannot exceed this price per unit.
+              </p>
               {form.formState.errors.cost_per_unit && (
                 <p className="text-sm text-destructive">
                   {form.formState.errors.cost_per_unit.message}

@@ -1,35 +1,7 @@
-import { notFound } from "next/navigation"
+import { redirect } from "next/navigation"
 
-import { getMaterial } from "@/actions/inventory"
-import { PageHeader } from "@/components/shared/page-header"
-import { StockAdjustmentForm } from "@/components/inventory/stock-adjustment-form"
-
-interface AdjustStockPageProps {
-  params: Promise<{ id: string }>
-}
-
-export default async function AdjustStockPage({ params }: AdjustStockPageProps) {
-  const { id } = await params
-
-  let material
-  try {
-    material = await getMaterial(id)
-  } catch {
-    notFound()
-  }
-
-  return (
-    <>
-      <PageHeader
-        title="Adjust Stock"
-        description={`Stock adjustment for ${material.name}`}
-        breadcrumbs={[
-          { label: "Inventory", href: "/inventory" },
-          { label: material.name, href: `/inventory/${material.id}` },
-          { label: "Adjust Stock" },
-        ]}
-      />
-      <StockAdjustmentForm material={material} />
-    </>
-  )
+// Stock adjustments are no longer allowed manually.
+// Stock only comes from Purchase Orders (receiving) or Production output.
+export default function AdjustStockPage() {
+  redirect("/inventory/purchase-orders")
 }

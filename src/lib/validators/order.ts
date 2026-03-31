@@ -11,7 +11,6 @@ export const orderItemSchema = z.object({
 
 export const orderSchema = z.object({
   customer_id: z.string().min(1, "Customer is required"),
-  bom_id: z.string().optional().or(z.literal("")),
   description: z.string().max(1000).optional().or(z.literal("")),
   deadline: z.string().min(1, "Deadline is required"),
   priority: z.enum(["low", "normal", "high", "urgent"]),

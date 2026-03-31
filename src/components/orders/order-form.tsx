@@ -33,21 +33,12 @@ import {
 import { Separator } from "@/components/ui/separator"
 import { CustomerSelect } from "@/components/orders/customer-select"
 
-interface ProductOption {
-  id: string
-  product_sku: string
-  product_name: string
-  category: string | null
-  materialCost: number
-}
-
 interface OrderFormProps {
   order?: OrderDetail
   customers: Array<{ id: string; name: string; company: string | null }>
-  products?: ProductOption[]
 }
 
-export function OrderForm({ order, customers, products = [] }: OrderFormProps) {
+export function OrderForm({ order, customers }: OrderFormProps) {
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -58,7 +49,6 @@ export function OrderForm({ order, customers, products = [] }: OrderFormProps) {
     resolver: zodResolver(orderSchema),
     defaultValues: {
       customer_id: order?.customer_id ?? "",
-      bom_id: (order as OrderDetail & { bom_id?: string })?.bom_id ?? "",
       description: order?.description ?? "",
       deadline: order?.deadline ?? "",
       priority: order?.priority ?? "normal",
@@ -172,35 +162,6 @@ export function OrderForm({ order, customers, products = [] }: OrderFormProps) {
             )}
           </div>
 
-          {/* Product / BOM (optional) */}
-          {products.length > 0 && (
-            <div className="space-y-2">
-              <Label>Product / BOM</Label>
-              <Select
-                value={form.watch("bom_id") || "none"}
-                onValueChange={(value) =>
-                  form.setValue("bom_id", value === "none" ? "" : value, { shouldValidate: true })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Link a product BOM (optional)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No BOM — manual costing</SelectItem>
-                  {products.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      <span className="font-mono text-xs mr-2">{p.product_sku}</span>
-                      {p.product_name}
-                      <span className="ml-2 text-muted-foreground text-xs">₹{p.materialCost.toFixed(2)}/unit</span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                Linking a BOM auto-calculates material cost in Costing.
-              </p>
-            </div>
-          )}
 
           {/* Description */}
           <div className="space-y-2">

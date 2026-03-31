@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { Package, Plus, History } from "lucide-react"
+import { Package, History } from "lucide-react"
 
 import { getMaterials, getCategories } from "@/actions/inventory"
 import { PageHeader } from "@/components/shared/page-header"
@@ -16,19 +16,13 @@ export default async function InventoryPage() {
   return (
     <>
       <PageHeader
-        title="Master Inventory"
-        description="All raw materials and their stock levels. Set cost_per_unit here to enable BOM-based product costing."
+        title="Inventory"
+        description="Live stock levels, low-stock alerts, and stock adjustments."
       >
         <Button variant="outline" asChild>
           <Link href="/inventory/history">
             <History className="h-4 w-4" />
             Stock History
-          </Link>
-        </Button>
-        <Button asChild>
-          <Link href="/inventory/new">
-            <Plus className="h-4 w-4" />
-            Add Material
           </Link>
         </Button>
       </PageHeader>
@@ -37,8 +31,8 @@ export default async function InventoryPage() {
         <EmptyState
           icon={Package}
           title="No materials added"
-          description="Add your first material to start tracking inventory and stock levels."
-          action={{ label: "Add Material", href: "/inventory/new" }}
+          description="Add materials in Item Master first to start tracking stock levels."
+          action={{ label: "Go to Item Master", href: "/master-inventory" }}
         />
       ) : (
         <MaterialsTable materials={materials} categories={categories} />

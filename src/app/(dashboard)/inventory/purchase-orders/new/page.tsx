@@ -22,6 +22,7 @@ export default async function NewPurchaseOrderPage() {
           name: m.name,
           sku: m.sku,
           unit: m.unit,
+          cost_per_unit: m.cost_per_unit,
         }))}
       />
     </>

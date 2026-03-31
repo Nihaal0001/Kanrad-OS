@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/shared/page-header"
 import { EmptyState } from "@/components/shared/empty-state"
 import { UsersTable } from "@/components/users/users-table"
 import { PermissionsMatrix } from "@/components/users/permissions-matrix"
+import { CreateUserSheet } from "@/components/users/create-user-sheet"
 
 export default async function UsersPage() {
   const supabase = await createClient()
@@ -41,7 +42,9 @@ export default async function UsersPage() {
         title="Users"
         description={`${activeCount} active team member${activeCount !== 1 ? "s" : ""}`}
         breadcrumbs={[{ label: "Users" }]}
-      />
+      >
+        <CreateUserSheet />
+      </PageHeader>
 
       {users.length === 0 ? (
         <EmptyState

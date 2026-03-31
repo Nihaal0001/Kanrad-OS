@@ -4,7 +4,7 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { useForm, useFieldArray, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { Plus, X } from "lucide-react"
+import { Plus, X, Lock, AlertTriangle } from "lucide-react"
 
 import { toast } from "sonner"
 import {
@@ -36,7 +36,7 @@ import {
 import { Separator } from "@/components/ui/separator"
 
 interface PurchaseOrderFormProps {
-  materials: Array<Pick<Material, "id" | "name" | "sku" | "unit">>
+  materials: Array<Pick<Material, "id" | "name" | "sku" | "unit"> & { cost_per_unit: number }>
 }
 
 export function PurchaseOrderForm({ materials }: PurchaseOrderFormProps) {
@@ -63,6 +63,16 @@ export function PurchaseOrderForm({ materials }: PurchaseOrderFormProps) {
 
   const watchItems = form.watch("items")
 
+  // Map material_id → cost_per_unit for ceiling lookup
+  const materialPriceMap = Object.fromEntries(
+    materials.map((m) => [m.id, m.cost_per_unit])
+  )
+
+  function getPriceCeiling(material_id: string): number | null {
+    const price = materialPriceMap[material_id]
+    return price != null && price > 0 ? price : null
+  }
+
   const totalValue =
     watchItems?.reduce(
       (sum, item) =>
@@ -72,6 +82,16 @@ export function PurchaseOrderForm({ materials }: PurchaseOrderFormProps) {
     ) ?? 0
 
   async function onSubmit(data: PurchaseOrderFormData) {
+    // Client-side ceiling check
+    for (const item of data.items) {
+      const ceiling = getPriceCeiling(item.material_id)
+      if (ceiling !== null && item.unit_price > ceiling) {
+        const mat = materials.find((m) => m.id === item.material_id)
+        setError(`Unit price for "${mat?.name ?? "item"}" (₹${item.unit_price}) exceeds the master price ceiling of ₹${ceiling}.`)
+        return
+      }
+    }
+
     setIsSubmitting(true)
     setError(null)
 
@@ -184,96 +204,113 @@ export function PurchaseOrderForm({ materials }: PurchaseOrderFormProps) {
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Column headers for desktop */}
-          <div className="hidden sm:grid sm:grid-cols-[1fr_100px_120px_40px] sm:gap-3 sm:px-1">
+          <div className="hidden sm:grid sm:grid-cols-[1fr_100px_160px_40px] sm:gap-3 sm:px-1">
             <Label className="text-xs text-muted-foreground">Material</Label>
             <Label className="text-xs text-muted-foreground">Quantity</Label>
-            <Label className="text-xs text-muted-foreground">Unit Price</Label>
+            <Label className="text-xs text-muted-foreground flex items-center gap-1">
+              Unit Price
+              <Lock className="h-3 w-3 text-muted-foreground/60" />
+            </Label>
             <span />
           </div>
 
-          {fields.map((field, index) => (
-            <div
-              key={field.id}
-              className="grid gap-3 sm:grid-cols-[1fr_100px_120px_40px] items-start"
-            >
-              {/* Material */}
-              <div className="space-y-1">
-                <Label className="sm:hidden text-xs text-muted-foreground">
-                  Material
-                </Label>
-                <Select
-                  value={form.watch(`items.${index}.material_id`)}
-                  onValueChange={(value) =>
-                    form.setValue(`items.${index}.material_id`, value, {
-                      shouldValidate: true,
-                    })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select material" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {materials.map((m) => (
-                      <SelectItem key={m.id} value={m.id}>
-                        {m.name} ({m.sku})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {form.formState.errors.items?.[index]?.material_id && (
-                  <p className="text-xs text-destructive">
-                    {form.formState.errors.items[index]?.material_id?.message}
-                  </p>
-                )}
-              </div>
+          {fields.map((field, index) => {
+            const selectedMaterialId = form.watch(`items.${index}.material_id`)
+            const enteredPrice = form.watch(`items.${index}.unit_price`) || 0
+            const ceiling = getPriceCeiling(selectedMaterialId)
+            const exceedsCeiling = ceiling !== null && enteredPrice > ceiling
 
-              {/* Quantity */}
-              <div className="space-y-1">
-                <Label className="sm:hidden text-xs text-muted-foreground">
-                  Quantity
-                </Label>
-                <Input
-                  type="number"
-                  min={0.01}
-                  step="0.01"
-                  placeholder="Qty"
-                  {...form.register(`items.${index}.quantity_ordered`, {
-                    valueAsNumber: true,
-                  })}
-                />
-              </div>
+            return (
+              <div key={field.id} className="space-y-2">
+                <div className="grid gap-3 sm:grid-cols-[1fr_100px_160px_40px] items-start">
+                  {/* Material */}
+                  <div className="space-y-1">
+                    <Label className="sm:hidden text-xs text-muted-foreground">Material</Label>
+                    <Select
+                      value={selectedMaterialId}
+                      onValueChange={(value) =>
+                        form.setValue(`items.${index}.material_id`, value, { shouldValidate: true })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select material" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {materials.map((m) => (
+                          <SelectItem key={m.id} value={m.id}>
+                            <span>{m.name} ({m.sku})</span>
+                            {m.cost_per_unit > 0 && (
+                              <span className="ml-2 text-xs text-muted-foreground">
+                                max ₹{m.cost_per_unit.toFixed(2)}
+                              </span>
+                            )}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {form.formState.errors.items?.[index]?.material_id && (
+                      <p className="text-xs text-destructive">
+                        {form.formState.errors.items[index]?.material_id?.message}
+                      </p>
+                    )}
+                  </div>
 
-              {/* Unit Price */}
-              <div className="space-y-1">
-                <Label className="sm:hidden text-xs text-muted-foreground">
-                  Unit Price
-                </Label>
-                <Input
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  placeholder="Price"
-                  {...form.register(`items.${index}.unit_price`, {
-                    valueAsNumber: true,
-                  })}
-                />
-              </div>
+                  {/* Quantity */}
+                  <div className="space-y-1">
+                    <Label className="sm:hidden text-xs text-muted-foreground">Quantity</Label>
+                    <Input
+                      type="number"
+                      min={0.01}
+                      step="0.01"
+                      placeholder="Qty"
+                      {...form.register(`items.${index}.quantity_ordered`, { valueAsNumber: true })}
+                    />
+                  </div>
 
-              {/* Remove */}
-              <div className="flex items-center pt-1 sm:pt-0">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-9 w-9 text-muted-foreground hover:text-destructive"
-                  onClick={() => remove(index)}
-                  disabled={fields.length <= 1}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
+                  {/* Unit Price */}
+                  <div className="space-y-1">
+                    <Label className="sm:hidden text-xs text-muted-foreground flex items-center gap-1">
+                      Unit Price <Lock className="h-3 w-3" />
+                    </Label>
+                    <div className="relative">
+                      <Input
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        placeholder="Price"
+                        className={exceedsCeiling ? "border-destructive pr-8" : ""}
+                        {...form.register(`items.${index}.unit_price`, { valueAsNumber: true })}
+                      />
+                      {exceedsCeiling && (
+                        <AlertTriangle className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-destructive pointer-events-none" />
+                      )}
+                    </div>
+                    {ceiling !== null && (
+                      <p className={`text-xs flex items-center gap-1 ${exceedsCeiling ? "text-destructive font-medium" : "text-muted-foreground"}`}>
+                        <Lock className="h-3 w-3" />
+                        Max: ₹{ceiling.toFixed(2)}/unit
+                        {exceedsCeiling && " — exceeds master price"}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Remove */}
+                  <div className="flex items-center pt-1 sm:pt-0">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-9 w-9 text-muted-foreground hover:text-destructive"
+                      onClick={() => remove(index)}
+                      disabled={fields.length <= 1}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
 
           {form.formState.errors.items?.message && (
             <p className="text-sm text-destructive">
