@@ -428,3 +428,46 @@ export async function deleteQualityCheck(id: string) {
   revalidatePath("/quality")
   return { success: true }
 }
+
+// ==================== Daily Production Log ====================
+
+export async function logDailyProduction(data: {
+  order_id: string
+  log_date: string
+  quantity_produced: number
+  quantity_rejected: number
+  notes?: string
+}): Promise<{ error?: string } | { success: boolean }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
+  const { error } = await supabase
+    .from("production_daily_logs")
+    .upsert({
+      order_id: data.order_id,
+      log_date: data.log_date,
+      quantity_produced: data.quantity_produced,
+      quantity_rejected: data.quantity_rejected,
+      notes: data.notes || null,
+    }, { onConflict: "order_id,log_date" })
+
+  if (error) return { error: error.message }
+
+  revalidatePath(`/production/${data.order_id}`)
+  revalidatePath("/production")
+  return { success: true }
+}
+
+export async function getDailyLogs(orderId: string) {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from("production_daily_logs")
+    .select("*")
+    .eq("order_id", orderId)
+    .order("log_date", { ascending: false })
+    .limit(30)
+
+  if (error) throw new Error(error.message)
+  return data ?? []
+}

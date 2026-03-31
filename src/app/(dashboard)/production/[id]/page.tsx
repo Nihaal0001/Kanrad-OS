@@ -2,8 +2,7 @@ import { notFound } from "next/navigation"
 import Link from "next/link"
 import { ArrowLeft, Plus, CheckCircle2, Clock, Ban, AlertCircle } from "lucide-react"
 
-
-import { getOrderProduction } from "@/actions/production"
+import { getOrderProduction, getDailyLogs } from "@/actions/production"
 import { formatDate, cn } from "@/lib/utils"
 import { PageHeader } from "@/components/shared/page-header"
 import { Button } from "@/components/ui/button"
@@ -11,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { StageInlineForm } from "@/components/production/stage-inline-form"
+import { LogProductionDialog } from "@/components/production/log-production-dialog"
 
 interface ProductionDetailPageProps {
   params: Promise<{ id: string }>
@@ -43,8 +43,10 @@ export default async function ProductionDetailPage({
   const { id } = await params
 
   let order
+  let dailyLogs: Awaited<ReturnType<typeof getDailyLogs>> = []
   try {
     order = await getOrderProduction(id)
+    dailyLogs = await getDailyLogs(id)
   } catch {
     notFound()
   }
@@ -78,6 +80,12 @@ export default async function ProductionDetailPage({
             Back
           </Link>
         </Button>
+        <LogProductionDialog
+          orderId={id}
+          orderNumber={order.order_number}
+          totalQuantity={order.total_quantity}
+          totalProducedSoFar={totalProduced}
+        />
         <Button asChild>
           <Link href={`/production/${id}/qc`}>
             <Plus className="h-4 w-4" />
@@ -283,6 +291,35 @@ export default async function ProductionDetailPage({
                 <p className="text-xs text-muted-foreground">Status</p>
                 <div className="mt-1"><StatusBadge status={order.status} /></div>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Daily Production Log */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Daily Log</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {dailyLogs.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No entries yet — tap "Log Production" to start.</p>
+              ) : (
+                <div className="space-y-2">
+                  {dailyLogs.map((log) => (
+                    <div key={log.id} className="flex items-start justify-between text-sm border-b pb-2 last:border-0 last:pb-0">
+                      <div>
+                        <p className="font-medium">{new Date(log.log_date).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</p>
+                        {log.notes && <p className="text-xs text-muted-foreground">{log.notes}</p>}
+                      </div>
+                      <div className="text-right">
+                        <p className="font-semibold text-emerald-600">+{log.quantity_produced} pcs</p>
+                        {log.quantity_rejected > 0 && (
+                          <p className="text-xs text-red-500">{log.quantity_rejected} rejected</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
 
