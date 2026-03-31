@@ -495,8 +495,14 @@ export function AIChatWidget() {
         )}
 
         {/* Gradient background */}
-        <span className="absolute inset-0 rounded-full bg-gradient-to-br from-[hsl(40,35%,65%)] via-[hsl(40,35%,55%)] to-[hsl(40,35%,42%)] p-[2px]">
-          <span className="flex h-full w-full items-center justify-center rounded-full bg-gradient-to-br from-[hsl(40,35%,58%)] to-[hsl(40,35%,45%)]" />
+        <span
+          className="absolute inset-0 rounded-full p-[2px]"
+          style={{ background: "linear-gradient(135deg, #c9a96e 0%, #a8844a 50%, #8a6a30 100%)" }}
+        >
+          <span
+            className="flex h-full w-full items-center justify-center rounded-full"
+            style={{ background: "linear-gradient(135deg, #c2994f 0%, #9a7535 100%)" }}
+          />
         </span>
 
         {/* Highlight */}
