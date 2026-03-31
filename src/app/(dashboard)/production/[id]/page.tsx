@@ -81,10 +81,9 @@ export default async function ProductionDetailPage({
           </Link>
         </Button>
         <LogProductionDialog
-          orderId={id}
-          orderNumber={order.order_number}
-          totalQuantity={order.total_quantity}
-          totalProducedSoFar={totalProduced}
+          orders={[{ id, order_number: order.order_number, product_variant: order.product_variant, total_quantity: order.total_quantity, customer: order.customer ?? null }]}
+          preselectedOrderId={id}
+          preselectedTotalQty={order.total_quantity}
         />
         <Button asChild>
           <Link href={`/production/${id}/qc`}>

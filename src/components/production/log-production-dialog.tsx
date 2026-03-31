@@ -15,26 +15,45 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
-interface Props {
-  orderId: string
-  orderNumber: string
-  totalQuantity: number
-  totalProducedSoFar: number
+interface OrderOption {
+  id: string
+  order_number: string
+  product_variant: string
+  total_quantity: number
+  customer: { id: string; name: string } | null
 }
 
-export function LogProductionDialog({ orderId, orderNumber, totalQuantity, totalProducedSoFar }: Props) {
+interface Props {
+  orders: OrderOption[]
+  // When used on the detail page, pre-select an order
+  preselectedOrderId?: string
+  preselectedTotalQty?: number
+}
+
+export function LogProductionDialog({ orders, preselectedOrderId, preselectedTotalQty }: Props) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
 
   const today = new Date().toISOString().split("T")[0]
+  const [selectedOrderId, setSelectedOrderId] = useState(preselectedOrderId ?? "")
   const [logDate, setLogDate] = useState(today)
   const [qty, setQty] = useState("")
   const [rejected, setRejected] = useState("0")
   const [notes, setNotes] = useState("")
 
+  const selectedOrder = orders.find((o) => o.id === selectedOrderId)
+
   function handleOpen() {
+    setSelectedOrderId(preselectedOrderId ?? "")
     setLogDate(today)
     setQty("")
     setRejected("0")
@@ -43,6 +62,7 @@ export function LogProductionDialog({ orderId, orderNumber, totalQuantity, total
   }
 
   function handleSubmit() {
+    if (!selectedOrderId) { toast.error("Select an order"); return }
     const produced = Number(qty)
     const rej = Number(rejected)
     if (!qty || isNaN(produced) || produced <= 0) { toast.error("Enter quantity produced"); return }
@@ -51,23 +71,18 @@ export function LogProductionDialog({ orderId, orderNumber, totalQuantity, total
 
     startTransition(async () => {
       const result = await logDailyProduction({
-        order_id: orderId,
+        order_id: selectedOrderId,
         log_date: logDate,
         quantity_produced: produced,
         quantity_rejected: rej,
         notes: notes.trim() || undefined,
       })
-      if (result && "error" in result) {
-        toast.error(result.error)
-        return
-      }
+      if (result && "error" in result) { toast.error(result.error); return }
       toast.success("Production logged")
       setOpen(false)
       router.refresh()
     })
   }
-
-  const remaining = Math.max(0, totalQuantity - totalProducedSoFar)
 
   return (
     <>
@@ -84,13 +99,34 @@ export function LogProductionDialog({ orderId, orderNumber, totalQuantity, total
 
           <div className="px-6 py-5 space-y-5">
 
-            {/* Remaining banner */}
-            <div className="rounded-xl bg-muted/50 px-4 py-3 flex justify-between text-sm">
-              <span className="text-muted-foreground">Order total</span>
-              <span className="font-semibold">{totalQuantity.toLocaleString("en-IN")} pcs</span>
-              <span className="text-muted-foreground">Remaining</span>
-              <span className="font-semibold text-amber-600">{remaining.toLocaleString("en-IN")} pcs</span>
-            </div>
+            {/* Order selector — only shown when not preselected */}
+            {!preselectedOrderId && (
+              <div className="space-y-1.5">
+                <Label className="text-base font-semibold">Order *</Label>
+                <Select value={selectedOrderId} onValueChange={setSelectedOrderId}>
+                  <SelectTrigger className="h-12 text-base">
+                    <SelectValue placeholder="Select an order" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {orders.map((o) => (
+                      <SelectItem key={o.id} value={o.id}>
+                        <span className="font-mono text-xs mr-2">{o.order_number}</span>
+                        {o.product_variant}
+                        {o.customer && <span className="text-muted-foreground ml-1.5">· {o.customer.name}</span>}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* Order summary banner */}
+            {selectedOrder && (
+              <div className="rounded-xl bg-muted/50 px-4 py-3 text-sm">
+                <p className="font-semibold">{selectedOrder.product_variant}</p>
+                <p className="text-muted-foreground text-xs">{selectedOrder.order_number} · {selectedOrder.total_quantity.toLocaleString("en-IN")} pcs total</p>
+              </div>
+            )}
 
             {/* Date */}
             <div className="space-y-1.5">
@@ -146,7 +182,7 @@ export function LogProductionDialog({ orderId, orderNumber, totalQuantity, total
             <Button
               className="w-full h-12 text-base font-semibold"
               onClick={handleSubmit}
-              disabled={isPending}
+              disabled={isPending || !selectedOrderId}
             >
               {isPending ? "Saving…" : "Save Log"}
             </Button>
