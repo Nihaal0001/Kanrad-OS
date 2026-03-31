@@ -33,7 +33,7 @@ interface Props {
   categories: MaterialCategory[]
 }
 
-const UNITS = ["kg", "pieces", "meters", "rolls", "cones", "yards", "sets", "packs", "liters"] as const
+const UNITS = ["kg", "pcs", "meters", "rolls", "cones", "yards", "sets", "packs", "liters"] as const
 
 export function AddMaterialSheet({ categories }: Props) {
   const router = useRouter()
@@ -46,7 +46,7 @@ export function AddMaterialSheet({ categories }: Props) {
       sku: "",
       name: "",
       category_id: "",
-      unit: "pieces",
+      unit: "pcs",
       min_stock_level: 0,
       cost_per_unit: 0,
       supplier_name: "",

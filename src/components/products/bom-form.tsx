@@ -46,7 +46,7 @@ const CATEGORIES = [
   "Other",
 ] as const
 
-const UNITS = ["kg", "meters", "pieces", "rolls", "liters", "sets", "packs"] as const
+const UNITS = ["kg", "meters", "pcs", "rolls", "liters", "sets", "packs"] as const
 
 function formatCurrency(n: number) {
   return n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })

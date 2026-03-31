@@ -37,7 +37,7 @@ interface MaterialFormProps {
 const UNITS = [
   "meters",
   "kg",
-  "pieces",
+  "pcs",
   "rolls",
   "cones",
   "yards",
