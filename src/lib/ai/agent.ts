@@ -849,9 +849,26 @@ Rules:
     parts: [{ text: m.content }],
   }))
 
+  // Retry helper for 503s
+  async function sendWithRetry(chat: ReturnType<typeof model.startChat>, msg: Parameters<typeof chat.sendMessage>[0], retries = 3) {
+    for (let i = 0; i < retries; i++) {
+      try {
+        return await chat.sendMessage(msg)
+      } catch (err) {
+        const m = err instanceof Error ? err.message : ""
+        if ((m.includes("503") || m.includes("Service Unavailable") || m.includes("high demand")) && i < retries - 1) {
+          await new Promise((r) => setTimeout(r, 1000 * (i + 1)))
+          continue
+        }
+        throw err
+      }
+    }
+    throw new Error("Max retries exceeded")
+  }
+
   // Use chat for multi-turn function calling loop
   const chat = model.startChat({ history: geminiHistory })
-  let response = await chat.sendMessage(transcript)
+  let response = await sendWithRetry(chat, transcript)
 
   // Loop: execute read tools and feed results back to Gemini (max 5 iterations)
   for (let i = 0; i < 5; i++) {
@@ -873,7 +890,7 @@ Rules:
 
     // Read tool — execute and send result back to Gemini
     const toolResult = await executeReadTool(call.name, args)
-    response = await chat.sendMessage([{
+    response = await sendWithRetry(chat, [{
       functionResponse: {
         name: call.name,
         response: toolResult,
