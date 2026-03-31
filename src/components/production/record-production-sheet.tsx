@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { Plus } from "lucide-react"
+import { Plus, X } from "lucide-react"
 import { toast } from "sonner"
 
 import { startProductionBatch } from "@/actions/production"
@@ -11,12 +11,11 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { DatePicker } from "@/components/ui/date-picker"
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from "@/components/ui/sheet"
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import {
   Select,
   SelectContent,
@@ -73,19 +72,10 @@ export function RecordProductionSheet({ orders }: Props) {
   }
 
   function handleSubmit() {
-    if (!selectedOrderId) {
-      toast.error("Select an order")
-      return
-    }
+    if (!selectedOrderId) { toast.error("Select an order"); return }
     const qty = Number(plannedQty)
-    if (!plannedQty || isNaN(qty) || qty <= 0) {
-      toast.error("Enter a valid planned quantity")
-      return
-    }
-    if (!startDate) {
-      toast.error("Select a planned start date")
-      return
-    }
+    if (!plannedQty || isNaN(qty) || qty <= 0) { toast.error("Enter a valid planned quantity"); return }
+    if (!startDate) { toast.error("Select a planned start date"); return }
 
     startTransition(async () => {
       const result = await startProductionBatch(
@@ -111,14 +101,13 @@ export function RecordProductionSheet({ orders }: Props) {
         Create Batch
       </Button>
 
-      <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent side="bottom" className="rounded-t-2xl max-h-[92vh] flex flex-col p-0">
-          <SheetHeader className="px-6 pt-6 pb-4 border-b text-center">
-            <SheetTitle className="text-center">Create Production Batch</SheetTitle>
-            <SheetDescription className="sr-only">Set up a new production batch for an order</SheetDescription>
-          </SheetHeader>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-md w-full p-0 gap-0 overflow-hidden rounded-2xl">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b">
+            <DialogTitle className="text-center text-lg font-semibold">Create Production Batch</DialogTitle>
+          </DialogHeader>
 
-          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+          <div className="px-6 py-5 space-y-5 overflow-y-auto max-h-[70vh]">
 
             {/* Order */}
             <div className="space-y-1.5">
@@ -185,14 +174,11 @@ export function RecordProductionSheet({ orders }: Props) {
             {/* Planned Start Date */}
             <div className="space-y-1.5">
               <Label className="text-base font-semibold">Planned Start Date</Label>
-              <DatePicker
-                value={startDate}
-                onChange={setStartDate}
-              />
+              <DatePicker value={startDate} onChange={setStartDate} />
             </div>
           </div>
 
-          <div className="px-6 pb-8 pt-4 border-t">
+          <div className="px-6 pb-6 pt-4 border-t">
             <Button
               className="w-full h-12 text-base font-semibold"
               onClick={handleSubmit}
@@ -201,8 +187,8 @@ export function RecordProductionSheet({ orders }: Props) {
               {isPending ? "Creating…" : "Create Batch"}
             </Button>
           </div>
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }
