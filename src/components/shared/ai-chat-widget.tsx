@@ -496,14 +496,9 @@ export function AIChatWidget() {
 
         {/* Gradient background */}
         <span
-          className="absolute inset-0 rounded-full p-[2px]"
+          className="absolute inset-0 rounded-full"
           style={{ background: "linear-gradient(135deg, #c9a96e 0%, #a8844a 50%, #8a6a30 100%)" }}
-        >
-          <span
-            className="flex h-full w-full items-center justify-center rounded-full"
-            style={{ background: "linear-gradient(135deg, #c2994f 0%, #9a7535 100%)" }}
-          />
-        </span>
+        />
 
         {/* Highlight */}
         <span className="absolute left-2.5 top-1.5 h-2.5 w-6 rounded-full bg-white/25 blur-[3px]" />
@@ -519,9 +514,9 @@ export function AIChatWidget() {
                 fill="white"
                 fillOpacity="0.95"
               />
-              <circle cx="8.5" cy="10.5" r="1.15" fill="hsl(16,65%,50%)" />
-              <circle cx="12" cy="10.5" r="1.15" fill="hsl(16,65%,50%)" />
-              <circle cx="15.5" cy="10.5" r="1.15" fill="hsl(16,65%,50%)" />
+              <circle cx="8.5" cy="10.5" r="1.15" fill="#5a3e1b" />
+              <circle cx="12" cy="10.5" r="1.15" fill="#5a3e1b" />
+              <circle cx="15.5" cy="10.5" r="1.15" fill="#5a3e1b" />
               <path d="M18.5 4l.35 1.15L20 5.5l-1.15.35L18.5 7l-.35-1.15L17 5.5l1.15-.35L18.5 4Z" fill="white" fillOpacity="0.85" />
             </svg>
           )}
