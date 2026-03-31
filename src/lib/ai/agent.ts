@@ -264,7 +264,7 @@ const toolDeclarations: FunctionDeclaration[] = [
       type: SchemaType.OBJECT,
       properties: {
         order_number: { type: SchemaType.STRING, description: "The order number" },
-        stage_name: { type: SchemaType.STRING, description: "Stage name, e.g. Cutting / Pressing, Forming / Shaping, Assembly / Welding, Surface Treatment" },
+        stage_name: { type: SchemaType.STRING, description: "Stage name, e.g. Blanking, Deep Drawing, Trimming, Spinning, Polishing, Anodising / Coating, Assembly, Packaging" },
         status: { type: SchemaType.STRING, description: "pending, in_progress, completed, or blocked" },
       },
       required: ["order_number", "stage_name", "status"],
@@ -276,7 +276,7 @@ const toolDeclarations: FunctionDeclaration[] = [
     parameters: {
       type: SchemaType.OBJECT,
       properties: {
-        product_variant: { type: SchemaType.STRING, description: "Primary product variant for the default line item, e.g. 'Stainless Steel Kadai'" },
+        product_variant: { type: SchemaType.STRING, description: "Primary product variant for the default line item, e.g. 'Aluminium Kadai 24cm', 'SS Pressure Cooker 5L', 'Non-stick Tawa 28cm'" },
         customer_name: { type: SchemaType.STRING, description: "Customer name (must match an existing customer)" },
         total_quantity: { type: SchemaType.NUMBER, description: "Total number of pieces to produce" },
         deadline: { type: SchemaType.STRING, description: "Deadline in YYYY-MM-DD format" },
@@ -334,7 +334,7 @@ const toolDeclarations: FunctionDeclaration[] = [
       type: SchemaType.OBJECT,
       properties: {
         order_number: { type: SchemaType.STRING, description: "The order number" },
-        stage_name: { type: SchemaType.STRING, description: "Production stage, e.g. Forming / Shaping, Assembly / Welding, Surface Treatment" },
+        stage_name: { type: SchemaType.STRING, description: "Production stage, e.g. Blanking, Deep Drawing, Trimming, Spinning, Polishing, Anodising / Coating, Assembly, Packaging" },
         quantity_checked: { type: SchemaType.NUMBER, description: "Number of pieces checked" },
         quantity_passed: { type: SchemaType.NUMBER, description: "Number that passed" },
         quantity_failed: { type: SchemaType.NUMBER, description: "Number that failed" },
@@ -817,7 +817,9 @@ export async function runAgentTurn(
     ? `\nThe user has access to these modules only: ${permissions.join(", ")}. Do NOT attempt actions outside their permissions.`
     : ""
 
-  const systemPrompt = `You are KYRE, an AI agent for KANRAD ERP houseware factory ERP. Today is ${today}.
+  const systemPrompt = `You are KYRE, an AI operations assistant for KANRAD — a cookware manufacturing factory. Today is ${today}.
+
+KANRAD manufactures cookware: kadais, pressure cookers, tawas, pans, lids, handles, and related products made from aluminium, stainless steel, and cast iron. Production stages include blanking, deep drawing, trimming, spinning, polishing, anodising/coating, and assembly.
 
 You have tools to read data and perform actions. Always use a tool when the user asks you to do something or query data.
 
@@ -831,6 +833,7 @@ Rules:
 - For ambiguous worker names, pick the closest match from the workers list.
 - Keep text responses to 1-2 sentences. Be direct and concise.
 - For write actions, call the tool directly — do NOT call a read tool first unless you truly need data that is not in the context above.
+- When discussing materials, use cookware manufacturing terminology: aluminium circles/discs, stainless steel blanks, lids, handles, knobs, screws, packing materials (cartons, bubble wrap, stickers).
 - If the user asks you to do something you don't have tools for, explain politely that they need to use the app for that.`
 
   const model = ai.getGenerativeModel({
