@@ -488,15 +488,15 @@ export function AIChatWidget() {
           <span
             className="absolute inset-[-6px] rounded-full opacity-40"
             style={{
-              background: "radial-gradient(circle, hsl(16 65% 55% / .45) 0%, transparent 70%)",
+              background: "radial-gradient(circle, hsl(40 35% 65% / .45) 0%, transparent 70%)",
               animation: "fab-breathe 3.5s ease-in-out infinite",
             }}
           />
         )}
 
         {/* Gradient background */}
-        <span className="absolute inset-0 rounded-full bg-gradient-to-br from-[hsl(16,65%,60%)] via-primary to-[hsl(16,65%,42%)] p-[2px]">
-          <span className="flex h-full w-full items-center justify-center rounded-full bg-gradient-to-br from-[hsl(16,65%,52%)] to-[hsl(16,65%,45%)]" />
+        <span className="absolute inset-0 rounded-full bg-gradient-to-br from-[hsl(40,35%,65%)] via-[hsl(40,35%,55%)] to-[hsl(40,35%,42%)] p-[2px]">
+          <span className="flex h-full w-full items-center justify-center rounded-full bg-gradient-to-br from-[hsl(40,35%,58%)] to-[hsl(40,35%,45%)]" />
         </span>
 
         {/* Highlight */}
