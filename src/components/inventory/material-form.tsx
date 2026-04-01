@@ -76,6 +76,11 @@ export function MaterialForm({ material, categories }: MaterialFormProps) {
 
   const isCircle = form.watch("is_circle")
 
+  function handleCircleToggle(checked: boolean) {
+    form.setValue("is_circle", checked)
+    if (checked) form.setValue("unit", "kg")
+  }
+
   async function onSubmit(data: MaterialFormData) {
     setIsSubmitting(true)
     setError(null)
@@ -305,7 +310,8 @@ export function MaterialForm({ material, categories }: MaterialFormProps) {
             <input
               type="checkbox"
               className="h-4 w-4 rounded border-input accent-primary"
-              {...form.register("is_circle")}
+              checked={!!isCircle}
+              onChange={(e) => handleCircleToggle(e.target.checked)}
             />
             <span className="text-sm font-medium">This material is an aluminium circle</span>
           </label>

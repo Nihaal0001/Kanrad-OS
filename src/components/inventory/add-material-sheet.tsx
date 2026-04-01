@@ -62,6 +62,12 @@ export function AddMaterialSheet({ categories }: Props) {
 
   const isCircle = form.watch("is_circle")
 
+  // Auto-set unit to kg when marked as a circle
+  function handleCircleToggle(checked: boolean) {
+    form.setValue("is_circle", checked)
+    if (checked) form.setValue("unit", "kg")
+  }
+
   function handleOpen() {
     form.reset()
     setOpen(true)
@@ -199,7 +205,8 @@ export function AddMaterialSheet({ categories }: Props) {
                   <input
                     type="checkbox"
                     className="h-4 w-4 rounded border-input accent-primary"
-                    {...form.register("is_circle")}
+                    checked={!!isCircle}
+                    onChange={(e) => handleCircleToggle(e.target.checked)}
                   />
                   <span className="flex items-center gap-1.5 text-sm font-medium">
                     <Circle className="h-3.5 w-3.5 text-muted-foreground" />
