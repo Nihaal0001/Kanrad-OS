@@ -7,6 +7,7 @@ import { formatDate, formatCurrency } from "@/lib/utils"
 import { generatePortalToken } from "@/lib/portal"
 import type { OrderDetail } from "@/lib/supabase/types"
 import { getOrderStyleSummary, getUniqueOrderStyles } from "@/lib/order-styles"
+import { isCircleKgItem } from "@/lib/circle-calc"
 
 import { PageHeader } from "@/components/shared/page-header"
 import { StatusBadge } from "@/components/shared/status-badge"
@@ -226,29 +227,32 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
                   <TableRow>
                     <TableHead>Style</TableHead>
                     <TableHead>Size</TableHead>
-                    <TableHead>Color</TableHead>
-                    <TableHead className="text-right">Quantity</TableHead>
+                    <TableHead>Coating</TableHead>
+                    <TableHead className="text-right">Qty / Weight</TableHead>
                     <TableHead className="text-right">Unit Price</TableHead>
                     <TableHead className="text-right">Total</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {order.order_items?.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell className="font-medium">{item.product_variant}</TableCell>
-                      <TableCell className="font-medium">{item.size}</TableCell>
-                      <TableCell>{item.color}</TableCell>
-                      <TableCell className="text-right">
-                        {item.quantity}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {formatCurrency(item.unit_price)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {formatCurrency(item.quantity * item.unit_price)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {order.order_items?.map((item) => {
+                    const isKg = isCircleKgItem(item.thickness_mm, item.color)
+                    return (
+                      <TableRow key={item.id}>
+                        <TableCell className="font-medium">{item.product_variant}</TableCell>
+                        <TableCell className="font-medium">{item.size}</TableCell>
+                        <TableCell>{item.color}</TableCell>
+                        <TableCell className="text-right">
+                          {item.quantity} {isKg ? "kg" : "pcs"}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(item.unit_price)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(item.quantity * item.unit_price)}
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
                 </TableBody>
                 <TableFooter>
                   <TableRow>

@@ -75,6 +75,18 @@ export function calculateCircleWeight(
 }
 
 /**
+ * Returns true when a line item's quantity is measured in kg (not pcs).
+ * This is the case for non-IB aluminium circles — i.e., thickness_mm is set and coating is not IB.
+ */
+export function isCircleKgItem(
+  thickness_mm: number | null | undefined,
+  coating: string | null | undefined
+): boolean {
+  if (!thickness_mm || thickness_mm <= 0) return false
+  return !isIBCoating(coating)
+}
+
+/**
  * Formats a circle weight for display (e.g., "2.312 kg").
  * Returns null if the weight cannot be calculated.
  */

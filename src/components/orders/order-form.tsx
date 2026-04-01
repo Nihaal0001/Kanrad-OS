@@ -10,7 +10,7 @@ import { toast } from "sonner"
 import { orderSchema, type OrderFormData } from "@/lib/validators/order"
 import { createOrder, updateOrder } from "@/actions/orders"
 import { formatCurrency } from "@/lib/utils"
-import { formatCircleWeight, isIBCoating } from "@/lib/circle-calc"
+import { formatCircleWeight, isIBCoating, isCircleKgItem } from "@/lib/circle-calc"
 import type { OrderDetail } from "@/lib/supabase/types"
 
 import { Button } from "@/components/ui/button"
@@ -284,7 +284,7 @@ export function OrderForm({ order, customers }: OrderFormProps) {
             <Label className="text-xs text-muted-foreground">Thick (mm)</Label>
             <Label className="text-xs text-muted-foreground">Coating / Finish</Label>
             <Label className="text-xs text-muted-foreground">HSN/SAC</Label>
-            <Label className="text-xs text-muted-foreground">Quantity</Label>
+            <Label className="text-xs text-muted-foreground">Qty / kg</Label>
             <Label className="text-xs text-muted-foreground">Unit Price</Label>
             <span />
           </div>
@@ -357,20 +357,6 @@ export function OrderForm({ order, customers }: OrderFormProps) {
                     {form.formState.errors.items[index]?.color?.message}
                   </p>
                 )}
-                {/* Show calculated circle weight for non-IB items */}
-                {(() => {
-                  const item = watchItems?.[index]
-                  if (!item) return null
-                  const coating = item.color ?? ""
-                  if (isIBCoating(coating)) return null
-                  const weight = formatCircleWeight(item.size, item.thickness_mm, coating)
-                  if (!weight) return null
-                  return (
-                    <p className="text-xs text-muted-foreground">
-                      ≈ {weight} / pc
-                    </p>
-                  )
-                })()}
               </div>
 
               {/* HSN/SAC Code */}
@@ -382,19 +368,31 @@ export function OrderForm({ order, customers }: OrderFormProps) {
                 />
               </div>
 
-              {/* Quantity */}
+              {/* Quantity — shows "kg" unit for non-IB circle items */}
               <div className="space-y-1">
-                <Label className="sm:hidden text-xs text-muted-foreground">
-                  Quantity
-                </Label>
-                <Input
-                  type="number"
-                  min={1}
-                  placeholder="Qty"
-                  {...form.register(`items.${index}.quantity`, {
-                    valueAsNumber: true,
-                  })}
-                />
+                {(() => {
+                  const item = watchItems?.[index]
+                  const unit = isCircleKgItem(item?.thickness_mm, item?.color) ? "kg" : "pcs"
+                  return (
+                    <Label className="sm:hidden text-xs text-muted-foreground">
+                      Quantity ({unit})
+                    </Label>
+                  )
+                })()}
+                <div className="relative">
+                  <Input
+                    type="number"
+                    min={1}
+                    placeholder="Qty"
+                    className="pr-8"
+                    {...form.register(`items.${index}.quantity`, {
+                      valueAsNumber: true,
+                    })}
+                  />
+                  <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                    {isCircleKgItem(watchItems?.[index]?.thickness_mm, watchItems?.[index]?.color) ? "kg" : "pcs"}
+                  </span>
+                </div>
                 {form.formState.errors.items?.[index]?.quantity && (
                   <p className="text-xs text-destructive">
                     {form.formState.errors.items[index]?.quantity?.message}
@@ -464,7 +462,14 @@ export function OrderForm({ order, customers }: OrderFormProps) {
           <div className="flex flex-col gap-2 sm:flex-row sm:justify-end sm:gap-8">
             <div className="text-sm">
               <span className="text-muted-foreground">Total Quantity: </span>
-              <span className="font-semibold">{totalQuantity}</span>
+              <span className="font-semibold">
+                {totalQuantity}{" "}
+                {watchItems?.every((item) => isCircleKgItem(item.thickness_mm, item.color))
+                  ? "kg"
+                  : watchItems?.some((item) => isCircleKgItem(item.thickness_mm, item.color))
+                  ? "mixed"
+                  : "pcs"}
+              </span>
             </div>
             <div className="text-sm">
               <span className="text-muted-foreground">Total Value: </span>

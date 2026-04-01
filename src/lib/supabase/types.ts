@@ -46,6 +46,8 @@ export type OrderItem = {
   quantity: number
   unit_price: number
   hsn_code: string | null
+  /** Circle thickness in mm. When set (and coating is non-IB), quantity is in kg. */
+  thickness_mm: number | null
   created_at: string
 }
 
