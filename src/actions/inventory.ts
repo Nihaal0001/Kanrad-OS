@@ -74,8 +74,14 @@ export async function createMaterial(formData: MaterialFormData) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: "Not authenticated" }
 
+  // Strip the UI-only is_circle flag; clear circle fields if not a circle
+  const { is_circle, ...rest } = validated
+  const circleFields = is_circle
+    ? { diameter_mm: rest.diameter_mm ?? null, thickness_mm: rest.thickness_mm ?? null, circle_type: rest.circle_type ?? null }
+    : { diameter_mm: null, thickness_mm: null, circle_type: null }
+
   const cleaned = Object.fromEntries(
-    Object.entries(validated).map(([k, v]) => [k, v === "" ? null : v])
+    Object.entries({ ...rest, ...circleFields }).map(([k, v]) => [k, v === "" ? null : v])
   )
 
   const { data, error } = await supabase
@@ -97,8 +103,13 @@ export async function updateMaterial(id: string, formData: MaterialFormData) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: "Not authenticated" }
 
+  const { is_circle, ...rest } = validated
+  const circleFields = is_circle
+    ? { diameter_mm: rest.diameter_mm ?? null, thickness_mm: rest.thickness_mm ?? null, circle_type: rest.circle_type ?? null }
+    : { diameter_mm: null, thickness_mm: null, circle_type: null }
+
   const cleaned = Object.fromEntries(
-    Object.entries(validated).map(([k, v]) => [k, v === "" ? null : v])
+    Object.entries({ ...rest, ...circleFields }).map(([k, v]) => [k, v === "" ? null : v])
   )
 
   const { data, error } = await supabase

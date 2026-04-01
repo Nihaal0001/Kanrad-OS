@@ -4,7 +4,7 @@ import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { Plus, Lock } from "lucide-react"
+import { Plus, Lock, Circle } from "lucide-react"
 import { toast } from "sonner"
 
 import { materialSchema, type MaterialFormData } from "@/lib/validators/inventory"
@@ -53,8 +53,14 @@ export function AddMaterialSheet({ categories }: Props) {
       supplier_contact: "",
       location: "",
       notes: "",
+      is_circle: false,
+      diameter_mm: null,
+      thickness_mm: null,
+      circle_type: null,
     },
   })
+
+  const isCircle = form.watch("is_circle")
 
   function handleOpen() {
     form.reset()
@@ -185,6 +191,70 @@ export function AddMaterialSheet({ categories }: Props) {
                   <Label>Supplier Contact</Label>
                   <Input placeholder="Phone or email" {...form.register("supplier_contact")} />
                 </div>
+              </div>
+
+              {/* Circle toggle */}
+              <div className="rounded-lg border px-4 py-3 space-y-3">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-input accent-primary"
+                    {...form.register("is_circle")}
+                  />
+                  <span className="flex items-center gap-1.5 text-sm font-medium">
+                    <Circle className="h-3.5 w-3.5 text-muted-foreground" />
+                    This is an aluminium circle
+                  </span>
+                </label>
+
+                {isCircle && (
+                  <div className="grid gap-3 sm:grid-cols-3 pt-1">
+                    <div className="space-y-1.5">
+                      <Label>Diameter (mm)</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        placeholder="e.g., 240"
+                        {...form.register("diameter_mm", { valueAsNumber: true, setValueAs: (v) => (v === "" || isNaN(v) ? null : Number(v)) })}
+                      />
+                      {form.formState.errors.diameter_mm && (
+                        <p className="text-xs text-destructive">{form.formState.errors.diameter_mm.message}</p>
+                      )}
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Thickness (mm)</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        placeholder="e.g., 3"
+                        {...form.register("thickness_mm", { valueAsNumber: true, setValueAs: (v) => (v === "" || isNaN(v) ? null : Number(v)) })}
+                      />
+                      {form.formState.errors.thickness_mm && (
+                        <p className="text-xs text-destructive">{form.formState.errors.thickness_mm.message}</p>
+                      )}
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Type</Label>
+                      <Controller
+                        control={form.control}
+                        name="circle_type"
+                        render={({ field }) => (
+                          <Select value={field.value ?? ""} onValueChange={(v) => field.onChange(v || null)}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="non_ib">Non-IB</SelectItem>
+                              <SelectItem value="ib">IB</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        )}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-1.5">

@@ -11,6 +11,11 @@ export const materialSchema = z.object({
   supplier_contact: z.string().max(200).optional().or(z.literal("")),
   location: z.string().max(200).optional().or(z.literal("")),
   notes: z.string().max(1000).optional().or(z.literal("")),
+  // Aluminium circle fields — only set when is_circle is true
+  is_circle: z.boolean().optional(),
+  diameter_mm: z.number().positive("Diameter must be greater than 0").nullable().optional(),
+  thickness_mm: z.number().positive("Thickness must be greater than 0").nullable().optional(),
+  circle_type: z.enum(["ib", "non_ib"]).nullable().optional(),
 })
 
 export type MaterialFormData = z.infer<typeof materialSchema>

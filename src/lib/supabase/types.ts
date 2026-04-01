@@ -124,6 +124,10 @@ export type Material = {
   location: string | null
   notes: string | null
   is_active: boolean
+  /** Aluminium circle fields — null for non-circle materials */
+  diameter_mm: number | null
+  thickness_mm: number | null
+  circle_type: "ib" | "non_ib" | null
   created_at: string
   updated_at: string
 }

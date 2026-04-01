@@ -28,6 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Controller } from "react-hook-form"
 
 interface MaterialFormProps {
   material?: MaterialWithCategory
@@ -66,8 +67,14 @@ export function MaterialForm({ material, categories }: MaterialFormProps) {
       supplier_contact: material?.supplier_contact ?? "",
       location: material?.location ?? "",
       notes: material?.notes ?? "",
+      is_circle: !!material?.circle_type || !!(material?.diameter_mm),
+      diameter_mm: material?.diameter_mm ?? null,
+      thickness_mm: material?.thickness_mm ?? null,
+      circle_type: material?.circle_type ?? null,
     },
   })
+
+  const isCircle = form.watch("is_circle")
 
   async function onSubmit(data: MaterialFormData) {
     setIsSubmitting(true)
@@ -282,6 +289,77 @@ export function MaterialForm({ material, categories }: MaterialFormProps) {
               />
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Aluminium Circle */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Aluminium Circle</CardTitle>
+          <CardDescription>
+            Fill this section only for aluminium circle stock items
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              className="h-4 w-4 rounded border-input accent-primary"
+              {...form.register("is_circle")}
+            />
+            <span className="text-sm font-medium">This material is an aluminium circle</span>
+          </label>
+
+          {isCircle && (
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div className="space-y-2">
+                <Label htmlFor="diameter_mm">Diameter (mm)</Label>
+                <Input
+                  id="diameter_mm"
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  placeholder="e.g., 240"
+                  {...form.register("diameter_mm", { valueAsNumber: true, setValueAs: (v) => (v === "" || isNaN(v) ? null : Number(v)) })}
+                />
+                {form.formState.errors.diameter_mm && (
+                  <p className="text-sm text-destructive">{form.formState.errors.diameter_mm.message}</p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="thickness_mm">Thickness (mm)</Label>
+                <Input
+                  id="thickness_mm"
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  placeholder="e.g., 3"
+                  {...form.register("thickness_mm", { valueAsNumber: true, setValueAs: (v) => (v === "" || isNaN(v) ? null : Number(v)) })}
+                />
+                {form.formState.errors.thickness_mm && (
+                  <p className="text-sm text-destructive">{form.formState.errors.thickness_mm.message}</p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label>Type</Label>
+                <Controller
+                  control={form.control}
+                  name="circle_type"
+                  render={({ field }) => (
+                    <Select value={field.value ?? ""} onValueChange={(v) => field.onChange(v || null)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="non_ib">Non-IB</SelectItem>
+                        <SelectItem value="ib">IB</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
