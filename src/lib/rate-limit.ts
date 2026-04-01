@@ -1,9 +1,30 @@
 /**
  * Simple in-memory sliding-window rate limiter.
  *
- * NOTE: This works per-process. On Vercel each serverless function instance
- * has its own memory, so limits are per-instance, not globally enforced.
- * For strict global rate limiting, swap the store for an Upstash Redis client.
+ * ⚠️  LIMITATION: This works per-process. On Vercel (serverless) each
+ * function instance has its own memory, so limits are per-instance and
+ * NOT globally enforced across the deployment.
+ *
+ * TO UPGRADE to globally-enforced rate limiting:
+ *   1. Create an Upstash Redis database at https://console.upstash.com
+ *   2. Add UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN to Vercel env
+ *   3. npm install @upstash/redis @upstash/ratelimit
+ *   4. Replace this module with:
+ *
+ *      import { Redis } from "@upstash/redis"
+ *      import { Ratelimit } from "@upstash/ratelimit"
+ *      const redis = Redis.fromEnv()
+ *      const limiters = new Map<string, Ratelimit>()
+ *      function getLimiter(max: number, windowMs: number) {
+ *        const key = `${max}:${windowMs}`
+ *        if (!limiters.has(key)) limiters.set(key,
+ *          new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(max, `${windowMs / 1000} s`) }))
+ *        return limiters.get(key)!
+ *      }
+ *      export async function rateLimit(key: string, max: number, windowMs: number) {
+ *        const { success } = await getLimiter(max, windowMs).limit(key)
+ *        return success
+ *      }
  */
 
 interface Entry {

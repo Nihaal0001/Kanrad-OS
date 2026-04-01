@@ -24,6 +24,23 @@ export async function GET(
   } = await supabase.auth.getUser()
   if (!user) return new Response("Unauthorized", { status: 401 })
 
+  // Verify the user has finance or admin permission
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("auth_id", user.id)
+    .single()
+  if (!profile) return new Response("Forbidden", { status: 403 })
+
+  if (profile.role !== "admin") {
+    const { data: perms } = await supabase
+      .from("role_permissions")
+      .select("permission")
+      .eq("role", profile.role)
+    const hasFinance = (perms ?? []).some((p) => p.permission === "finance")
+    if (!hasFinance) return new Response("Forbidden", { status: 403 })
+  }
+
   // Fetch invoice with items
   const { data: invoice, error } = await supabase
     .from("invoices")

@@ -6,6 +6,15 @@
 
 import { Resend } from "resend"
 
+function esc(s: string): string {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#x27;")
+}
+
 const FROM = process.env.EMAIL_FROM || "KANRAD ERP <notifications@kanraderp.in>"
 const OWNER_EMAIL = process.env.OWNER_EMAIL || ""
 
@@ -58,10 +67,10 @@ export async function sendLowStockAlert(items: {
     .map(
       (i) =>
         `<tr>
-          <td style="padding:8px 12px;border-bottom:1px solid #f3f4f6">${i.name}</td>
-          <td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;font-family:monospace">${i.sku}</td>
-          <td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;color:#dc2626;font-weight:600">${i.current_stock} ${i.unit}</td>
-          <td style="padding:8px 12px;border-bottom:1px solid #f3f4f6">${i.min_stock_level} ${i.unit}</td>
+          <td style="padding:8px 12px;border-bottom:1px solid #f3f4f6">${esc(i.name)}</td>
+          <td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;font-family:monospace">${esc(i.sku)}</td>
+          <td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;color:#dc2626;font-weight:600">${esc(String(i.current_stock))} ${esc(i.unit)}</td>
+          <td style="padding:8px 12px;border-bottom:1px solid #f3f4f6">${esc(String(i.min_stock_level))} ${esc(i.unit)}</td>
         </tr>`
     )
     .join("")
@@ -106,10 +115,10 @@ export async function sendOverdueInvoiceAlert(invoices: {
     .map(
       (i) =>
         `<tr>
-          <td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;font-family:monospace">${i.invoice_number}</td>
-          <td style="padding:8px 12px;border-bottom:1px solid #f3f4f6">${i.customer_name}</td>
-          <td style="padding:8px 12px;border-bottom:1px solid #f3f4f6">${i.due_date}</td>
-          <td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;color:#dc2626;font-weight:600">₹${i.outstanding.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+          <td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;font-family:monospace">${esc(i.invoice_number)}</td>
+          <td style="padding:8px 12px;border-bottom:1px solid #f3f4f6">${esc(i.customer_name)}</td>
+          <td style="padding:8px 12px;border-bottom:1px solid #f3f4f6">${esc(i.due_date)}</td>
+          <td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;color:#dc2626;font-weight:600">₹${esc(i.outstanding.toLocaleString("en-IN", { minimumFractionDigits: 2 }))}</td>
         </tr>`
     )
     .join("")
@@ -157,11 +166,11 @@ export async function sendLeaveRequestNotification(opts: {
       </div>
       <div style="background:#fff;padding:24px 32px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 8px 8px">
         <table style="width:100%;font-size:14px;border-collapse:collapse">
-          <tr><td style="padding:8px 0;color:#6b7280;width:140px">Worker</td><td style="padding:8px 0;font-weight:600">${opts.workerName}</td></tr>
-          <tr><td style="padding:8px 0;color:#6b7280">Leave Type</td><td style="padding:8px 0">${opts.leaveType}</td></tr>
-          <tr><td style="padding:8px 0;color:#6b7280">From</td><td style="padding:8px 0">${opts.startDate}</td></tr>
-          <tr><td style="padding:8px 0;color:#6b7280">To</td><td style="padding:8px 0">${opts.endDate}</td></tr>
-          ${opts.reason ? `<tr><td style="padding:8px 0;color:#6b7280">Reason</td><td style="padding:8px 0">${opts.reason}</td></tr>` : ""}
+          <tr><td style="padding:8px 0;color:#6b7280;width:140px">Worker</td><td style="padding:8px 0;font-weight:600">${esc(opts.workerName)}</td></tr>
+          <tr><td style="padding:8px 0;color:#6b7280">Leave Type</td><td style="padding:8px 0">${esc(opts.leaveType)}</td></tr>
+          <tr><td style="padding:8px 0;color:#6b7280">From</td><td style="padding:8px 0">${esc(opts.startDate)}</td></tr>
+          <tr><td style="padding:8px 0;color:#6b7280">To</td><td style="padding:8px 0">${esc(opts.endDate)}</td></tr>
+          ${opts.reason ? `<tr><td style="padding:8px 0;color:#6b7280">Reason</td><td style="padding:8px 0">${esc(opts.reason)}</td></tr>` : ""}
         </table>
         <p style="margin-top:16px;font-size:13px;color:#9ca3af">Visit the HR → Leaves page to approve or reject.</p>
       </div>

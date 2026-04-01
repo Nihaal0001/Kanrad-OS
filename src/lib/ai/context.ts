@@ -13,7 +13,7 @@ export async function buildERPContext(): Promise<string> {
   const [
     ordersRes,
     dueRes,
-    lowStockRes,
+    materialsRes,
     productionRes,
     pendingLeavesRes,
     recentQCRes,
@@ -38,12 +38,13 @@ export async function buildERPContext(): Promise<string> {
       .gte("deadline", today)
       .order("deadline"),
 
-    // Low stock materials
+    // All materials — column-to-column comparison doesn't work in Supabase JS client,
+    // so fetch all and filter in JS
     supabase
       .from("materials")
       .select("name, sku, current_stock, min_stock_level, unit")
-      .filter("current_stock", "lt", "min_stock_level" as unknown as number)
-      .order("name"),
+      .order("name")
+      .limit(500),
 
     // Production tracking — in progress or blocked
     supabase
@@ -92,16 +93,7 @@ export async function buildERPContext(): Promise<string> {
       .lt("expense_date", thisMonthStart),
   ])
 
-  // Handle low stock with raw SQL-like filter workaround
-  // The filter above may not work for column-to-column comparison
-  // So we fetch all materials and filter in JS
-  const allMaterialsRes = await supabase
-    .from("materials")
-    .select("name, sku, current_stock, min_stock_level, unit")
-    .order("name")
-    .limit(100)
-
-  const lowStockItems = (allMaterialsRes.data ?? []).filter(
+  const lowStockItems = (materialsRes.data ?? []).filter(
     (m) => m.current_stock < m.min_stock_level
   )
 

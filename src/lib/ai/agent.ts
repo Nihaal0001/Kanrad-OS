@@ -837,7 +837,7 @@ Rules:
 - If the user asks you to do something you don't have tools for, explain politely that they need to use the app for that.`
 
   const model = ai.getGenerativeModel({
-    model: "gemini-2.5-pro",
+    model: "gemini-2.0-flash",
     systemInstruction: systemPrompt,
     tools: [{ functionDeclarations: allowedTools }],
     toolConfig: { functionCallingConfig: { mode: FunctionCallingMode.AUTO } },

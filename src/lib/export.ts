@@ -30,27 +30,38 @@ export async function downloadExcel(
   filename: string,
   sheetName = "Sheet1"
 ) {
-  const XLSX = await import("xlsx")
-  const rows = data.map((row) =>
-    Object.fromEntries(columns.map((c) => [c.label, row[c.key] ?? ""]))
+  const ExcelJS = await import("exceljs")
+  const workbook = new ExcelJS.Workbook()
+  const ws = workbook.addWorksheet(sheetName)
+  ws.columns = columns.map((c) => ({ header: c.label, key: c.label, width: Math.max(c.label.length + 4, 12) }))
+  data.forEach((row) => {
+    ws.addRow(Object.fromEntries(columns.map((c) => [c.label, row[c.key] ?? ""])))
+  })
+  const buffer = await workbook.xlsx.writeBuffer()
+  triggerDownload(
+    new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }),
+    filename
   )
-  const ws = XLSX.utils.json_to_sheet(rows)
-  const wb = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(wb, ws, sheetName)
-  XLSX.writeFile(wb, filename)
 }
 
 export async function downloadExcelMultiSheet(
   sheets: { name: string; data: Record<string, unknown>[] }[],
   filename: string
 ) {
-  const XLSX = await import("xlsx")
-  const wb = XLSX.utils.book_new()
+  const ExcelJS = await import("exceljs")
+  const workbook = new ExcelJS.Workbook()
   for (const sheet of sheets) {
-    const ws = XLSX.utils.json_to_sheet(sheet.data)
-    XLSX.utils.book_append_sheet(wb, ws, sheet.name)
+    if (sheet.data.length === 0) continue
+    const ws = workbook.addWorksheet(sheet.name)
+    const headers = Object.keys(sheet.data[0])
+    ws.columns = headers.map((h) => ({ header: h, key: h, width: Math.max(h.length + 4, 12) }))
+    sheet.data.forEach((row) => ws.addRow(row))
   }
-  XLSX.writeFile(wb, filename)
+  const buffer = await workbook.xlsx.writeBuffer()
+  triggerDownload(
+    new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }),
+    filename
+  )
 }
 
 // Styled export: terracotta header row, bold total row (last row), frozen header

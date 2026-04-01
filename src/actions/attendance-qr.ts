@@ -98,6 +98,11 @@ export async function verifyAndRecordAttendance(
 
   if (insertErr) return { error: insertErr.message }
 
+  // Block attendance if outside geofence — HR can review via qr_attendance_logs
+  if (flagReason) {
+    return { error: flagReason }
+  }
+
   // 6. Upsert into existing attendance table for compatibility
   const nowTime = now.toTimeString().slice(0, 5) // "HH:MM"
 

@@ -11,7 +11,12 @@ export async function GET(request: Request) {
 
   if (code) {
     const supabase = await createClient()
-    await supabase.auth.exchangeCodeForSession(code)
+    const { error } = await supabase.auth.exchangeCodeForSession(code)
+    if (error) {
+      return NextResponse.redirect(
+        `${origin}/auth/login?error=${encodeURIComponent("Confirmation link is invalid or has expired. Please try again.")}`
+      )
+    }
   }
 
   return NextResponse.redirect(`${origin}${next}`)

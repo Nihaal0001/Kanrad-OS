@@ -1,6 +1,10 @@
 import { createHmac } from "crypto"
 
-const secret = () => process.env.PORTAL_SECRET || "kanrad-erp-portal-secret-dev"
+const secret = () => {
+  const s = process.env.PORTAL_SECRET
+  if (!s) throw new Error("PORTAL_SECRET environment variable is not set")
+  return s
+}
 
 export function generatePortalToken(orderId: string): string {
   return createHmac("sha256", secret()).update(orderId).digest("hex").slice(0, 40)

@@ -134,7 +134,14 @@ export async function getAllRolePermissions(): Promise<Record<string, string[]>>
   return result
 }
 
+// In-memory cache for role permissions — these change very infrequently
+const _permissionsCache = new Map<string, { data: string[]; ts: number }>()
+const PERMISSIONS_TTL = 5 * 60 * 1000 // 5 minutes
+
 export async function getRolePermissions(role: string): Promise<string[]> {
+  const cached = _permissionsCache.get(role)
+  if (cached && Date.now() - cached.ts < PERMISSIONS_TTL) return cached.data
+
   const supabase = await createClient()
   const { data, error } = await supabase
     .from("role_permissions")
@@ -144,7 +151,9 @@ export async function getRolePermissions(role: string): Promise<string[]> {
   if (error) {
     return [...(DEFAULT_ROLE_PERMISSIONS[role as UserRole] ?? [])]
   }
-  return data?.map((r) => r.permission) ?? []
+  const permissions = data?.map((r) => r.permission) ?? []
+  _permissionsCache.set(role, { data: permissions, ts: Date.now() })
+  return permissions
 }
 
 export async function toggleRolePermission(

@@ -158,9 +158,39 @@ function computeAging(
 
 export async function getCashFlowStatement() {
   const supabase = await createClient()
+
+  const now = new Date()
+  // Cover the full 12-month window with 3 bulk queries instead of 36 sequential ones
+  const startDate = new Date(now.getFullYear(), now.getMonth() - 11, 1)
+  const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 1)
+  const startStr = startDate.toISOString().split("T")[0]
+  const endStr = endDate.toISOString().split("T")[0]
+
+  const [paymentsRes, expensesRes, purchasePaymentsRes] = await Promise.all([
+    supabase.from("payments").select("amount, payment_date").gte("payment_date", startStr).lt("payment_date", endStr),
+    supabase.from("expenses").select("amount, expense_date").gte("expense_date", startStr).lt("expense_date", endStr),
+    supabase.from("purchase_payments").select("amount, payment_date").gte("payment_date", startStr).lt("payment_date", endStr),
+  ])
+
+  // Group amounts by "YYYY-MM" month key
+  function groupByMonth(items: { amount: number | null; [key: string]: unknown }[], dateField: string): Record<string, number> {
+    const map: Record<string, number> = {}
+    for (const item of items) {
+      const date = item[dateField] as string | null
+      if (!date) continue
+      const monthKey = date.slice(0, 7)
+      map[monthKey] = (map[monthKey] ?? 0) + (item.amount ?? 0)
+    }
+    return map
+  }
+
+  const inflowByMonth = groupByMonth(paymentsRes.data ?? [], "payment_date")
+  const expensesByMonth = groupByMonth(expensesRes.data ?? [], "expense_date")
+  const purchaseByMonth = groupByMonth(purchasePaymentsRes.data ?? [], "payment_date")
+
   const rows: {
-    monthKey: string   // "YYYY-MM" — used for detail page URL
-    month: string      // display label e.g. "Mar 2026"
+    monthKey: string
+    month: string
     inflow: number
     purchaseOutflow: number
     expenseOutflow: number
@@ -170,26 +200,15 @@ export async function getCashFlowStatement() {
   }[] = []
 
   for (let i = 11; i >= 0; i--) {
-    const d = new Date()
-    d.setDate(1)
-    d.setMonth(d.getMonth() - i)
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
     const year = d.getFullYear()
     const month = d.getMonth() + 1
     const monthKey = `${year}-${String(month).padStart(2, "0")}`
-    const start = `${monthKey}-01`
-    const nextD = new Date(year, month, 1)
-    const end = `${nextD.getFullYear()}-${String(nextD.getMonth() + 1).padStart(2, "0")}-01`
     const label = d.toLocaleString("en-IN", { month: "short", year: "numeric" })
 
-    const [paymentsIn, expensesOut, purchasePaymentsOut] = await Promise.all([
-      supabase.from("payments").select("amount").gte("payment_date", start).lt("payment_date", end),
-      supabase.from("expenses").select("amount").gte("expense_date", start).lt("expense_date", end),
-      supabase.from("purchase_payments").select("amount").gte("payment_date", start).lt("payment_date", end),
-    ])
-
-    const inflow = (paymentsIn.data ?? []).reduce((s, p) => s + (p.amount ?? 0), 0)
-    const expenseOutflow = (expensesOut.data ?? []).reduce((s, e) => s + (e.amount ?? 0), 0)
-    const purchaseOutflow = (purchasePaymentsOut.data ?? []).reduce((s, p) => s + (p.amount ?? 0), 0)
+    const inflow = inflowByMonth[monthKey] ?? 0
+    const expenseOutflow = expensesByMonth[monthKey] ?? 0
+    const purchaseOutflow = purchaseByMonth[monthKey] ?? 0
     const outflow = expenseOutflow + purchaseOutflow
 
     rows.push({ monthKey, month: label, inflow, purchaseOutflow, expenseOutflow, outflow, net: inflow - outflow, runningBalance: 0 })

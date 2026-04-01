@@ -9,6 +9,9 @@ export async function register() {
     "NEXT_PUBLIC_SUPABASE_URL",
     "NEXT_PUBLIC_SUPABASE_ANON_KEY",
     "SUPABASE_SERVICE_ROLE_KEY",
+    "QR_SECRET",
+    "CRON_SECRET",
+    "PORTAL_SECRET",
   ]
 
   // AI keys are optional — features degrade gracefully when absent
