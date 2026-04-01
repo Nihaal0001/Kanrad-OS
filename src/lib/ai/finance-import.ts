@@ -165,7 +165,7 @@ Expense categories: ${JSON.stringify(context.expenseCategories.map((c) => c.name
 Orders: ${JSON.stringify(context.orders.map((order) => `${order.order_number} | ${order.product_variant}`))}
 `.trim()
 
-  const model = ai.getGenerativeModel({ model: "gemini-2.5-pro" })
+  const model = ai.getGenerativeModel({ model: "gemini-2.0-flash" })
   const result = await model.generateContent([
     { text: prompt },
     {
