@@ -94,6 +94,7 @@ export async function createOrder(formData: OrderFormData) {
     quantity: item.quantity,
     unit_price: item.unit_price,
     hsn_code: item.hsn_code || null,
+    thickness_mm: item.thickness_mm ?? null,
   }))
 
   const { error: itemsError } = await supabase
@@ -153,6 +154,7 @@ export async function updateOrder(id: string, formData: OrderFormData) {
     quantity: item.quantity,
     unit_price: item.unit_price,
     hsn_code: item.hsn_code || null,
+    thickness_mm: item.thickness_mm ?? null,
   }))
 
   const { error: itemsError } = await supabase

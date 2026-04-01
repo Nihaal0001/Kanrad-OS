@@ -7,6 +7,8 @@ export const orderItemSchema = z.object({
   quantity: z.number().int().min(1, "Quantity must be at least 1"),
   unit_price: z.number().min(0, "Price cannot be negative"),
   hsn_code: z.string().optional().or(z.literal("")),
+  // Circle thickness in mm — only required for non-IB circle products
+  thickness_mm: z.number().positive("Thickness must be greater than 0").nullable().optional(),
 })
 
 export const orderSchema = z.object({

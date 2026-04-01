@@ -10,6 +10,7 @@ import { toast } from "sonner"
 import { orderSchema, type OrderFormData } from "@/lib/validators/order"
 import { createOrder, updateOrder } from "@/actions/orders"
 import { formatCurrency } from "@/lib/utils"
+import { formatCircleWeight, isIBCoating } from "@/lib/circle-calc"
 import type { OrderDetail } from "@/lib/supabase/types"
 
 import { Button } from "@/components/ui/button"
@@ -62,8 +63,9 @@ export function OrderForm({ order, customers }: OrderFormProps) {
             quantity: item.quantity,
             unit_price: item.unit_price,
             hsn_code: item.hsn_code ?? "",
+            thickness_mm: (item as { thickness_mm?: number | null }).thickness_mm ?? null,
           }))
-        : [{ product_variant: "", size: "", color: "", quantity: 1, unit_price: 0, hsn_code: "" }],
+        : [{ product_variant: "", size: "", color: "", quantity: 1, unit_price: 0, hsn_code: "", thickness_mm: null }],
     },
   })
 
@@ -276,9 +278,10 @@ export function OrderForm({ order, customers }: OrderFormProps) {
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Column headers for desktop */}
-          <div className="hidden sm:grid sm:grid-cols-[1.3fr_0.9fr_0.9fr_90px_90px_120px_40px] sm:gap-3 sm:px-1">
+          <div className="hidden sm:grid sm:grid-cols-[1.3fr_0.7fr_0.6fr_0.7fr_90px_90px_120px_40px] sm:gap-3 sm:px-1">
             <Label className="text-xs text-muted-foreground">Product</Label>
-            <Label className="text-xs text-muted-foreground">Size (mm/ltr)</Label>
+            <Label className="text-xs text-muted-foreground">Size / Dia (mm)</Label>
+            <Label className="text-xs text-muted-foreground">Thick (mm)</Label>
             <Label className="text-xs text-muted-foreground">Coating / Finish</Label>
             <Label className="text-xs text-muted-foreground">HSN/SAC</Label>
             <Label className="text-xs text-muted-foreground">Quantity</Label>
@@ -289,7 +292,7 @@ export function OrderForm({ order, customers }: OrderFormProps) {
           {fields.map((field, index) => (
             <div
               key={field.id}
-              className="grid gap-3 sm:grid-cols-[1.3fr_0.9fr_0.9fr_90px_90px_120px_40px] items-start"
+              className="grid gap-3 sm:grid-cols-[1.3fr_0.7fr_0.6fr_0.7fr_90px_90px_120px_40px] items-start"
             >
               {/* Product */}
               <div className="space-y-1">
@@ -307,13 +310,13 @@ export function OrderForm({ order, customers }: OrderFormProps) {
                 )}
               </div>
 
-              {/* Size */}
+              {/* Size / Diameter */}
               <div className="space-y-1">
                 <Label className="sm:hidden text-xs text-muted-foreground">
-                  Size (mm/ltr)
+                  Size / Dia (mm)
                 </Label>
                 <Input
-                  placeholder="e.g., 240mm"
+                  placeholder="e.g., 240"
                   {...form.register(`items.${index}.size`)}
                 />
                 {form.formState.errors.items?.[index]?.size && (
@@ -321,6 +324,23 @@ export function OrderForm({ order, customers }: OrderFormProps) {
                     {form.formState.errors.items[index]?.size?.message}
                   </p>
                 )}
+              </div>
+
+              {/* Thickness — for non-IB circle weight calculation */}
+              <div className="space-y-1">
+                <Label className="sm:hidden text-xs text-muted-foreground">
+                  Thick (mm)
+                </Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  placeholder="e.g., 3"
+                  {...form.register(`items.${index}.thickness_mm`, {
+                    valueAsNumber: true,
+                    setValueAs: (v) => (v === "" || isNaN(v) ? null : Number(v)),
+                  })}
+                />
               </div>
 
               {/* Coating / Finish */}
@@ -337,6 +357,20 @@ export function OrderForm({ order, customers }: OrderFormProps) {
                     {form.formState.errors.items[index]?.color?.message}
                   </p>
                 )}
+                {/* Show calculated circle weight for non-IB items */}
+                {(() => {
+                  const item = watchItems?.[index]
+                  if (!item) return null
+                  const coating = item.color ?? ""
+                  if (isIBCoating(coating)) return null
+                  const weight = formatCircleWeight(item.size, item.thickness_mm, coating)
+                  if (!weight) return null
+                  return (
+                    <p className="text-xs text-muted-foreground">
+                      ≈ {weight} / pc
+                    </p>
+                  )
+                })()}
               </div>
 
               {/* HSN/SAC Code */}
@@ -417,7 +451,7 @@ export function OrderForm({ order, customers }: OrderFormProps) {
             variant="outline"
             size="sm"
             onClick={() =>
-              append({ product_variant: "", size: "", color: "", quantity: 1, unit_price: 0, hsn_code: "" })
+              append({ product_variant: "", size: "", color: "", quantity: 1, unit_price: 0, hsn_code: "", thickness_mm: null })
             }
           >
             <Plus className="mr-2 h-4 w-4" />
