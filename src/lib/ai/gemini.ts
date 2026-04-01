@@ -35,7 +35,7 @@ export async function askGemini(
   if (!ai) throw new Error("Gemini API key not configured")
 
   const model = ai.getGenerativeModel({
-    model: "gemini-2.0-flash",
+    model: "gemini-2.5-pro",
     systemInstruction: systemPrompt,
   })
 
