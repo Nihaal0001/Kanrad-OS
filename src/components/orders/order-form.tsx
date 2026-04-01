@@ -10,7 +10,7 @@ import { toast } from "sonner"
 import { orderSchema, type OrderFormData } from "@/lib/validators/order"
 import { createOrder, updateOrder } from "@/actions/orders"
 import { formatCurrency } from "@/lib/utils"
-import { formatCircleWeight, isIBCoating, isCircleKgItem } from "@/lib/circle-calc"
+import { isIBCoating, isCircleKgItem, kgToPieces } from "@/lib/circle-calc"
 import type { OrderDetail } from "@/lib/supabase/types"
 
 import { Button } from "@/components/ui/button"
@@ -398,6 +398,14 @@ export function OrderForm({ order, customers }: OrderFormProps) {
                     {form.formState.errors.items[index]?.quantity?.message}
                   </p>
                 )}
+                {/* Show piece count for non-IB circle items */}
+                {(() => {
+                  const item = watchItems?.[index]
+                  if (!isCircleKgItem(item?.thickness_mm, item?.color)) return null
+                  const pcs = kgToPieces(item?.quantity, item?.size, item?.thickness_mm, item?.color)
+                  if (!pcs) return null
+                  return <p className="text-xs text-muted-foreground">≈ {pcs.toLocaleString()} pcs</p>
+                })()}
               </div>
 
               {/* Unit Price */}

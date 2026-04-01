@@ -7,7 +7,7 @@ import { formatDate, formatCurrency } from "@/lib/utils"
 import { generatePortalToken } from "@/lib/portal"
 import type { OrderDetail } from "@/lib/supabase/types"
 import { getOrderStyleSummary, getUniqueOrderStyles } from "@/lib/order-styles"
-import { isCircleKgItem } from "@/lib/circle-calc"
+import { isCircleKgItem, kgToPieces } from "@/lib/circle-calc"
 
 import { PageHeader } from "@/components/shared/page-header"
 import { StatusBadge } from "@/components/shared/status-badge"
@@ -243,6 +243,10 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
                         <TableCell>{item.color}</TableCell>
                         <TableCell className="text-right">
                           {item.quantity} {isKg ? "kg" : "pcs"}
+                          {isKg && (() => {
+                            const pcs = kgToPieces(item.quantity, item.size, item.thickness_mm, item.color)
+                            return pcs ? <span className="block text-xs text-muted-foreground">≈ {pcs.toLocaleString()} pcs</span> : null
+                          })()}
                         </TableCell>
                         <TableCell className="text-right">
                           {formatCurrency(item.unit_price)}

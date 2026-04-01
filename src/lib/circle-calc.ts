@@ -87,6 +87,25 @@ export function isCircleKgItem(
 }
 
 /**
+ * Converts a kg quantity to number of pieces for a non-IB circle.
+ *
+ * pieces = totalKg ÷ (dia × dia × thick × factor)
+ *
+ * Returns null if the weight per piece cannot be calculated (IB, missing dims, etc.)
+ */
+export function kgToPieces(
+  totalKg: number | null | undefined,
+  diameter: number | string | null | undefined,
+  thickness: number | string | null | undefined,
+  coating: string | null | undefined
+): number | null {
+  if (!totalKg || totalKg <= 0) return null
+  const weightPerPiece = calculateCircleWeight(diameter, thickness, coating)
+  if (!weightPerPiece || weightPerPiece <= 0) return null
+  return Math.round(totalKg / weightPerPiece)
+}
+
+/**
  * Formats a circle weight for display (e.g., "2.312 kg").
  * Returns null if the weight cannot be calculated.
  */
