@@ -209,25 +209,33 @@ export function DailyProductionEntry({ orders }: Props) {
               <div className="space-y-4">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-1.5">
-                    <Label>Produced Today *</Label>
-                    <Input
-                      type="number"
-                      min={1}
-                      max={summary.pending}
-                      placeholder={`Max ${summary.pending}`}
-                      value={qtyProduced}
-                      onChange={(e) => setQtyProduced(e.target.value)}
-                    />
+                    <Label>Produced Today (pcs) *</Label>
+                    <div className="relative">
+                      <Input
+                        type="number"
+                        min={1}
+                        max={summary.pending}
+                        placeholder={`Max ${summary.pending}`}
+                        className="pr-10"
+                        value={qtyProduced}
+                        onChange={(e) => setQtyProduced(e.target.value)}
+                      />
+                      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">pcs</span>
+                    </div>
                   </div>
                   <div className="space-y-1.5">
-                    <Label>Rejected Today</Label>
-                    <Input
-                      type="number"
-                      min={0}
-                      placeholder="0"
-                      value={qtyRejected}
-                      onChange={(e) => setQtyRejected(e.target.value)}
-                    />
+                    <Label>Rejected Today (pcs)</Label>
+                    <div className="relative">
+                      <Input
+                        type="number"
+                        min={0}
+                        placeholder="0"
+                        className="pr-10"
+                        value={qtyRejected}
+                        onChange={(e) => setQtyRejected(e.target.value)}
+                      />
+                      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">pcs</span>
+                    </div>
                   </div>
                 </div>
                 <div className="space-y-1.5">

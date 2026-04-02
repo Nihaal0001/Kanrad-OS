@@ -143,15 +143,18 @@ export function RecordProductionSheet({ orders }: Props) {
 
             {/* Planned Quantity */}
             <div className="space-y-1.5">
-              <Label className="text-base font-semibold">Planned Quantity</Label>
-              <Input
-                className="h-12 text-base"
-                type="number"
-                min={1}
-                value={plannedQty}
-                onChange={(e) => setPlannedQty(e.target.value)}
-                placeholder=""
-              />
+              <Label className="text-base font-semibold">Planned Quantity (pcs)</Label>
+              <div className="relative">
+                <Input
+                  className="h-12 text-base pr-12"
+                  type="number"
+                  min={1}
+                  value={plannedQty}
+                  onChange={(e) => setPlannedQty(e.target.value)}
+                  placeholder=""
+                />
+                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">pcs</span>
+              </div>
               <p className="text-sm text-muted-foreground">Auto-filled from order quantity (can be adjusted)</p>
             </div>
 

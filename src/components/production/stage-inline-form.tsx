@@ -155,44 +155,53 @@ export function StageInlineForm({
 
         {/* Qty Input (raw material input for this stage) */}
         <div className="space-y-1.5">
-          <Label htmlFor={`input-${trackingId}`} className="text-xs">Qty Input <span className="text-muted-foreground">(raw)</span></Label>
-          <Input
-            id={`input-${trackingId}`}
-            type="number"
-            min={0}
-            className="h-9"
-            placeholder="0"
-            {...form.register("quantity_input", { valueAsNumber: true })}
-          />
+          <Label htmlFor={`input-${trackingId}`} className="text-xs">Qty Input <span className="text-muted-foreground">(pcs, raw)</span></Label>
+          <div className="relative">
+            <Input
+              id={`input-${trackingId}`}
+              type="number"
+              min={0}
+              className="h-9 pr-9"
+              placeholder="0"
+              {...form.register("quantity_input", { valueAsNumber: true })}
+            />
+            <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">pcs</span>
+          </div>
         </div>
 
         {/* Qty Completed */}
         <div className="space-y-1.5">
           <Label htmlFor={`done-${trackingId}`} className="text-xs">
-            Qty Completed <span className="text-muted-foreground">(of {totalQuantity})</span>
+            Qty Completed <span className="text-muted-foreground">(pcs, of {totalQuantity})</span>
           </Label>
-          <Input
-            id={`done-${trackingId}`}
-            type="number"
-            min={0}
-            max={totalQuantity}
-            className="h-9"
-            placeholder="0"
-            {...form.register("quantity_completed", { valueAsNumber: true })}
-          />
+          <div className="relative">
+            <Input
+              id={`done-${trackingId}`}
+              type="number"
+              min={0}
+              max={totalQuantity}
+              className="h-9 pr-9"
+              placeholder="0"
+              {...form.register("quantity_completed", { valueAsNumber: true })}
+            />
+            <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">pcs</span>
+          </div>
         </div>
 
         {/* Qty Rejected */}
         <div className="space-y-1.5">
-          <Label htmlFor={`rej-${trackingId}`} className="text-xs">Qty Rejected</Label>
-          <Input
-            id={`rej-${trackingId}`}
-            type="number"
-            min={0}
-            className="h-9"
-            placeholder="0"
-            {...form.register("quantity_rejected", { valueAsNumber: true })}
-          />
+          <Label htmlFor={`rej-${trackingId}`} className="text-xs">Qty Rejected (pcs)</Label>
+          <div className="relative">
+            <Input
+              id={`rej-${trackingId}`}
+              type="number"
+              min={0}
+              className="h-9 pr-9"
+              placeholder="0"
+              {...form.register("quantity_rejected", { valueAsNumber: true })}
+            />
+            <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">pcs</span>
+          </div>
         </div>
       </div>
 

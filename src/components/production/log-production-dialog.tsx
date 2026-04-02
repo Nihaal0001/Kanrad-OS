@@ -142,28 +142,34 @@ export function LogProductionDialog({ orders, preselectedOrderId, preselectedTot
 
             {/* Qty produced */}
             <div className="space-y-1.5">
-              <Label className="text-base font-semibold">Quantity Produced *</Label>
-              <Input
-                type="number"
-                min={1}
-                className="h-12 text-base"
-                placeholder="e.g. 150"
-                value={qty}
-                onChange={(e) => setQty(e.target.value)}
-              />
+              <Label className="text-base font-semibold">Quantity Produced (pcs) *</Label>
+              <div className="relative">
+                <Input
+                  type="number"
+                  min={1}
+                  className="h-12 text-base pr-12"
+                  placeholder="e.g. 150"
+                  value={qty}
+                  onChange={(e) => setQty(e.target.value)}
+                />
+                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">pcs</span>
+              </div>
             </div>
 
             {/* Qty rejected */}
             <div className="space-y-1.5">
-              <Label className="text-base font-semibold">Rejected / Defective</Label>
-              <Input
-                type="number"
-                min={0}
-                className="h-12 text-base"
-                placeholder="0"
-                value={rejected}
-                onChange={(e) => setRejected(e.target.value)}
-              />
+              <Label className="text-base font-semibold">Rejected / Defective (pcs)</Label>
+              <div className="relative">
+                <Input
+                  type="number"
+                  min={0}
+                  className="h-12 text-base pr-12"
+                  placeholder="0"
+                  value={rejected}
+                  onChange={(e) => setRejected(e.target.value)}
+                />
+                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">pcs</span>
+              </div>
             </div>
 
             {/* Notes */}
