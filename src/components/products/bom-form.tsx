@@ -1,15 +1,16 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useForm, useFieldArray } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { Plus, Trash2, Loader2, Calculator, Search } from "lucide-react"
+import { Plus, Trash2, Loader2, Calculator, Check } from "lucide-react"
 import { toast } from "sonner"
 
 import { bomSchema, type BomFormData } from "@/lib/validators/bom"
 import { createProduct, updateProduct } from "@/actions/bom"
 import type { BomDetail, Material } from "@/lib/supabase/types"
+import { cn } from "@/lib/utils"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -57,23 +58,113 @@ function formatCurrency(n: number) {
   return n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
+// ── Combobox ────────────────────────────────────────────────────────────────
+interface MaterialComboboxProps {
+  materials: MaterialOption[]
+  value: string
+  categoryFilter: string
+  onChange: (id: string, unit: string) => void
+}
+
+function MaterialCombobox({ materials, value, categoryFilter, onChange }: MaterialComboboxProps) {
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState("")
+  const [focused, setFocused] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  const selected = materials.find((m) => m.id === value)
+
+  const filtered = materials.filter((m) => {
+    if (categoryFilter && m.category_id !== categoryFilter) return false
+    if (!query.trim()) return true
+    const q = query.toLowerCase()
+    return m.name.toLowerCase().includes(q) || m.sku.toLowerCase().includes(q)
+  })
+
+  // Close on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false)
+        setFocused(false)
+        setQuery("")
+      }
+    }
+    document.addEventListener("mousedown", handleClick)
+    return () => document.removeEventListener("mousedown", handleClick)
+  }, [])
+
+  const displayValue = focused ? query : (selected ? `${selected.sku} — ${selected.name}` : "")
+
+  return (
+    <div ref={containerRef} className="relative">
+      <Input
+        className="h-9 text-sm"
+        placeholder="Search by name or SKU…"
+        value={displayValue}
+        onFocus={() => {
+          setFocused(true)
+          setQuery("")
+          setOpen(true)
+        }}
+        onChange={(e) => {
+          setQuery(e.target.value)
+          setOpen(true)
+        }}
+      />
+      {open && (
+        <div className="absolute z-50 mt-1 w-full min-w-[280px] rounded-md border bg-popover shadow-lg max-h-64 overflow-y-auto">
+          {filtered.length === 0 ? (
+            <div className="py-4 text-center text-xs text-muted-foreground">No materials found</div>
+          ) : (
+            filtered.map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                className={cn(
+                  "w-full px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground flex items-start gap-2",
+                  m.id === value && "bg-accent/40"
+                )}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  onChange(m.id, m.unit)
+                  setOpen(false)
+                  setFocused(false)
+                  setQuery("")
+                }}
+              >
+                {m.id === value ? (
+                  <Check className="h-3.5 w-3.5 mt-0.5 shrink-0 text-primary" />
+                ) : (
+                  <span className="h-3.5 w-3.5 shrink-0" />
+                )}
+                <span className="flex flex-col min-w-0">
+                  <span className="truncate">
+                    <span className="font-mono text-xs text-muted-foreground mr-1.5">{m.sku}</span>
+                    {m.name}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    ₹{m.cost_per_unit}/{m.unit}
+                    {m.category_name && <span className="ml-2">· {m.category_name}</span>}
+                  </span>
+                </span>
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── BomForm ─────────────────────────────────────────────────────────────────
 export function BomForm({ product, materials }: BomFormProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const isEditing = !!product
 
-  // Per-row category filter and search state
-  const [rowFilters, setRowFilters] = useState<Record<number, { category: string; search: string }>>({})
-
-  function getRowFilter(index: number) {
-    return rowFilters[index] ?? { category: "", search: "" }
-  }
-  function setRowCategory(index: number, category: string) {
-    setRowFilters((prev) => ({ ...prev, [index]: { ...getRowFilter(index), category } }))
-  }
-  function setRowSearch(index: number, search: string) {
-    setRowFilters((prev) => ({ ...prev, [index]: { ...getRowFilter(index), search } }))
-  }
+  // Per-row category filter
+  const [rowCategories, setRowCategories] = useState<Record<number, string>>({})
 
   // Unique categories extracted from materials
   const categories = Array.from(
@@ -108,7 +199,6 @@ export function BomForm({ product, materials }: BomFormProps) {
 
   const watchedItems = form.watch("items")
 
-  // Compute BOM cost in real-time
   const materialsMap = Object.fromEntries(materials.map((m) => [m.id, m]))
   const totalBomCost = watchedItems.reduce((sum, item) => {
     const mat = materialsMap[item.material_id]
@@ -237,30 +327,22 @@ export function BomForm({ product, materials }: BomFormProps) {
             const mat = item ? materialsMap[item.material_id] : null
             const effectiveQty = (item?.qty_required || 0) * (1 + (item?.wastage_pct || 0) / 100)
             const lineCost = mat ? effectiveQty * mat.cost_per_unit : 0
-            const rowFilter = getRowFilter(index)
-
-            // Filter materials for this row
-            const filteredMaterials = materials.filter((m) => {
-              if (rowFilter.category && m.category_id !== rowFilter.category) return false
-              if (rowFilter.search) {
-                const q = rowFilter.search.toLowerCase()
-                if (!m.name.toLowerCase().includes(q) && !m.sku.toLowerCase().includes(q)) return false
-              }
-              return true
-            })
+            const categoryFilter = rowCategories[index] ?? ""
 
             return (
               <div
                 key={field.id}
                 className="grid grid-cols-1 sm:grid-cols-[2fr_1fr_0.8fr_0.8fr_1fr_40px] gap-3 items-start rounded-lg border p-3 sm:border-0 sm:p-0"
               >
-                {/* Material picker: category + search + select */}
+                {/* Material picker: category filter + combobox */}
                 <div className="space-y-1.5">
                   <Label className="sm:hidden text-xs">Material</Label>
                   {/* Category filter */}
                   <Select
-                    value={rowFilter.category || "__all__"}
-                    onValueChange={(v) => setRowCategory(index, v === "__all__" ? "" : v)}
+                    value={categoryFilter || "__all__"}
+                    onValueChange={(v) =>
+                      setRowCategories((prev) => ({ ...prev, [index]: v === "__all__" ? "" : v }))
+                    }
                   >
                     <SelectTrigger className="h-8 text-xs text-muted-foreground">
                       <SelectValue placeholder="All categories" />
@@ -272,42 +354,16 @@ export function BomForm({ product, materials }: BomFormProps) {
                       ))}
                     </SelectContent>
                   </Select>
-                  {/* Text search */}
-                  <div className="relative">
-                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
-                    <Input
-                      className="h-8 pl-6 text-xs"
-                      placeholder="Search by name or SKU…"
-                      value={rowFilter.search}
-                      onChange={(e) => setRowSearch(index, e.target.value)}
-                    />
-                  </div>
-                  {/* Material select */}
-                  <Select
+                  {/* Combobox */}
+                  <MaterialCombobox
+                    materials={materials}
                     value={item?.material_id || ""}
-                    onValueChange={(v) => {
-                      form.setValue(`items.${index}.material_id`, v, { shouldValidate: true })
-                      const m = materialsMap[v]
-                      if (m) form.setValue(`items.${index}.unit`, m.unit)
+                    categoryFilter={categoryFilter}
+                    onChange={(id, unit) => {
+                      form.setValue(`items.${index}.material_id`, id, { shouldValidate: true })
+                      form.setValue(`items.${index}.unit`, unit)
                     }}
-                  >
-                    <SelectTrigger className="h-9 text-sm">
-                      <SelectValue placeholder="Select material" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {filteredMaterials.length === 0 ? (
-                        <div className="py-4 text-center text-xs text-muted-foreground">No materials found</div>
-                      ) : (
-                        filteredMaterials.map((m) => (
-                          <SelectItem key={m.id} value={m.id}>
-                            <span className="font-mono text-xs mr-2">{m.sku}</span>
-                            {m.name}
-                            <span className="ml-2 text-muted-foreground text-xs">₹{m.cost_per_unit}/{m.unit}</span>
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
+                  />
                   {form.formState.errors.items?.[index]?.material_id && (
                     <p className="text-xs text-destructive">{form.formState.errors.items[index].material_id?.message}</p>
                   )}
