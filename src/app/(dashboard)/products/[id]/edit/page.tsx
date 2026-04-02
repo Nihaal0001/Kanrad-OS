@@ -29,6 +29,8 @@ export default async function EditProductPage({ params }: Props) {
       cost_per_unit: m.cost_per_unit,
       unit: m.unit,
       current_stock: m.current_stock,
+      category_id: m.category_id ?? null,
+      category_name: (m.category as { id: string; name: string } | null)?.name ?? null,
     }))
 
   return (

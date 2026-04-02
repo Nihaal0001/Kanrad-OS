@@ -36,7 +36,7 @@ export async function getMaterials(filters?: {
     .from("materials")
     .select("*, category:material_categories(id, name)")
     .eq("is_active", true)
-    .order("created_at", { ascending: false })
+    .order("sku", { ascending: true })
 
   if (filters?.category_id) {
     query = query.eq("category_id", filters.category_id)

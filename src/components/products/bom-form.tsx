@@ -4,7 +4,7 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { useForm, useFieldArray } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { Plus, Trash2, Loader2, Calculator } from "lucide-react"
+import { Plus, Trash2, Loader2, Calculator, Search } from "lucide-react"
 import { toast } from "sonner"
 
 import { bomSchema, type BomFormData } from "@/lib/validators/bom"
@@ -30,9 +30,14 @@ import {
 } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 
+type MaterialOption = Pick<Material, "id" | "name" | "sku" | "cost_per_unit" | "unit" | "current_stock"> & {
+  category_id?: string | null
+  category_name?: string | null
+}
+
 interface BomFormProps {
   product?: BomDetail
-  materials: Pick<Material, "id" | "name" | "sku" | "cost_per_unit" | "unit" | "current_stock">[]
+  materials: MaterialOption[]
 }
 
 const CATEGORIES = [
@@ -56,6 +61,28 @@ export function BomForm({ product, materials }: BomFormProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const isEditing = !!product
+
+  // Per-row category filter and search state
+  const [rowFilters, setRowFilters] = useState<Record<number, { category: string; search: string }>>({})
+
+  function getRowFilter(index: number) {
+    return rowFilters[index] ?? { category: "", search: "" }
+  }
+  function setRowCategory(index: number, category: string) {
+    setRowFilters((prev) => ({ ...prev, [index]: { ...getRowFilter(index), category } }))
+  }
+  function setRowSearch(index: number, search: string) {
+    setRowFilters((prev) => ({ ...prev, [index]: { ...getRowFilter(index), search } }))
+  }
+
+  // Unique categories extracted from materials
+  const categories = Array.from(
+    new Map(
+      materials
+        .filter((m) => m.category_id && m.category_name)
+        .map((m) => [m.category_id!, m.category_name!])
+    ).entries()
+  ).sort((a, b) => a[1].localeCompare(b[1]))
 
   const form = useForm<BomFormData>({
     resolver: zodResolver(bomSchema),
@@ -210,15 +237,52 @@ export function BomForm({ product, materials }: BomFormProps) {
             const mat = item ? materialsMap[item.material_id] : null
             const effectiveQty = (item?.qty_required || 0) * (1 + (item?.wastage_pct || 0) / 100)
             const lineCost = mat ? effectiveQty * mat.cost_per_unit : 0
+            const rowFilter = getRowFilter(index)
+
+            // Filter materials for this row
+            const filteredMaterials = materials.filter((m) => {
+              if (rowFilter.category && m.category_id !== rowFilter.category) return false
+              if (rowFilter.search) {
+                const q = rowFilter.search.toLowerCase()
+                if (!m.name.toLowerCase().includes(q) && !m.sku.toLowerCase().includes(q)) return false
+              }
+              return true
+            })
 
             return (
               <div
                 key={field.id}
                 className="grid grid-cols-1 sm:grid-cols-[2fr_1fr_0.8fr_0.8fr_1fr_40px] gap-3 items-start rounded-lg border p-3 sm:border-0 sm:p-0"
               >
-                {/* Material select */}
-                <div className="space-y-1">
+                {/* Material picker: category + search + select */}
+                <div className="space-y-1.5">
                   <Label className="sm:hidden text-xs">Material</Label>
+                  {/* Category filter */}
+                  <Select
+                    value={rowFilter.category || "__all__"}
+                    onValueChange={(v) => setRowCategory(index, v === "__all__" ? "" : v)}
+                  >
+                    <SelectTrigger className="h-8 text-xs text-muted-foreground">
+                      <SelectValue placeholder="All categories" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all__">All categories</SelectItem>
+                      {categories.map(([catId, catName]) => (
+                        <SelectItem key={catId} value={catId}>{catName}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {/* Text search */}
+                  <div className="relative">
+                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
+                    <Input
+                      className="h-8 pl-6 text-xs"
+                      placeholder="Search by name or SKU…"
+                      value={rowFilter.search}
+                      onChange={(e) => setRowSearch(index, e.target.value)}
+                    />
+                  </div>
+                  {/* Material select */}
                   <Select
                     value={item?.material_id || ""}
                     onValueChange={(v) => {
@@ -231,13 +295,17 @@ export function BomForm({ product, materials }: BomFormProps) {
                       <SelectValue placeholder="Select material" />
                     </SelectTrigger>
                     <SelectContent>
-                      {materials.map((m) => (
-                        <SelectItem key={m.id} value={m.id}>
-                          <span className="font-mono text-xs mr-2">{m.sku}</span>
-                          {m.name}
-                          <span className="ml-2 text-muted-foreground text-xs">₹{m.cost_per_unit}/{m.unit}</span>
-                        </SelectItem>
-                      ))}
+                      {filteredMaterials.length === 0 ? (
+                        <div className="py-4 text-center text-xs text-muted-foreground">No materials found</div>
+                      ) : (
+                        filteredMaterials.map((m) => (
+                          <SelectItem key={m.id} value={m.id}>
+                            <span className="font-mono text-xs mr-2">{m.sku}</span>
+                            {m.name}
+                            <span className="ml-2 text-muted-foreground text-xs">₹{m.cost_per_unit}/{m.unit}</span>
+                          </SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                   {form.formState.errors.items?.[index]?.material_id && (
