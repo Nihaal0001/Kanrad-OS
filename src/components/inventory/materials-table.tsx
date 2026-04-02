@@ -7,6 +7,7 @@ import { MoreHorizontal, Search, Eye, Pencil, Trash2, AlertTriangle } from "luci
 
 import type { MaterialWithCategory } from "@/lib/supabase/types"
 import { cn, friendlyError } from "@/lib/utils"
+import { calculateCircleWeight, kgToPieces } from "@/lib/circle-calc"
 import { deleteMaterial } from "@/actions/inventory"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -175,7 +176,8 @@ export function MaterialsTable({ materials, categories }: MaterialsTableProps) {
                 <TableHead>Name</TableHead>
                 <TableHead>Category</TableHead>
                 <TableHead>Stock Level</TableHead>
-                <TableHead className="text-right">Current</TableHead>
+                <TableHead className="text-right">Stock (kg)</TableHead>
+                <TableHead className="text-right">Stock (pcs)</TableHead>
                 <TableHead className="text-right">Min</TableHead>
                 <TableHead>Unit</TableHead>
                 <TableHead className="w-[50px]">
@@ -212,6 +214,18 @@ export function MaterialsTable({ materials, categories }: MaterialsTableProps) {
                   </TableCell>
                   <TableCell className="text-right tabular-nums font-semibold">
                     {material.current_stock.toLocaleString("en-IN")}
+                    {material.circle_type === "non_ib" && material.diameter_mm && material.thickness_mm && (() => {
+                      const wpp = calculateCircleWeight(material.diameter_mm, material.thickness_mm, "non_ib")
+                      return wpp ? <span className="block text-xs font-normal text-muted-foreground">{wpp.toFixed(4)} kg/pc</span> : null
+                    })()}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums font-semibold">
+                    {material.circle_type === "non_ib" && material.diameter_mm && material.thickness_mm
+                      ? (() => {
+                          const pcs = kgToPieces(material.current_stock, material.diameter_mm, material.thickness_mm, "non_ib")
+                          return pcs ? pcs.toLocaleString("en-IN") : "—"
+                        })()
+                      : "—"}
                   </TableCell>
                   <TableCell className="text-right tabular-nums text-muted-foreground">
                     {material.min_stock_level > 0
