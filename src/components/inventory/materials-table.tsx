@@ -3,7 +3,7 @@
 import { useState, useMemo, useCallback } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { MoreHorizontal, Search, Eye, Pencil, Trash2, AlertTriangle } from "lucide-react"
+import { MoreHorizontal, Search, Eye, Pencil, Trash2, AlertTriangle, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react"
 
 import type { MaterialWithCategory } from "@/lib/supabase/types"
 import { cn, friendlyError } from "@/lib/utils"
@@ -42,6 +42,17 @@ export function MaterialsTable({ materials, categories }: MaterialsTableProps) {
   const [showLowStock, setShowLowStock] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [confirmId, setConfirmId] = useState<string | null>(null)
+  const [sortCol, setSortCol] = useState<"sku" | "name">("sku")
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc")
+
+  function handleSort(col: "sku" | "name") {
+    if (sortCol === col) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"))
+    } else {
+      setSortCol(col)
+      setSortDir("asc")
+    }
+  }
 
   const filteredMaterials = useMemo(() => {
     let result = materials
@@ -66,8 +77,13 @@ export function MaterialsTable({ materials, categories }: MaterialsTableProps) {
       )
     }
 
-    return [...result].sort((a, b) => a.sku.localeCompare(b.sku, undefined, { numeric: true, sensitivity: "base" }))
-  }, [materials, categoryFilter, showLowStock, search])
+    return [...result].sort((a, b) => {
+      const valA = sortCol === "name" ? a.name : a.sku
+      const valB = sortCol === "name" ? b.name : b.sku
+      const cmp = valA.localeCompare(valB, undefined, { numeric: true, sensitivity: "base" })
+      return sortDir === "asc" ? cmp : -cmp
+    })
+  }, [materials, categoryFilter, showLowStock, search, sortCol, sortDir])
 
   const lowStockCount = useMemo(
     () =>
@@ -172,8 +188,34 @@ export function MaterialsTable({ materials, categories }: MaterialsTableProps) {
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/40">
-                <TableHead>SKU</TableHead>
-                <TableHead>Name</TableHead>
+                <TableHead>
+                  <button
+                    type="button"
+                    onClick={() => handleSort("sku")}
+                    className="flex items-center gap-1 hover:text-foreground transition-colors"
+                  >
+                    SKU
+                    {sortCol === "sku" ? (
+                      sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                    ) : (
+                      <ArrowUpDown className="h-3 w-3 opacity-40" />
+                    )}
+                  </button>
+                </TableHead>
+                <TableHead>
+                  <button
+                    type="button"
+                    onClick={() => handleSort("name")}
+                    className="flex items-center gap-1 hover:text-foreground transition-colors"
+                  >
+                    Name
+                    {sortCol === "name" ? (
+                      sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                    ) : (
+                      <ArrowUpDown className="h-3 w-3 opacity-40" />
+                    )}
+                  </button>
+                </TableHead>
                 <TableHead>Category</TableHead>
                 <TableHead>Stock Level</TableHead>
                 <TableHead className="text-right">Stock (kg)</TableHead>
