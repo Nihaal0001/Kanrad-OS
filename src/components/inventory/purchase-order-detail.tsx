@@ -22,6 +22,7 @@ import { Label } from "@/components/ui/label"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { POApprovalButtons } from "@/components/inventory/po-approval-buttons"
 import { CheckCircle2, Package, Clock, TruckIcon } from "lucide-react"
+import { kgToPieces } from "@/lib/circle-calc"
 
 interface POItem {
   id: string
@@ -29,7 +30,15 @@ interface POItem {
   quantity_ordered: number
   quantity_received: number
   unit_price: number
-  material: { id: string; name: string; sku: string; unit: string } | null
+  material: {
+    id: string
+    name: string
+    sku: string
+    unit: string
+    diameter_mm: number | null
+    thickness_mm: number | null
+    circle_type: string | null
+  } | null
 }
 
 interface PurchaseOrderDetailProps {
@@ -211,34 +220,67 @@ export function PurchaseOrderDetail({ po: initialPo }: PurchaseOrderDetailProps)
                   </div>
 
                   <ReceiptProgressBar received={item.quantity_received} ordered={item.quantity_ordered} />
+                  {item.material?.circle_type === "non_ib" &&
+                    item.material.diameter_mm != null &&
+                    item.material.thickness_mm != null &&
+                    item.quantity_received > 0 && (() => {
+                      const pcs = kgToPieces(item.quantity_received, item.material.diameter_mm!, item.material.thickness_mm!, "non_ib")
+                      return pcs ? (
+                        <p className="text-xs text-muted-foreground">
+                          Received: <span className="font-semibold text-foreground">{pcs.toLocaleString("en-IN")} pcs</span>
+                          {" "}from {item.quantity_received} kg
+                        </p>
+                      ) : null
+                    })()
+                  }
 
-                  {canReceive && !fullyReceived && (
-                    <div className="flex items-end gap-2 pt-1">
-                      <div className="flex-1 space-y-1">
-                        <Label className="text-xs text-muted-foreground">Receiving today ({item.material?.unit ?? "units"})</Label>
-                        <Input
-                          type="number"
-                          min={0.01}
-                          max={pending}
-                          step="0.01"
-                          placeholder={`Max ${pending}`}
-                          value={receiveQuantities[item.id] ?? ""}
-                          onChange={(e) =>
-                            setReceiveQuantities((prev) => ({ ...prev, [item.id]: e.target.value }))
-                          }
+                  {canReceive && !fullyReceived && (() => {
+                    const mat = item.material
+                    const isNonIbCircle =
+                      mat?.circle_type === "non_ib" &&
+                      mat.diameter_mm != null &&
+                      mat.thickness_mm != null
+                    const enteredKg = Number(receiveQuantities[item.id] ?? "")
+                    const pcsPreview =
+                      isNonIbCircle && enteredKg > 0 && mat?.diameter_mm && mat?.thickness_mm
+                        ? kgToPieces(enteredKg, mat.diameter_mm, mat.thickness_mm, "non_ib")
+                        : null
+
+                    return (
+                      <div className="flex items-end gap-2 pt-1">
+                        <div className="flex-1 space-y-1">
+                          <Label className="text-xs text-muted-foreground">
+                            Receiving today ({item.material?.unit ?? "units"})
+                          </Label>
+                          <Input
+                            type="number"
+                            min={0.01}
+                            max={pending}
+                            step="0.01"
+                            placeholder={`Max ${pending}`}
+                            value={receiveQuantities[item.id] ?? ""}
+                            onChange={(e) =>
+                              setReceiveQuantities((prev) => ({ ...prev, [item.id]: e.target.value }))
+                            }
+                            className="h-9"
+                          />
+                          {pcsPreview != null && (
+                            <p className="text-xs font-semibold text-primary">
+                              ≈ {pcsPreview.toLocaleString("en-IN")} pcs
+                            </p>
+                          )}
+                        </div>
+                        <Button
+                          size="sm"
                           className="h-9"
-                        />
+                          disabled={receivingItemId === item.id || !receiveQuantities[item.id]}
+                          onClick={() => handleReceiveItem(item.id, item)}
+                        >
+                          {receivingItemId === item.id ? "Saving…" : "Receive"}
+                        </Button>
                       </div>
-                      <Button
-                        size="sm"
-                        className="h-9"
-                        disabled={receivingItemId === item.id || !receiveQuantities[item.id]}
-                        onClick={() => handleReceiveItem(item.id, item)}
-                      >
-                        {receivingItemId === item.id ? "Saving…" : "Receive"}
-                      </Button>
-                    </div>
-                  )}
+                    )
+                  })()}
                 </CardContent>
               </Card>
             )

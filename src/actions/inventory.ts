@@ -218,7 +218,7 @@ export async function getPurchaseOrder(id: string) {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from("purchase_orders")
-    .select("*, items:purchase_order_items(*, material:materials(id, name, sku, unit))")
+    .select("*, items:purchase_order_items(*, material:materials(id, name, sku, unit, diameter_mm, thickness_mm, circle_type))")
     .eq("id", id)
     .single()
 
