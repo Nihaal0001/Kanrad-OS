@@ -404,7 +404,7 @@ export function OrderForm({ order, customers }: OrderFormProps) {
                   if (!isCircleKgItem(item?.thickness_mm, item?.color)) return null
                   const pcs = kgToPieces(item?.quantity, item?.size, item?.thickness_mm, item?.color)
                   if (!pcs) return null
-                  return <p className="text-xs text-muted-foreground">≈ {pcs.toLocaleString()} pcs</p>
+                  return <p className="text-xs font-medium text-foreground">≈ {pcs.toLocaleString()} pcs</p>
                 })()}
               </div>
 

@@ -4,6 +4,7 @@ import { ArrowLeft, Pencil, ArrowUpDown } from "lucide-react"
 
 import { getMaterial, getStockTransactions } from "@/actions/inventory"
 import { formatCurrency, formatDate } from "@/lib/utils"
+import { calculateCircleWeight, kgToPieces } from "@/lib/circle-calc"
 import { PageHeader } from "@/components/shared/page-header"
 import { Button } from "@/components/ui/button"
 import {
@@ -119,6 +120,35 @@ export default async function MaterialDetailPage({ params }: MaterialDetailPageP
                   </dd>
                 </div>
               </dl>
+              {/* Circle info — only for non-IB aluminium circles */}
+              {material.circle_type === "non_ib" && material.diameter_mm && material.thickness_mm && (() => {
+                const weightPerPiece = calculateCircleWeight(material.diameter_mm, material.thickness_mm, "non_ib")
+                const pcsInStock = kgToPieces(material.current_stock, material.diameter_mm, material.thickness_mm, "non_ib")
+                return (
+                  <div className="mt-4 pt-4 border-t grid gap-4 sm:grid-cols-3">
+                    <div>
+                      <dt className="text-sm text-muted-foreground">Diameter</dt>
+                      <dd className="mt-1 font-medium">{material.diameter_mm} mm</dd>
+                    </div>
+                    <div>
+                      <dt className="text-sm text-muted-foreground">Thickness</dt>
+                      <dd className="mt-1 font-medium">{material.thickness_mm} mm</dd>
+                    </div>
+                    <div>
+                      <dt className="text-sm text-muted-foreground">Weight / Piece</dt>
+                      <dd className="mt-1 font-medium">{weightPerPiece ? weightPerPiece.toFixed(4) + " kg" : "--"}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-sm text-muted-foreground">Stock (kg)</dt>
+                      <dd className="mt-1 font-medium">{material.current_stock} kg</dd>
+                    </div>
+                    <div>
+                      <dt className="text-sm text-muted-foreground">Stock (pieces)</dt>
+                      <dd className="mt-1 text-lg font-bold">{pcsInStock ? pcsInStock.toLocaleString() + " pcs" : "--"}</dd>
+                    </div>
+                  </div>
+                )
+              })()}
               {material.notes && (
                 <div className="mt-4 pt-4 border-t">
                   <dt className="text-sm text-muted-foreground">Notes</dt>
