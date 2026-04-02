@@ -1,9 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { CheckCircle2, XCircle } from "lucide-react"
+import { CheckCircle2, XCircle, ChevronRight, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -20,6 +20,131 @@ interface POApprovalButtonsProps {
   approvalStatus: string
 }
 
+// ── Swipe-to-confirm slider ──────────────────────────────────────────────────
+interface SwipeConfirmProps {
+  label: string
+  color: "green" | "red"
+  loading: boolean
+  onConfirm: () => void
+}
+
+function SwipeConfirm({ label, color, loading, onConfirm }: SwipeConfirmProps) {
+  const trackRef = useRef<HTMLDivElement>(null)
+  const [x, setX] = useState(0)
+  const [dragging, setDragging] = useState(false)
+  const [triggered, setTriggered] = useState(false)
+  const startClientX = useRef(0)
+
+  const HANDLE = 44 // px
+  const THRESHOLD = 0.72
+
+  function trackWidth() {
+    return (trackRef.current?.offsetWidth ?? 240) - HANDLE - 8
+  }
+
+  const clamp = (v: number) => Math.max(0, Math.min(v, trackWidth()))
+
+  function onStart(clientX: number) {
+    if (loading || triggered) return
+    setDragging(true)
+    startClientX.current = clientX - x
+  }
+
+  const onMove = useCallback(
+    (clientX: number) => {
+      if (!dragging) return
+      setX(clamp(clientX - startClientX.current))
+    },
+    [dragging] // eslint-disable-line react-hooks/exhaustive-deps
+  )
+
+  const onEnd = useCallback(() => {
+    if (!dragging) return
+    setDragging(false)
+    if (x >= trackWidth() * THRESHOLD) {
+      setTriggered(true)
+      onConfirm()
+    } else {
+      setX(0)
+    }
+  }, [dragging, x, onConfirm]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Global listeners so fast drags don't lose tracking
+  useEffect(() => {
+    if (!dragging) return
+    const mm = (e: MouseEvent) => onMove(e.clientX)
+    const tm = (e: TouchEvent) => onMove(e.touches[0].clientX)
+    const mu = () => onEnd()
+    window.addEventListener("mousemove", mm)
+    window.addEventListener("touchmove", tm, { passive: true })
+    window.addEventListener("mouseup", mu)
+    window.addEventListener("touchend", mu)
+    return () => {
+      window.removeEventListener("mousemove", mm)
+      window.removeEventListener("touchmove", tm)
+      window.removeEventListener("mouseup", mu)
+      window.removeEventListener("touchend", mu)
+    }
+  }, [dragging, onMove, onEnd])
+
+  // Reset when dialog closes (loading resets to false from outside)
+  useEffect(() => {
+    if (!loading) {
+      setX(0)
+      setTriggered(false)
+    }
+  }, [loading])
+
+  const isGreen = color === "green"
+  const pct = trackWidth() > 0 ? x / trackWidth() : 0
+
+  return (
+    <div
+      ref={trackRef}
+      className={`relative h-12 rounded-full overflow-hidden select-none ${
+        isGreen ? "bg-emerald-100 dark:bg-emerald-950/40" : "bg-red-100 dark:bg-red-950/40"
+      }`}
+    >
+      {/* Fill */}
+      <div
+        className={`absolute inset-y-0 left-0 rounded-full ${isGreen ? "bg-emerald-200 dark:bg-emerald-800/50" : "bg-red-200 dark:bg-red-800/50"}`}
+        style={{ width: `${HANDLE + 8 + x}px`, transition: dragging ? "none" : "width 0.25s ease" }}
+      />
+
+      {/* Label */}
+      <span
+        className={`absolute inset-0 flex items-center justify-center text-sm font-medium pointer-events-none ${
+          isGreen ? "text-emerald-700 dark:text-emerald-300" : "text-red-700 dark:text-red-300"
+        }`}
+        style={{ opacity: Math.max(0.35, 1 - pct * 1.4) }}
+      >
+        {label}
+      </span>
+
+      {/* Handle */}
+      <div
+        className={`absolute top-1 bottom-1 left-1 flex items-center justify-center rounded-full cursor-grab active:cursor-grabbing shadow-sm ${
+          isGreen ? "bg-emerald-600 text-white" : "bg-red-600 text-white"
+        }`}
+        style={{
+          width: `${HANDLE}px`,
+          transform: `translateX(${x}px)`,
+          transition: dragging ? "none" : "transform 0.25s ease",
+        }}
+        onMouseDown={(e) => { e.preventDefault(); onStart(e.clientX) }}
+        onTouchStart={(e) => onStart(e.touches[0].clientX)}
+      >
+        {loading || triggered ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <ChevronRight className="h-4 w-4" />
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Main component ───────────────────────────────────────────────────────────
 export function POApprovalButtons({ poId, approvalStatus }: POApprovalButtonsProps) {
   const router = useRouter()
   const [loading, setLoading] = useState<"approve" | "reject" | null>(null)
@@ -65,11 +190,11 @@ export function POApprovalButtons({ poId, approvalStatus }: POApprovalButtonsPro
             Approve
           </Button>
         </DialogTrigger>
-        <DialogContent>
+        <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Approve Purchase Order</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3 pt-2">
+          <div className="space-y-4 pt-2">
             <div className="space-y-1.5">
               <Label>Notes (optional)</Label>
               <textarea
@@ -79,12 +204,12 @@ export function POApprovalButtons({ poId, approvalStatus }: POApprovalButtonsPro
                 onChange={(e) => setNotes(e.target.value)}
               />
             </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setApproveOpen(false)}>Cancel</Button>
-              <Button onClick={handleApprove} disabled={loading === "approve"} className="bg-emerald-600 hover:bg-emerald-700 text-white">
-                {loading === "approve" ? "Approving..." : "Confirm Approve"}
-              </Button>
-            </div>
+            <SwipeConfirm
+              label="Slide to approve →"
+              color="green"
+              loading={loading === "approve"}
+              onConfirm={handleApprove}
+            />
           </div>
         </DialogContent>
       </Dialog>
@@ -97,11 +222,11 @@ export function POApprovalButtons({ poId, approvalStatus }: POApprovalButtonsPro
             Reject
           </Button>
         </DialogTrigger>
-        <DialogContent>
+        <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Reject Purchase Order</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3 pt-2">
+          <div className="space-y-4 pt-2">
             <div className="space-y-1.5">
               <Label>Reason for rejection</Label>
               <textarea
@@ -111,12 +236,12 @@ export function POApprovalButtons({ poId, approvalStatus }: POApprovalButtonsPro
                 onChange={(e) => setNotes(e.target.value)}
               />
             </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setRejectOpen(false)}>Cancel</Button>
-              <Button onClick={handleReject} disabled={loading === "reject"} variant="destructive">
-                {loading === "reject" ? "Rejecting..." : "Confirm Reject"}
-              </Button>
-            </div>
+            <SwipeConfirm
+              label="Slide to reject →"
+              color="red"
+              loading={loading === "reject"}
+              onConfirm={handleReject}
+            />
           </div>
         </DialogContent>
       </Dialog>
