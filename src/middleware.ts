@@ -32,8 +32,8 @@ export async function middleware(request: NextRequest) {
   const PUBLIC_API_ROUTES: string[] = ["/api/kiosk", "/api/cron"]
   const isPublicApi = PUBLIC_API_ROUTES.some((r) => pathname.startsWith(r))
 
-  // Not logged in → redirect to login (except for auth routes, kiosk, and explicitly public API routes)
-  if (!user && !pathname.startsWith("/auth") && !pathname.startsWith("/kiosk") && !isPublicApi) {
+  // Not logged in → redirect to login (except for auth routes, kiosk, portal, scan, print, and explicitly public API routes)
+  if (!user && !pathname.startsWith("/auth") && !pathname.startsWith("/kiosk") && !pathname.startsWith("/portal") && !pathname.startsWith("/scan") && !pathname.startsWith("/print") && !isPublicApi) {
     return NextResponse.redirect(new URL("/auth/login", request.url))
   }
 
