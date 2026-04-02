@@ -66,7 +66,7 @@ export function MaterialsTable({ materials, categories }: MaterialsTableProps) {
       )
     }
 
-    return result
+    return [...result].sort((a, b) => a.sku.localeCompare(b.sku, undefined, { numeric: true, sensitivity: "base" }))
   }, [materials, categoryFilter, showLowStock, search])
 
   const lowStockCount = useMemo(
