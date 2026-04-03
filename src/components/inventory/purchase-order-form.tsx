@@ -1,10 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useForm, useFieldArray, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { Plus, X, Lock, AlertTriangle } from "lucide-react"
+import { Plus, X, Lock, AlertTriangle, Check, ChevronsUpDown } from "lucide-react"
 
 import { toast } from "sonner"
 import {
@@ -35,10 +35,128 @@ import {
 } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 
-interface PurchaseOrderFormProps {
-  materials: Array<Pick<Material, "id" | "name" | "sku" | "unit"> & { cost_per_unit: number }>
+interface MaterialOption extends Pick<Material, "id" | "name" | "sku" | "unit"> {
+  cost_per_unit: number
+  category_id: string | null
+  category_name: string | null
 }
 
+interface PurchaseOrderFormProps {
+  materials: MaterialOption[]
+}
+
+// ── Material Combobox ────────────────────────────────────────────────────────
+function MaterialCombobox({
+  materials,
+  value,
+  onChange,
+}: {
+  materials: MaterialOption[]
+  value: string
+  onChange: (id: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState("")
+  const [categoryFilter, setCategoryFilter] = useState("")
+  const inputRef = useRef<HTMLInputElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  const categories = Array.from(
+    new Map(
+      materials
+        .filter((m) => m.category_name)
+        .map((m) => [m.category_id, m.category_name])
+    ).entries()
+  ).map(([id, name]) => ({ id: id!, name: name! }))
+
+  const selected = materials.find((m) => m.id === value)
+
+  const filtered = materials.filter((m) => {
+    const matchCat = !categoryFilter || m.category_id === categoryFilter
+    const q = query.toLowerCase()
+    const matchQ = !q || m.name.toLowerCase().includes(q) || m.sku.toLowerCase().includes(q)
+    return matchCat && matchQ
+  })
+
+  useEffect(() => {
+    if (!open) return
+    function onMouseDown(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false)
+      }
+    }
+    window.addEventListener("mousedown", onMouseDown)
+    return () => window.removeEventListener("mousedown", onMouseDown)
+  }, [open])
+
+  return (
+    <div ref={containerRef} className="relative">
+      {/* Category filter */}
+      <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+        <SelectTrigger className="mb-1.5 h-8 text-xs">
+          <SelectValue placeholder="All categories" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="">All categories</SelectItem>
+          {categories.map((c) => (
+            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      {/* Search input */}
+      <button
+        type="button"
+        className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
+        onClick={() => { setOpen(true); setTimeout(() => inputRef.current?.focus(), 0) }}
+      >
+        <span className={selected ? "text-foreground" : "text-muted-foreground"}>
+          {open ? "" : (selected ? `${selected.name} (${selected.sku})` : "Search material…")}
+        </span>
+        <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
+      </button>
+
+      {open && (
+        <div className="absolute z-50 w-full mt-0.5 rounded-md border bg-popover shadow-md">
+          <input
+            ref={inputRef}
+            className="w-full border-b bg-transparent px-3 py-2 text-sm outline-none placeholder:text-muted-foreground"
+            placeholder="Search by name or SKU…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          <div className="max-h-56 overflow-y-auto py-1">
+            {filtered.length === 0 ? (
+              <p className="px-3 py-2 text-sm text-muted-foreground">No materials found</p>
+            ) : (
+              filtered.map((m) => (
+                <div
+                  key={m.id}
+                  className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer hover:bg-accent"
+                  onMouseDown={(e) => { e.preventDefault(); onChange(m.id); setOpen(false); setQuery("") }}
+                >
+                  <Check className={`h-3.5 w-3.5 shrink-0 ${value === m.id ? "opacity-100" : "opacity-0"}`} />
+                  <div className="flex-1 min-w-0">
+                    <span className="font-medium">{m.name}</span>
+                    <span className="ml-1.5 text-xs text-muted-foreground font-mono">{m.sku}</span>
+                    {m.category_name && (
+                      <span className="ml-1.5 text-xs text-muted-foreground">· {m.category_name}</span>
+                    )}
+                  </div>
+                  {m.cost_per_unit > 0 && (
+                    <span className="text-xs text-muted-foreground shrink-0">max ₹{m.cost_per_unit.toFixed(2)}</span>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Main Form ────────────────────────────────────────────────────────────────
 export function PurchaseOrderForm({ materials }: PurchaseOrderFormProps) {
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
@@ -63,7 +181,6 @@ export function PurchaseOrderForm({ materials }: PurchaseOrderFormProps) {
 
   const watchItems = form.watch("items")
 
-  // Map material_id → cost_per_unit for ceiling lookup
   const materialPriceMap = Object.fromEntries(
     materials.map((m) => [m.id, m.cost_per_unit])
   )
@@ -76,13 +193,11 @@ export function PurchaseOrderForm({ materials }: PurchaseOrderFormProps) {
   const totalValue =
     watchItems?.reduce(
       (sum, item) =>
-        sum +
-        (Number(item.quantity_ordered) || 0) * (Number(item.unit_price) || 0),
+        sum + (Number(item.quantity_ordered) || 0) * (Number(item.unit_price) || 0),
       0
     ) ?? 0
 
   async function onSubmit(data: PurchaseOrderFormData) {
-    // Client-side ceiling check
     for (const item of data.items) {
       const ceiling = getPriceCeiling(item.material_id)
       if (ceiling !== null && item.unit_price > ceiling) {
@@ -198,18 +313,14 @@ export function PurchaseOrderForm({ materials }: PurchaseOrderFormProps) {
       <Card>
         <CardHeader>
           <CardTitle>Order Items</CardTitle>
-          <CardDescription>
-            Materials to order from this supplier
-          </CardDescription>
+          <CardDescription>Materials to order from this supplier</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Column headers for desktop */}
           <div className="hidden sm:grid sm:grid-cols-[1fr_100px_160px_40px] sm:gap-3 sm:px-1">
             <Label className="text-xs text-muted-foreground">Material</Label>
             <Label className="text-xs text-muted-foreground">Quantity</Label>
             <Label className="text-xs text-muted-foreground flex items-center gap-1">
-              Unit Price
-              <Lock className="h-3 w-3 text-muted-foreground/60" />
+              Unit Price <Lock className="h-3 w-3 text-muted-foreground/60" />
             </Label>
             <span />
           </div>
@@ -223,31 +334,20 @@ export function PurchaseOrderForm({ materials }: PurchaseOrderFormProps) {
             return (
               <div key={field.id} className="space-y-2">
                 <div className="grid gap-3 sm:grid-cols-[1fr_100px_160px_40px] items-start">
-                  {/* Material */}
+                  {/* Material combobox */}
                   <div className="space-y-1">
                     <Label className="sm:hidden text-xs text-muted-foreground">Material</Label>
-                    <Select
-                      value={selectedMaterialId}
-                      onValueChange={(value) =>
-                        form.setValue(`items.${index}.material_id`, value, { shouldValidate: true })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select material" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {materials.map((m) => (
-                          <SelectItem key={m.id} value={m.id}>
-                            <span>{m.name} ({m.sku})</span>
-                            {m.cost_per_unit > 0 && (
-                              <span className="ml-2 text-xs text-muted-foreground">
-                                max ₹{m.cost_per_unit.toFixed(2)}
-                              </span>
-                            )}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Controller
+                      control={form.control}
+                      name={`items.${index}.material_id`}
+                      render={({ field: f }) => (
+                        <MaterialCombobox
+                          materials={materials}
+                          value={f.value}
+                          onChange={(id) => f.onChange(id)}
+                        />
+                      )}
+                    />
                     {form.formState.errors.items?.[index]?.material_id && (
                       <p className="text-xs text-destructive">
                         {form.formState.errors.items[index]?.material_id?.message}
@@ -313,18 +413,14 @@ export function PurchaseOrderForm({ materials }: PurchaseOrderFormProps) {
           })}
 
           {form.formState.errors.items?.message && (
-            <p className="text-sm text-destructive">
-              {form.formState.errors.items.message}
-            </p>
+            <p className="text-sm text-destructive">{form.formState.errors.items.message}</p>
           )}
 
           <Button
             type="button"
             variant="outline"
             size="sm"
-            onClick={() =>
-              append({ material_id: "", quantity_ordered: 1, unit_price: 0 })
-            }
+            onClick={() => append({ material_id: "", quantity_ordered: 1, unit_price: 0 })}
           >
             <Plus className="mr-2 h-4 w-4" />
             Add Item

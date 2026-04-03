@@ -3,16 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { CheckCircle2, XCircle, ChevronRight, Loader2 } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
+import { ChevronRight, ChevronLeft, Loader2 } from "lucide-react"
 import { approvePurchaseOrder, rejectPurchaseOrder } from "@/actions/inventory"
 
 interface POApprovalButtonsProps {
@@ -20,23 +11,26 @@ interface POApprovalButtonsProps {
   approvalStatus: string
 }
 
-// ── Swipe-to-confirm slider ──────────────────────────────────────────────────
 interface SwipeConfirmProps {
   label: string
+  sublabel: string
   color: "green" | "red"
+  direction: "right" | "left"
   loading: boolean
   onConfirm: () => void
 }
 
-function SwipeConfirm({ label, color, loading, onConfirm }: SwipeConfirmProps) {
+function SwipeConfirm({ label, sublabel, color, direction, loading, onConfirm }: SwipeConfirmProps) {
   const trackRef = useRef<HTMLDivElement>(null)
   const [x, setX] = useState(0)
   const [dragging, setDragging] = useState(false)
   const [triggered, setTriggered] = useState(false)
   const startClientX = useRef(0)
 
-  const HANDLE = 44 // px
+  const HANDLE = 44
   const THRESHOLD = 0.72
+  const isRight = direction === "right"
+  const isGreen = color === "green"
 
   function trackWidth() {
     return (trackRef.current?.offsetWidth ?? 240) - HANDLE - 8
@@ -69,7 +63,6 @@ function SwipeConfirm({ label, color, loading, onConfirm }: SwipeConfirmProps) {
     }
   }, [dragging, x, onConfirm]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Global listeners so fast drags don't lose tracking
   useEffect(() => {
     if (!dragging) return
     const mm = (e: MouseEvent) => onMove(e.clientX)
@@ -87,164 +80,106 @@ function SwipeConfirm({ label, color, loading, onConfirm }: SwipeConfirmProps) {
     }
   }, [dragging, onMove, onEnd])
 
-  // Reset when dialog closes (loading resets to false from outside)
   useEffect(() => {
-    if (!loading) {
-      setX(0)
-      setTriggered(false)
-    }
+    if (!loading) { setX(0); setTriggered(false) }
   }, [loading])
 
-  const isGreen = color === "green"
   const pct = trackWidth() > 0 ? x / trackWidth() : 0
 
+  // For left-swipe (reject): handle starts at right, moves left
+  // We mirror the visual by using CSS transform scaleX(-1) on the track
+  // but keep the logic the same (drag right to trigger)
   return (
-    <div
-      ref={trackRef}
-      className={`relative h-12 rounded-full overflow-hidden select-none ${
-        isGreen ? "bg-emerald-100 dark:bg-emerald-950/40" : "bg-red-100 dark:bg-red-950/40"
-      }`}
-    >
-      {/* Fill */}
+    <div className="space-y-1">
+      <p className="text-xs text-muted-foreground text-center">{sublabel}</p>
       <div
-        className={`absolute inset-y-0 left-0 rounded-full ${isGreen ? "bg-emerald-200 dark:bg-emerald-800/50" : "bg-red-200 dark:bg-red-800/50"}`}
-        style={{ width: `${HANDLE + 8 + x}px`, transition: dragging ? "none" : "width 0.25s ease" }}
-      />
-
-      {/* Label */}
-      <span
-        className={`absolute inset-0 flex items-center justify-center text-sm font-medium pointer-events-none ${
-          isGreen ? "text-emerald-700 dark:text-emerald-300" : "text-red-700 dark:text-red-300"
-        }`}
-        style={{ opacity: Math.max(0.35, 1 - pct * 1.4) }}
+        ref={trackRef}
+        className={`relative h-12 rounded-full overflow-hidden select-none ${
+          isGreen ? "bg-emerald-100 dark:bg-emerald-950/40" : "bg-red-100 dark:bg-red-950/40"
+        } ${!isRight ? "[transform:scaleX(-1)]" : ""}`}
       >
-        {label}
-      </span>
-
-      {/* Handle */}
-      <div
-        className={`absolute top-1 bottom-1 left-1 flex items-center justify-center rounded-full cursor-grab active:cursor-grabbing shadow-sm ${
-          isGreen ? "bg-emerald-600 text-white" : "bg-red-600 text-white"
-        }`}
-        style={{
-          width: `${HANDLE}px`,
-          transform: `translateX(${x}px)`,
-          transition: dragging ? "none" : "transform 0.25s ease",
-        }}
-        onMouseDown={(e) => { e.preventDefault(); onStart(e.clientX) }}
-        onTouchStart={(e) => onStart(e.touches[0].clientX)}
-      >
-        {loading || triggered ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
-        ) : (
-          <ChevronRight className="h-4 w-4" />
-        )}
+        {/* Fill */}
+        <div
+          className={`absolute inset-y-0 left-0 rounded-full ${isGreen ? "bg-emerald-200 dark:bg-emerald-800/50" : "bg-red-200 dark:bg-red-800/50"}`}
+          style={{ width: `${HANDLE + 8 + x}px`, transition: dragging ? "none" : "width 0.25s ease" }}
+        />
+        {/* Label — mirror back so text reads correctly */}
+        <span
+          className={`absolute inset-0 flex items-center justify-center text-sm font-medium pointer-events-none ${
+            isGreen ? "text-emerald-700 dark:text-emerald-300" : "text-red-700 dark:text-red-300"
+          } ${!isRight ? "[transform:scaleX(-1)]" : ""}`}
+          style={{ opacity: Math.max(0.35, 1 - pct * 1.4) }}
+        >
+          {label}
+        </span>
+        {/* Handle */}
+        <div
+          className={`absolute top-1 bottom-1 left-1 flex items-center justify-center rounded-full cursor-grab active:cursor-grabbing shadow-sm ${
+            isGreen ? "bg-emerald-600 text-white" : "bg-red-600 text-white"
+          }`}
+          style={{
+            width: `${HANDLE}px`,
+            transform: `translateX(${x}px)`,
+            transition: dragging ? "none" : "transform 0.25s ease",
+          }}
+          onMouseDown={(e) => { e.preventDefault(); onStart(e.clientX) }}
+          onTouchStart={(e) => onStart(e.touches[0].clientX)}
+        >
+          {loading || triggered ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : isRight ? (
+            <ChevronRight className="h-4 w-4" />
+          ) : (
+            <ChevronLeft className="h-4 w-4 [transform:scaleX(-1)]" />
+          )}
+        </div>
       </div>
     </div>
   )
 }
 
-// ── Main component ───────────────────────────────────────────────────────────
 export function POApprovalButtons({ poId, approvalStatus }: POApprovalButtonsProps) {
   const router = useRouter()
   const [loading, setLoading] = useState<"approve" | "reject" | null>(null)
-  const [notes, setNotes] = useState("")
-  const [approveOpen, setApproveOpen] = useState(false)
-  const [rejectOpen, setRejectOpen] = useState(false)
 
   if (approvalStatus !== "pending_approval") return null
 
   async function handleApprove() {
     setLoading("approve")
-    const result = await approvePurchaseOrder(poId, notes)
+    const result = await approvePurchaseOrder(poId, "")
     setLoading(null)
-    if (result && "error" in result) {
-      toast.error(result.error)
-      return
-    }
+    if (result && "error" in result) { toast.error(result.error); return }
     toast.success("Purchase order approved")
-    setApproveOpen(false)
     router.refresh()
   }
 
   async function handleReject() {
     setLoading("reject")
-    const result = await rejectPurchaseOrder(poId, notes)
+    const result = await rejectPurchaseOrder(poId, "")
     setLoading(null)
-    if (result && "error" in result) {
-      toast.error(result.error)
-      return
-    }
+    if (result && "error" in result) { toast.error(result.error); return }
     toast.success("Purchase order rejected")
-    setRejectOpen(false)
     router.refresh()
   }
 
   return (
-    <div className="flex gap-2">
-      {/* Approve */}
-      <Dialog open={approveOpen} onOpenChange={(o) => { setApproveOpen(o); if (!o) setNotes("") }}>
-        <DialogTrigger asChild>
-          <Button size="sm" className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white">
-            <CheckCircle2 className="h-4 w-4" />
-            Approve
-          </Button>
-        </DialogTrigger>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Approve Purchase Order</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 pt-2">
-            <div className="space-y-1.5">
-              <Label>Notes (optional)</Label>
-              <textarea
-                className="flex min-h-[72px] w-full rounded-lg border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                placeholder="Any approval notes..."
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-              />
-            </div>
-            <SwipeConfirm
-              label="Slide to approve →"
-              color="green"
-              loading={loading === "approve"}
-              onConfirm={handleApprove}
-            />
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Reject */}
-      <Dialog open={rejectOpen} onOpenChange={(o) => { setRejectOpen(o); if (!o) setNotes("") }}>
-        <DialogTrigger asChild>
-          <Button size="sm" variant="outline" className="gap-1.5 border-red-300 text-red-600 hover:bg-red-50">
-            <XCircle className="h-4 w-4" />
-            Reject
-          </Button>
-        </DialogTrigger>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Reject Purchase Order</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 pt-2">
-            <div className="space-y-1.5">
-              <Label>Reason for rejection</Label>
-              <textarea
-                className="flex min-h-[72px] w-full rounded-lg border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                placeholder="Explain why this PO is being rejected..."
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-              />
-            </div>
-            <SwipeConfirm
-              label="Slide to reject →"
-              color="red"
-              loading={loading === "reject"}
-              onConfirm={handleReject}
-            />
-          </div>
-        </DialogContent>
-      </Dialog>
+    <div className="space-y-3">
+      <SwipeConfirm
+        label="Swipe to approve →"
+        sublabel="Swipe right to approve"
+        color="green"
+        direction="right"
+        loading={loading === "approve"}
+        onConfirm={handleApprove}
+      />
+      <SwipeConfirm
+        label="← Swipe to reject"
+        sublabel="Swipe left to reject"
+        color="red"
+        direction="left"
+        loading={loading === "reject"}
+        onConfirm={handleReject}
+      />
     </div>
   )
 }

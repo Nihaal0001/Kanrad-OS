@@ -17,6 +17,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { StatusBadge } from "@/components/shared/status-badge"
@@ -85,6 +91,7 @@ export function PurchaseOrderDetail({ po: initialPo }: PurchaseOrderDetailProps)
   const router = useRouter()
   const [po, setPo] = useState(initialPo)
   const [receivingItemId, setReceivingItemId] = useState<string | null>(null)
+  const [closeDialogOpen, setCloseDialogOpen] = useState(false)
   const [receiveQuantities, setReceiveQuantities] = useState<Record<string, string>>(
     () => Object.fromEntries((initialPo.items ?? []).map((item) => [item.id, ""]))
   )
@@ -190,12 +197,42 @@ export function PurchaseOrderDetail({ po: initialPo }: PurchaseOrderDetailProps)
               </Button>
             )}
             {(po.status === "sent" || po.status === "partial") && (
-              <Button variant="outline" onClick={() => handleStatusChange("cancelled")}>
-                Cancel PO
+              <Button variant="outline" onClick={() => setCloseDialogOpen(true)}>
+                Close PO
               </Button>
             )}
           </div>
         )}
+
+        {/* Close PO dialog — ask draft or cancel */}
+        <Dialog open={closeDialogOpen} onOpenChange={setCloseDialogOpen}>
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Close Purchase Order</DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-muted-foreground">What would you like to do with this PO?</p>
+            <div className="flex flex-col gap-2 pt-1">
+              <Button
+                variant="outline"
+                onClick={async () => {
+                  setCloseDialogOpen(false)
+                  await handleStatusChange("draft")
+                }}
+              >
+                Save as Draft
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={async () => {
+                  setCloseDialogOpen(false)
+                  await handleStatusChange("cancelled")
+                }}
+              >
+                Cancel PO
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Line items */}
         <div className="space-y-3">
