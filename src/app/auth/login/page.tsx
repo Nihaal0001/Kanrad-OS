@@ -1,11 +1,36 @@
-import { login } from "./actions"
+"use client"
 
-interface Props {
-  searchParams: Promise<{ error?: string }>
-}
+import { useState } from "react"
+import { useRouter } from "next/navigation"
+import { createClient } from "@/lib/supabase/client"
 
-export default async function LoginPage({ searchParams }: Props) {
-  const { error } = await searchParams
+export default function LoginPage() {
+  const router = useRouter()
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [error, setError] = useState("")
+  const [loading, setLoading] = useState(false)
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setError("")
+    setLoading(true)
+
+    const supabase = createClient()
+    const { error: authError } = await supabase.auth.signInWithPassword({
+      email: email.trim().toLowerCase(),
+      password,
+    })
+
+    if (authError) {
+      setError("Invalid email or password.")
+      setLoading(false)
+      return
+    }
+
+    router.push("/")
+    router.refresh()
+  }
 
   return (
     <div className="relative flex min-h-screen overflow-hidden bg-[#0f0e0c]">
@@ -65,7 +90,6 @@ export default async function LoginPage({ searchParams }: Props) {
       {/* Right side — login form */}
       <div className="relative flex w-full lg:w-1/2 items-center justify-center px-6 py-12">
 
-        {/* Glowing card */}
         <div className="w-full max-w-sm">
 
           {/* Mobile logo */}
@@ -96,11 +120,11 @@ export default async function LoginPage({ searchParams }: Props) {
 
             {error && (
               <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
-                {decodeURIComponent(error)}
+                {error}
               </div>
             )}
 
-            <form action={login} className="space-y-5">
+            <form onSubmit={handleSubmit} className="space-y-5">
               <div className="space-y-2">
                 <label htmlFor="email" className="text-xs font-medium uppercase tracking-widest text-[#7a6a55]">
                   Email
@@ -112,6 +136,8 @@ export default async function LoginPage({ searchParams }: Props) {
                   autoComplete="email"
                   required
                   placeholder="you@kanrad.in"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   className="flex h-11 w-full rounded-xl px-4 py-2 text-sm text-white placeholder:text-[#4a3f30] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#c2622a] transition-all"
                   style={{
                     background: "rgba(255,255,255,0.05)",
@@ -131,6 +157,8 @@ export default async function LoginPage({ searchParams }: Props) {
                   autoComplete="current-password"
                   required
                   placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   className="flex h-11 w-full rounded-xl px-4 py-2 text-sm text-white placeholder:text-[#4a3f30] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#c2622a] transition-all"
                   style={{
                     background: "rgba(255,255,255,0.05)",
@@ -141,13 +169,14 @@ export default async function LoginPage({ searchParams }: Props) {
 
               <button
                 type="submit"
-                className="relative h-11 w-full rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90 active:scale-[0.98] overflow-hidden mt-2"
+                disabled={loading}
+                className="relative h-11 w-full rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90 active:scale-[0.98] overflow-hidden mt-2 disabled:opacity-60 disabled:cursor-not-allowed"
                 style={{
                   background: "linear-gradient(135deg, #c2622a 0%, #a04e20 100%)",
                   boxShadow: "0 4px 20px rgba(194,98,42,0.35)",
                 }}
               >
-                Sign in
+                {loading ? "Signing in…" : "Sign in"}
               </button>
             </form>
           </div>
