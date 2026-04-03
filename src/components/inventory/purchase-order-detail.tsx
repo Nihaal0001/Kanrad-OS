@@ -96,8 +96,7 @@ export function PurchaseOrderDetail({ po: initialPo }: PurchaseOrderDetailProps)
     () => Object.fromEntries((initialPo.items ?? []).map((item) => [item.id, ""]))
   )
 
-  const isApproved = po.approval_status === "approved"
-  const canReceive = (po.status === "sent" || po.status === "partial") && isApproved
+  const canReceive = po.status === "sent" || po.status === "partial"
 
   const totalOrdered = (po.items ?? []).reduce((s, i) => s + i.quantity_ordered, 0)
   const totalReceived = (po.items ?? []).reduce((s, i) => s + i.quantity_received, 0)
@@ -190,19 +189,12 @@ export function PurchaseOrderDetail({ po: initialPo }: PurchaseOrderDetailProps)
 
         {/* Status actions */}
         {(po.status === "draft" || po.status === "sent" || po.status === "partial") && (
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex gap-2">
             {po.status === "draft" && (
-              <Button
-                onClick={() => handleStatusChange("sent")}
-                disabled={!isApproved}
-                title={!isApproved ? "PO must be approved before sending" : undefined}
-              >
+              <Button onClick={() => handleStatusChange("sent")}>
                 <TruckIcon className="h-4 w-4" />
                 Mark as Sent to Supplier
               </Button>
-            )}
-            {!isApproved && po.status === "draft" && (
-              <p className="text-xs text-amber-600 self-center">Awaiting approval before sending</p>
             )}
             {(po.status === "sent" || po.status === "partial") && (
               <Button variant="outline" onClick={() => setCloseDialogOpen(true)}>
@@ -247,11 +239,6 @@ export function PurchaseOrderDetail({ po: initialPo }: PurchaseOrderDetailProps)
         {/* Line items */}
         <div className="space-y-3">
           <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Line Items</h3>
-          {(po.status === "sent" || po.status === "partial") && !isApproved && (
-            <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/20 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
-              This PO has not been approved yet. Items cannot be received until it is approved.
-            </div>
-          )}
           {(po.items ?? []).map((item) => {
             const pending = item.quantity_ordered - item.quantity_received
             const fullyReceived = pending <= 0
