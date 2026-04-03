@@ -45,11 +45,6 @@ export default async function DashboardLayout({
   }
 
   const role = profile?.role ?? "worker"
-
-  if (role !== "admin") {
-    redirect("/auth/login?error=access_denied")
-  }
-
   const allowedPermissions = await getRolePermissions(role)
 
   return (
