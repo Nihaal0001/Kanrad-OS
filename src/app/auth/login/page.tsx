@@ -21,7 +21,7 @@ export default function LoginPage() {
     })
 
     if (authError) {
-      setError("Invalid email or password.")
+      setError(authError.message)
       setLoading(false)
       return
     }
