@@ -1,20 +1,19 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useSearchParams } from "next/navigation"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
-  const searchParams = useSearchParams()
 
   useEffect(() => {
-    if (searchParams.get("error") === "access_denied") {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get("error") === "access_denied") {
       setError("Access denied. Only administrators can log in here.")
     }
-  }, [searchParams])
+  }, [])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
