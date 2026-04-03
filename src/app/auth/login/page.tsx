@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -8,12 +8,6 @@ export default function LoginPage() {
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    if (params.get("error") === "access_denied") {
-      setError("Access denied. Only administrators can log in here.")
-    }
-  }, [])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
