@@ -5,7 +5,8 @@ import { useTransition } from "react"
 import { Bell, Moon, Search, Sun } from "lucide-react"
 import { useTheme } from "next-themes"
 
-import { logout } from "@/actions/auth"
+import { useRouter } from "next/navigation"
+import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
@@ -99,7 +100,11 @@ function UserMenu({
         <DropdownMenuSeparator />
         <DropdownMenuItem
           className="text-destructive focus:text-destructive cursor-pointer"
-          onSelect={() => startTransition(() => { logout() })}
+          onSelect={async () => {
+            const supabase = createClient()
+            await supabase.auth.signOut()
+            window.location.href = "/auth/login"
+          }}
         >
           Log out
         </DropdownMenuItem>
