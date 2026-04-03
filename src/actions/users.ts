@@ -184,6 +184,8 @@ export async function toggleRolePermission(
     if (error) return { error: error.message }
   }
 
-  revalidatePath("/users")
+  // Clear cached permissions so next request gets fresh data immediately
+  _permissionsCache.delete(role)
+  revalidatePath("/", "layout")
   return { success: true }
 }
