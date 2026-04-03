@@ -15,6 +15,7 @@ export default function LoginPage() {
     setLoading(true)
 
     const supabase = createClient()
+    console.log("SUPABASE_URL:", process.env.NEXT_PUBLIC_SUPABASE_URL)
     const { error: authError } = await supabase.auth.signInWithPassword({
       email: email.trim().toLowerCase(),
       password,
