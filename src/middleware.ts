@@ -29,7 +29,7 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // Public API routes that don't require authentication (add new ones here explicitly)
-  const PUBLIC_API_ROUTES: string[] = ["/api/kiosk", "/api/cron", "/api/auth/login"]
+  const PUBLIC_API_ROUTES: string[] = ["/api/kiosk", "/api/cron", "/api/auth/login", "/api/auth/logout"]
   const isPublicApi = PUBLIC_API_ROUTES.some((r) => pathname.startsWith(r))
 
   // Not logged in → redirect to login (except for auth routes, kiosk, portal, scan, print, and explicitly public API routes)

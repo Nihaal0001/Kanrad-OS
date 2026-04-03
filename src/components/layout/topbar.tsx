@@ -6,7 +6,6 @@ import { Bell, Moon, Search, Sun } from "lucide-react"
 import { useTheme } from "next-themes"
 
 import { useRouter } from "next/navigation"
-import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
@@ -101,8 +100,7 @@ function UserMenu({
         <DropdownMenuItem
           className="text-destructive focus:text-destructive cursor-pointer"
           onSelect={async () => {
-            const supabase = createClient()
-            await supabase.auth.signOut()
+            await fetch("/api/auth/logout", { method: "POST" })
             window.location.href = "/auth/login"
           }}
         >
