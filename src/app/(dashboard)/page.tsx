@@ -17,7 +17,9 @@ import {
 import Link from "next/link"
 
 import { getDashboardStats } from "@/actions/notifications"
+import { getRolePermissions } from "@/actions/users"
 import { createClient } from "@/lib/supabase/server"
+import { redirect } from "next/navigation"
 import { StatCard } from "@/components/shared/stat-card"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { PriorityIndicator } from "@/components/shared/priority-indicator"
@@ -49,12 +51,34 @@ function getGreeting() {
   return "Good evening"
 }
 
+const PERMISSION_FIRST_PAGE: Record<string, string> = {
+  production: "/production",
+  inventory: "/inventory",
+  orders: "/orders",
+  hr: "/hr/attendance",
+  finance: "/finance",
+  quality: "/quality",
+  tasks: "/tasks",
+  notifications: "/notifications",
+  settings: "/settings",
+  users: "/users",
+}
+
 export default async function DashboardPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   const { data: profile } = user
-    ? await supabase.from("profiles").select("full_name").eq("auth_id", user.id).maybeSingle()
+    ? await supabase.from("profiles").select("full_name, role").eq("auth_id", user.id).maybeSingle()
     : { data: null }
+
+  // Redirect non-dashboard users to their first permitted page
+  if (profile?.role && profile.role !== "admin") {
+    const permissions = await getRolePermissions(profile.role)
+    if (!permissions.includes("dashboard")) {
+      const firstPage = permissions.map((p) => PERMISSION_FIRST_PAGE[p]).find(Boolean)
+      if (firstPage) redirect(firstPage)
+    }
+  }
 
   const firstName = profile?.full_name?.split(" ")[0] ?? "there"
   const stats = await getDashboardStats()
