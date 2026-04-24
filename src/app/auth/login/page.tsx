@@ -51,9 +51,6 @@ export default function LoginPage() {
 
         {/* Main text */}
         <div className="relative space-y-6">
-          <div style={{ color: "rgba(212,175,90,0.15)", fontSize: 120, fontWeight: 900, lineHeight: 1, letterSpacing: "-4px", userSelect: "none" }}>
-            ERP
-          </div>
           <div className="space-y-3">
             <h2 className="text-4xl font-bold text-white leading-snug">
               Run your factory<br />
