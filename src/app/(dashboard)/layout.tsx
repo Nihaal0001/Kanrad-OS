@@ -45,11 +45,6 @@ export default async function DashboardLayout({
   }
 
   const role = profile?.role ?? "worker"
-
-  if (role !== "admin") {
-    redirect("/not-authorized")
-  }
-
   const allowedPermissions = await getRolePermissions(role)
 
   return (
