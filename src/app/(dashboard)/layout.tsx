@@ -47,6 +47,32 @@ export default async function DashboardLayout({
   const role = profile?.role ?? "worker"
   const allowedPermissions = await getRolePermissions(role)
 
+  // If user doesn't have dashboard permission and is on the home page,
+  // redirect to their first accessible page
+  const { headers } = await import("next/headers")
+  const headersList = await headers()
+  const pathname = headersList.get("x-invoke-path") ?? ""
+  const isHomePage = pathname === "" || pathname === "/"
+
+  if (isHomePage && !allowedPermissions.includes("dashboard")) {
+    const PERMISSION_FIRST_PAGE: Record<string, string> = {
+      production: "/production",
+      inventory: "/inventory",
+      orders: "/orders",
+      hr: "/hr/attendance",
+      finance: "/finance",
+      quality: "/quality",
+      tasks: "/tasks",
+      notifications: "/notifications",
+      settings: "/settings",
+      users: "/users",
+    }
+    const firstPage = allowedPermissions
+      .map((p) => PERMISSION_FIRST_PAGE[p])
+      .find(Boolean)
+    if (firstPage) redirect(firstPage)
+  }
+
   return (
     <DashboardShell
       unreadCount={unreadCount}
