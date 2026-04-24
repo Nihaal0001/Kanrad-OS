@@ -46,14 +46,7 @@ export default function LoginPage() {
 
         {/* Logo */}
         <div className="relative flex items-center gap-3">
-          <div className="h-9 w-9 rounded-lg flex items-center justify-center" style={{ background: "linear-gradient(135deg, #D4AF5A, #A8862E)" }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#080808" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-              <path d="M2 17l10 5 10-5"/>
-              <path d="M2 12l10 5 10-5"/>
-            </svg>
-          </div>
-          <span className="font-bold tracking-[0.2em] text-sm" style={{ color: "#D4AF5A" }}>KANRAD</span>
+          <span className="font-serif text-xl font-bold tracking-widest text-white">KANRAD</span>
         </div>
 
         {/* Main text */}
