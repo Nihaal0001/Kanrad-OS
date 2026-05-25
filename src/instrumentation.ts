@@ -19,9 +19,8 @@ export async function register() {
 
   const missing = required.filter((k) => !process.env[k])
   if (missing.length > 0) {
-    throw new Error(
-      `Missing required environment variables: ${missing.join(", ")}\n` +
-        "Copy .env.example to .env.local and fill in the values."
+    console.error(
+      `[KANRAD ERP] Missing required environment variables: ${missing.join(", ")}`
     )
   }
 
