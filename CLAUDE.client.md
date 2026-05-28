@@ -135,8 +135,8 @@ EMAIL_FROM=Kanrad ERP <notifications@kanrad.in>
 OWNER_EMAIL=nihaalkarthik1@gmail.com
 PORTAL_SECRET                    # 64-char hex
 CRON_SECRET
-TWILIO_ACCOUNT_SID=ACb64dc5d05dbf7d42f6f20cf15be481ab
-TWILIO_AUTH_TOKEN=032e57066fdd981f052d5126f2ed6c39
+TWILIO_ACCOUNT_SID=
+TWILIO_AUTH_TOKEN=
 TWILIO_WHATSAPP_FROM=+14155238886
 OWNER_WHATSAPP                   # Owner's WhatsApp number
 ```
