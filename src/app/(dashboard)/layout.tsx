@@ -16,14 +16,15 @@ export default async function DashboardLayout({
     redirect("/auth/login")
   }
 
-  const [{ data: profileByAuthId }, unreadCount] = await Promise.all([
+  const [{ data: profileByAuthId }] = await Promise.all([
     supabase
       .from("profiles")
       .select("id, full_name, role, avatar_url")
       .eq("auth_id", user.id)
       .maybeSingle(),
-    getUnreadCount(),
   ])
+  // Fetch unread count without blocking page render
+  const unreadCountPromise = getUnreadCount()
 
   // Fallback: if auth_id not yet linked, find by email and link it automatically
   let profile = profileByAuthId
@@ -46,6 +47,8 @@ export default async function DashboardLayout({
 
   const role = profile?.role ?? "worker"
   const allowedPermissions = await getRolePermissions(role)
+
+  const unreadCount = await unreadCountPromise
 
   return (
     <DashboardShell

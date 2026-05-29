@@ -1,7 +1,8 @@
 "use server"
 
-import { revalidatePath } from "next/cache"
+import { revalidatePath, revalidateTag, unstable_cache } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 import {
   attendanceSchema,
   leaveSchema,
@@ -15,30 +16,36 @@ import {
 
 // ===== Workers (profiles) =====
 
-export async function getWorkers() {
-  const supabase = await createClient()
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("id, full_name, role, department, is_active")
-    .eq("is_active", true)
-    .order("full_name")
-
-  if (error) throw new Error(error.message)
-  return data ?? []
-}
+export const getWorkers = unstable_cache(
+  async () => {
+    const supabase = createAdminClient()
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id, full_name, role, department, is_active")
+      .eq("is_active", true)
+      .order("full_name")
+    if (error) throw new Error(error.message)
+    return data ?? []
+  },
+  ["workers"],
+  { tags: ["workers"], revalidate: 300 }
+)
 
 // ===== Shifts =====
 
-export async function getShifts() {
-  const supabase = await createClient()
-  const { data, error } = await supabase
-    .from("shifts")
-    .select("*")
-    .order("name")
-
-  if (error) throw new Error(error.message)
-  return data ?? []
-}
+export const getShifts = unstable_cache(
+  async () => {
+    const supabase = createAdminClient()
+    const { data, error } = await supabase
+      .from("shifts")
+      .select("*")
+      .order("name")
+    if (error) throw new Error(error.message)
+    return data ?? []
+  },
+  ["shifts"],
+  { tags: ["shifts"], revalidate: 3600 }
+)
 
 export async function createShift(formData: ShiftFormData) {
   const validated = shiftSchema.parse(formData)
@@ -60,6 +67,7 @@ export async function createShift(formData: ShiftFormData) {
 
   if (error) return { error: error.message }
 
+  revalidateTag("shifts", {})
   revalidatePath("/hr/shifts")
   return { data }
 }
@@ -85,6 +93,7 @@ export async function updateShift(id: string, formData: ShiftFormData) {
 
   if (error) return { error: error.message }
 
+  revalidateTag("shifts", {})
   revalidatePath("/hr/shifts")
   return { data }
 }
@@ -98,6 +107,7 @@ export async function deleteShift(id: string) {
   const { error } = await supabase.from("shifts").delete().eq("id", id)
   if (error) return { error: error.message }
 
+  revalidateTag("shifts", {})
   revalidatePath("/hr/shifts")
   return { success: true }
 }

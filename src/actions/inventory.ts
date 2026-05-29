@@ -1,7 +1,8 @@
 "use server"
 
-import { revalidatePath } from "next/cache"
+import { revalidatePath, revalidateTag, unstable_cache } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 import {
   materialSchema,
   stockAdjustmentSchema,
@@ -13,47 +14,50 @@ import {
 
 // ==================== Categories ====================
 
-export async function getCategories() {
-  const supabase = await createClient()
-  const { data, error } = await supabase
-    .from("material_categories")
-    .select("*")
-    .order("name")
+export const getCategories = unstable_cache(
+  async () => {
+    const supabase = createAdminClient()
+    const { data, error } = await supabase
+      .from("material_categories")
+      .select("*")
+      .order("name")
 
-  if (error) throw new Error(error.message)
-  return data
-}
+    if (error) throw new Error(error.message)
+    return data
+  },
+  ["material-categories"],
+  { tags: ["categories"], revalidate: 3600 }
+)
 
 // ==================== Materials ====================
 
-export async function getMaterials(filters?: {
-  category_id?: string
-  search?: string
-  low_stock?: boolean
-}) {
-  const supabase = await createClient()
-  let query = supabase
-    .from("materials")
-    .select("*, category:material_categories(id, name)")
-    .eq("is_active", true)
-    .order("sku", { ascending: true })
+export const getMaterials = unstable_cache(
+  async (filters?: { category_id?: string; search?: string; low_stock?: boolean }) => {
+    const supabase = createAdminClient()
+    let query = supabase
+      .from("materials")
+      .select("*, category:material_categories(id, name)")
+      .eq("is_active", true)
+      .order("sku", { ascending: true })
 
-  if (filters?.category_id) {
-    query = query.eq("category_id", filters.category_id)
-  }
-  if (filters?.search) {
-    // Escape LIKE wildcards so user input is treated as a literal string
-    const escaped = filters.search.replace(/%/g, "\\%").replace(/_/g, "\\_")
-    query = query.or(`name.ilike.%${escaped}%,sku.ilike.%${escaped}%`)
-  }
-  if (filters?.low_stock) {
-    query = query.lte("current_stock", "min_stock_level" as unknown as number)
-  }
+    if (filters?.category_id) {
+      query = query.eq("category_id", filters.category_id)
+    }
+    if (filters?.search) {
+      const escaped = filters.search.replace(/%/g, "\\%").replace(/_/g, "\\_")
+      query = query.or(`name.ilike.%${escaped}%,sku.ilike.%${escaped}%`)
+    }
+    if (filters?.low_stock) {
+      query = query.lte("current_stock", "min_stock_level" as unknown as number)
+    }
 
-  const { data, error } = await query
-  if (error) throw new Error(error.message)
-  return data
-}
+    const { data, error } = await query
+    if (error) throw new Error(error.message)
+    return data
+  },
+  ["materials"],
+  { tags: ["materials"], revalidate: 60 }
+)
 
 export async function getMaterial(id: string) {
   const supabase = await createClient()
@@ -92,6 +96,7 @@ export async function createMaterial(formData: MaterialFormData) {
 
   if (error) return { error: error.message }
 
+  revalidateTag("materials", {})
   revalidatePath("/inventory")
   return { data }
 }
@@ -121,6 +126,7 @@ export async function updateMaterial(id: string, formData: MaterialFormData) {
 
   if (error) return { error: error.message }
 
+  revalidateTag("materials", {})
   revalidatePath("/inventory")
   revalidatePath(`/inventory/${id}`)
   return { data }
@@ -139,6 +145,7 @@ export async function deleteMaterial(id: string) {
 
   if (error) return { error: error.message }
 
+  revalidateTag("materials", {})
   revalidatePath("/inventory")
   return { success: true }
 }
@@ -180,6 +187,8 @@ export async function createStockTransaction(formData: StockAdjustmentFormData) 
 
   if (error) return { error: error.message }
 
+  revalidateTag("materials", {})
+  revalidateTag("dashboard", {})
   revalidatePath("/inventory")
   revalidatePath(`/inventory/${validated.material_id}`)
   return { success: true }
@@ -283,6 +292,7 @@ export async function createPurchaseOrder(formData: PurchaseOrderFormData) {
     return { error: itemsError.message }
   }
 
+  revalidateTag("dashboard", {})
   revalidatePath("/inventory/purchase-orders")
   return { data: po }
 }
@@ -372,6 +382,8 @@ export async function receivePurchaseOrderItem(
     }
   }
 
+  revalidateTag("materials", {})
+  revalidateTag("dashboard", {})
   revalidatePath("/inventory/purchase-orders")
   revalidatePath(`/inventory/purchase-orders/${poId}`)
   revalidatePath("/inventory")

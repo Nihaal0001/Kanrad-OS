@@ -1,6 +1,6 @@
 "use server"
 
-import { revalidatePath } from "next/cache"
+import { revalidatePath, revalidateTag, unstable_cache } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { userRoles, type UserRole } from "@/lib/constants"
@@ -134,27 +134,20 @@ export async function getAllRolePermissions(): Promise<Record<string, string[]>>
   return result
 }
 
-// In-memory cache for role permissions — these change very infrequently
-const _permissionsCache = new Map<string, { data: string[]; ts: number }>()
-const PERMISSIONS_TTL = 5 * 60 * 1000 // 5 minutes
+export const getRolePermissions = unstable_cache(
+  async (role: string): Promise<string[]> => {
+    const supabase = createAdminClient()
+    const { data, error } = await supabase
+      .from("role_permissions")
+      .select("permission")
+      .eq("role", role)
 
-export async function getRolePermissions(role: string): Promise<string[]> {
-  const cached = _permissionsCache.get(role)
-  if (cached && Date.now() - cached.ts < PERMISSIONS_TTL) return cached.data
-
-  const supabase = await createClient()
-  const { data, error } = await supabase
-    .from("role_permissions")
-    .select("permission")
-    .eq("role", role)
-
-  if (error) {
-    return [...(DEFAULT_ROLE_PERMISSIONS[role as UserRole] ?? [])]
-  }
-  const permissions = data?.map((r) => r.permission) ?? []
-  _permissionsCache.set(role, { data: permissions, ts: Date.now() })
-  return permissions
-}
+    if (error) return [...(DEFAULT_ROLE_PERMISSIONS[role as UserRole] ?? [])]
+    return data?.map((r) => r.permission) ?? []
+  },
+  ["role-permissions"],
+  { tags: ["permissions"], revalidate: 300 }
+)
 
 export async function toggleRolePermission(
   role: string,
@@ -184,8 +177,7 @@ export async function toggleRolePermission(
     if (error) return { error: error.message }
   }
 
-  // Clear cached permissions so next request gets fresh data immediately
-  _permissionsCache.delete(role)
+  revalidateTag("permissions", {})
   revalidatePath("/", "layout")
   return { success: true }
 }

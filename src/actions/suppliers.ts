@@ -1,27 +1,32 @@
 "use server"
 
-import { revalidatePath } from "next/cache"
+import { revalidatePath, revalidateTag, unstable_cache } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { supplierSchema, type SupplierFormData } from "@/lib/validators/contacts"
 import { logAudit } from "@/actions/audit"
 
-export async function getSuppliers(filters?: { search?: string; active?: boolean }) {
-  const supabase = await createClient()
-  let query = supabase
-    .from("suppliers")
-    .select("*")
-    .order("name", { ascending: true })
+export const getSuppliers = unstable_cache(
+  async (filters?: { search?: string; active?: boolean }) => {
+    const supabase = createAdminClient()
+    let query = supabase
+      .from("suppliers")
+      .select("*")
+      .order("name", { ascending: true })
 
-  if (filters?.active !== false) query = query.eq("is_active", true)
-  if (filters?.search) {
-    const escaped = filters.search.replace(/%/g, "\\%").replace(/_/g, "\\_")
-    query = query.or(`name.ilike.%${escaped}%,company.ilike.%${escaped}%,gstin.ilike.%${escaped}%`)
-  }
+    if (filters?.active !== false) query = query.eq("is_active", true)
+    if (filters?.search) {
+      const escaped = filters.search.replace(/%/g, "\\%").replace(/_/g, "\\_")
+      query = query.or(`name.ilike.%${escaped}%,company.ilike.%${escaped}%,gstin.ilike.%${escaped}%`)
+    }
 
-  const { data, error } = await query
-  if (error) throw new Error(error.message)
-  return data ?? []
-}
+    const { data, error } = await query
+    if (error) throw new Error(error.message)
+    return data ?? []
+  },
+  ["suppliers"],
+  { tags: ["suppliers"], revalidate: 300 }
+)
 
 export async function getSupplier(id: string) {
   const supabase = await createClient()
@@ -54,6 +59,7 @@ export async function createSupplier(formData: SupplierFormData) {
 
   if (error) return { error: error.message }
 
+  revalidateTag("suppliers", {})
   revalidatePath("/suppliers")
   await logAudit({ entityType: "supplier", entityId: data.id, entityLabel: data.name, action: "created" })
   return { data }
@@ -79,6 +85,7 @@ export async function updateSupplier(id: string, formData: SupplierFormData) {
 
   if (error) return { error: error.message }
 
+  revalidateTag("suppliers", {})
   revalidatePath("/suppliers")
   revalidatePath(`/suppliers/${id}`)
   await logAudit({ entityType: "supplier", entityId: id, entityLabel: data.name, action: "updated" })
@@ -98,6 +105,7 @@ export async function deleteSupplier(id: string) {
 
   if (error) return { error: error.message }
 
+  revalidateTag("suppliers", {})
   revalidatePath("/suppliers")
   await logAudit({ entityType: "supplier", entityId: id, action: "deleted" })
   return { success: true }

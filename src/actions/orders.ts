@@ -1,42 +1,39 @@
 "use server"
 
-import { revalidatePath } from "next/cache"
+import { revalidatePath, revalidateTag, unstable_cache } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { orderSchema, type OrderFormData } from "@/lib/validators/order"
 import { logAudit } from "@/actions/audit"
 import type { OrderItem } from "@/lib/supabase/types"
 import { getOrderStyleSummary } from "@/lib/order-styles"
 
-export async function getOrders(filters?: {
-  status?: string
-  priority?: string
-  search?: string
-}) {
-  const supabase = await createClient()
-  let query = supabase
-    .from("orders")
-    .select("*, customer:customers(id, name, company)")
-    .order("created_at", { ascending: false })
+export const getOrders = unstable_cache(
+  async (filters?: { status?: string; priority?: string; search?: string }) => {
+    const supabase = createAdminClient()
+    let query = supabase
+      .from("orders")
+      .select("*, customer:customers(id, name, company)")
+      .order("created_at", { ascending: false })
 
-  if (filters?.status) {
-    query = query.eq("status", filters.status)
-  }
-  if (filters?.priority) {
-    query = query.eq("priority", filters.priority)
-  }
-  if (filters?.search) {
-    const escaped = filters.search.replace(/%/g, "\\%").replace(/_/g, "\\_")
-    query = query.or(`order_number.ilike.%${escaped}%,product_variant.ilike.%${escaped}%`)
-  }
+    if (filters?.status) query = query.eq("status", filters.status)
+    if (filters?.priority) query = query.eq("priority", filters.priority)
+    if (filters?.search) {
+      const escaped = filters.search.replace(/%/g, "\\%").replace(/_/g, "\\_")
+      query = query.or(`order_number.ilike.%${escaped}%,product_variant.ilike.%${escaped}%`)
+    }
 
-  const { data, error } = await query
-  if (error) throw new Error(error.message)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (data ?? []).map((order: any) => ({
-    ...order,
-    customer: Array.isArray(order.customer) ? order.customer[0] ?? null : order.customer,
-  }))
-}
+    const { data, error } = await query
+    if (error) throw new Error(error.message)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (data ?? []).map((order: any) => ({
+      ...order,
+      customer: Array.isArray(order.customer) ? order.customer[0] ?? null : order.customer,
+    }))
+  },
+  ["orders"],
+  { tags: ["orders"], revalidate: 60 }
+)
 
 export async function getOrder(id: string) {
   const supabase = await createClient()
@@ -107,6 +104,8 @@ export async function createOrder(formData: OrderFormData) {
     return { error: itemsError.message }
   }
 
+  revalidateTag("orders", {})
+  revalidateTag("dashboard", {})
   revalidatePath("/orders")
   revalidatePath("/")
   await logAudit({ entityType: "order", entityId: order.id, entityLabel: order.order_number, action: "created", newValues: cleaned })
@@ -163,6 +162,8 @@ export async function updateOrder(id: string, formData: OrderFormData) {
 
   if (itemsError) return { error: itemsError.message }
 
+  revalidateTag("orders", {})
+  revalidateTag("dashboard", {})
   revalidatePath("/orders")
   revalidatePath(`/orders/${id}`)
   revalidatePath("/")
@@ -188,6 +189,8 @@ export async function updateOrderStatus(id: string, status: string) {
 
   if (error) return { error: error.message }
 
+  revalidateTag("orders", {})
+  revalidateTag("dashboard", {})
   revalidatePath("/orders")
   revalidatePath(`/orders/${id}`)
   revalidatePath("/")
@@ -205,6 +208,8 @@ export async function deleteOrder(id: string) {
 
   if (error) return { error: error.message }
 
+  revalidateTag("orders", {})
+  revalidateTag("dashboard", {})
   revalidatePath("/orders")
   revalidatePath("/")
   await logAudit({ entityType: "order", entityId: id, action: "deleted" })
@@ -263,6 +268,8 @@ export async function duplicateOrder(id: string) {
     }
   }
 
+  revalidateTag("orders", {})
+  revalidateTag("dashboard", {})
   revalidatePath("/orders")
   await logAudit({ entityType: "order", entityId: newOrder.id, entityLabel: newOrder.order_number, action: "created", newValues: { duplicated_from: id } })
   return { data: newOrder }

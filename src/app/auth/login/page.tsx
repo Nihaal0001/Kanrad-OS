@@ -32,11 +32,11 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex" style={{ background: "#080808" }}>
+    <div className="min-h-screen flex flex-col lg:flex-row" style={{ background: "#080808" }}>
 
       {/* Left — champagne panel */}
       <div
-        className="hidden lg:flex w-[42%] flex-col justify-between p-14 relative overflow-hidden"
+        className="flex flex-col lg:justify-between lg:flex-col w-full lg:w-[42%] px-8 py-8 lg:p-14 relative overflow-hidden"
         style={{ background: "linear-gradient(160deg, #1a1508 0%, #0e0b04 60%, #080808 100%)" }}
       >
         {/* Top-left glow */}
@@ -50,9 +50,9 @@ export default function LoginPage() {
         </div>
 
         {/* Main text */}
-        <div className="relative space-y-6">
-          <div className="space-y-3">
-            <h2 className="text-4xl font-bold text-white leading-snug">
+        <div className="relative space-y-4 mt-6 lg:mt-0 lg:space-y-6">
+          <div className="space-y-2 lg:space-y-3">
+            <h2 className="text-2xl lg:text-4xl font-bold text-white leading-snug">
               Run your factory<br />
               <span style={{ color: "#D4AF5A" }}>smarter.</span>
             </h2>
@@ -62,7 +62,7 @@ export default function LoginPage() {
           </div>
 
           {/* Feature list */}
-          <div className="space-y-2.5 pt-2">
+          <div className="hidden sm:block space-y-2.5 pt-2">
             {[
               "Real-time production tracking",
               "Purchase order management",
@@ -77,13 +77,13 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <p className="relative text-xs" style={{ color: "rgba(212,175,90,0.18)" }}>
+        <p className="hidden lg:block relative text-xs mt-6" style={{ color: "rgba(212,175,90,0.18)" }}>
           © {new Date().getFullYear()} Kanrad Houseware
         </p>
       </div>
 
       {/* Right — form panel */}
-      <div className="flex-1 flex flex-col items-center justify-center px-6 py-12 relative">
+      <div className="flex-1 flex flex-col items-center justify-center px-6 py-10 lg:py-12 relative">
 
         {/* Subtle champagne corner glow */}
         <div className="absolute bottom-0 right-0 w-96 h-96 pointer-events-none" style={{
@@ -91,18 +91,6 @@ export default function LoginPage() {
         }} />
 
         <div className="w-full max-w-[360px] relative">
-
-          {/* Mobile logo */}
-          <div className="flex lg:hidden items-center justify-center gap-2.5 mb-10">
-            <div className="h-9 w-9 rounded-lg flex items-center justify-center" style={{ background: "linear-gradient(135deg, #D4AF5A, #A8862E)" }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#080808" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-                <path d="M2 17l10 5 10-5"/>
-                <path d="M2 12l10 5 10-5"/>
-              </svg>
-            </div>
-            <span className="font-bold tracking-[0.2em] text-sm" style={{ color: "#D4AF5A" }}>KANRAD</span>
-          </div>
 
           {/* Heading */}
           <div className="mb-10 space-y-1">

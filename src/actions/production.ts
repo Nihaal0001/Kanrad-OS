@@ -1,7 +1,8 @@
 "use server"
 
-import { revalidatePath } from "next/cache"
+import { revalidatePath, revalidateTag, unstable_cache } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 import {
   stageUpdateSchema,
   qualityCheckSchema,
@@ -11,21 +12,25 @@ import {
 
 // ==================== Production Stages ====================
 
-export async function getProductionStages() {
-  const supabase = await createClient()
-  const { data, error } = await supabase
-    .from("production_stages")
-    .select("*")
-    .order("sequence")
-
-  if (error) throw new Error(error.message)
-  return data
-}
+export const getProductionStages = unstable_cache(
+  async () => {
+    const supabase = createAdminClient()
+    const { data, error } = await supabase
+      .from("production_stages")
+      .select("*")
+      .order("sequence")
+    if (error) throw new Error(error.message)
+    return data
+  },
+  ["production-stages"],
+  { tags: ["production-stages"], revalidate: 3600 }
+)
 
 // ==================== Production Tracking ====================
 
-export async function getProductionOverview() {
-  const supabase = await createClient()
+const _getProductionOverview = unstable_cache(
+  async () => {
+    const supabase = createAdminClient()
   // Get all active orders (confirmed or in_production) with their tracking rows
   const { data, error } = await supabase
     .from("orders")
@@ -54,6 +59,13 @@ export async function getProductionOverview() {
       stage: Array.isArray(t.stage) ? t.stage[0] ?? null : t.stage,
     })),
   }))
+  },
+  ["production-overview"],
+  { tags: ["production", "orders"], revalidate: 30 }
+)
+
+export async function getProductionOverview() {
+  return _getProductionOverview()
 }
 
 export async function getOrderProduction(orderId: string) {
@@ -159,6 +171,7 @@ export async function updateProductionStage(
       .eq("status", "confirmed")
   }
 
+  revalidateTag("production", {})
   revalidatePath("/production")
   revalidatePath(`/production/${orderId}`)
   return { success: true }
@@ -226,6 +239,7 @@ export async function startProductionBatch(
 
   if (error) return { error: error.message }
 
+  revalidateTag("production", {})
   revalidatePath("/production")
   revalidatePath(`/production/${orderId}`)
   return { success: true }
@@ -352,6 +366,7 @@ export async function addDailyProduction(
     .eq("id", orderId)
     .eq("status", "confirmed")
 
+  revalidateTag("production", {})
   revalidatePath("/production")
   revalidatePath(`/production/${orderId}`)
   return { success: true }
@@ -455,6 +470,7 @@ export async function logDailyProduction(data: {
   if (error) return { error: error.message }
 
   revalidatePath(`/production/${data.order_id}`)
+  revalidateTag("production", {})
   revalidatePath("/production")
   return { success: true }
 }
