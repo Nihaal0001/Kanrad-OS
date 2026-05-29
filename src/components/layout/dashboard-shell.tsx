@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { usePathname } from "next/navigation"
 import { Sidebar } from "@/components/layout/sidebar"
 import { Topbar } from "@/components/layout/topbar"
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav"
@@ -23,6 +24,7 @@ interface DashboardShellProps {
 }
 
 export function DashboardShell({ children, unreadCount, userProfile, allowedPermissions }: DashboardShellProps) {
+  const pathname = usePathname()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [paletteOpen, setPaletteOpen] = useState(false)
 
@@ -59,7 +61,7 @@ export function DashboardShell({ children, unreadCount, userProfile, allowedPerm
           userProfile={userProfile}
         />
         <main className="flex-1 overflow-y-auto px-4 py-5 pb-[calc(env(safe-area-inset-bottom)+6.5rem)] sm:px-5 sm:py-6 sm:pb-28 lg:p-8">
-          <div className="animate-page-in">
+          <div key={pathname} className="animate-page-in">
             {children}
           </div>
         </main>
