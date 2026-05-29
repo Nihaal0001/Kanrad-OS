@@ -1,9 +1,15 @@
 import type { NextConfig } from "next";
 
-const SUPABASE_HOST = "spwighzxkaeibutmijus.supabase.co"
+const SUPABASE_HOST = "bdskmkfubdmmzvntzzgu.supabase.co"
 
 const nextConfig: NextConfig = {
   productionBrowserSourceMaps: false,
+  experimental: {
+    staleTimes: {
+      dynamic: 60,
+      static: 300,
+    },
+  },
   async headers() {
     return [
       {

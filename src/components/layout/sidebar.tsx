@@ -44,6 +44,7 @@ function NavChildLink({
   return (
     <Link
       href={item.href}
+      prefetch={true}
       className={cn(
         "group flex items-center rounded-xl px-4 py-2.5 text-sm transition-all duration-200",
         isActive
