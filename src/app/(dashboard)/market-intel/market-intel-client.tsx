@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { logMaterialPrice, createMarketNews, deleteMarketNews, predictMaterialPrice, type PriceForecastResult } from "@/actions/analytics"
+import { fetchMarketNews } from "@/actions/fetch-news"
 import { formatDate } from "@/lib/utils"
 import { cn } from "@/lib/utils"
 
@@ -43,6 +44,18 @@ export function MarketIntelClient({ materials, news, suppliers }: {
 }) {
   const [tab, setTab] = useState<"prices" | "news">("prices")
   const [isPending, startTransition] = useTransition()
+  const [fetchingNews, setFetchingNews] = useState(false)
+  const [fetchResult, setFetchResult] = useState("")
+
+  function handleFetchNews() {
+    setFetchingNews(true)
+    setFetchResult("")
+    startTransition(async () => {
+      const res = await fetchMarketNews()
+      setFetchingNews(false)
+      setFetchResult(res.error ? `Error: ${res.error}` : `✓ ${res.inserted} new articles added`)
+    })
+  }
 
   // AI price forecast
   const [forecastMaterialId, setForecastMaterialId] = useState("")
@@ -125,11 +138,25 @@ export function MarketIntelClient({ materials, news, suppliers }: {
           <h1 className="text-3xl font-bold tracking-tight">Market Intel</h1>
           <p className="mt-1 text-sm text-muted-foreground">Track raw material prices and industry news</p>
         </div>
-        <Button onClick={() => tab === "prices" ? setPriceOpen(true) : setNewsOpen(true)} className="shrink-0">
-          <Plus className="h-4 w-4 mr-2" />
-          {tab === "prices" ? "Log Price" : "Add News"}
-        </Button>
+        <div className="flex items-center gap-2 shrink-0">
+          {tab === "news" && (
+            <Button variant="outline" onClick={handleFetchNews} disabled={fetchingNews || isPending}>
+              {fetchingNews ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Newspaper className="h-4 w-4 mr-2" />}
+              {fetchingNews ? "Fetching…" : "Fetch Latest News"}
+            </Button>
+          )}
+          <Button onClick={() => tab === "prices" ? setPriceOpen(true) : setNewsOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            {tab === "prices" ? "Log Price" : "Add News"}
+          </Button>
+        </div>
       </div>
+
+      {fetchResult && (
+        <div className={cn("text-sm px-4 py-2 rounded-lg border", fetchResult.startsWith("Error") ? "bg-destructive/10 border-destructive/20 text-destructive" : "bg-emerald-500/10 border-emerald-500/20 text-emerald-700 dark:text-emerald-400")}>
+          {fetchResult}
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-1 rounded-lg bg-muted p-1 w-fit">
