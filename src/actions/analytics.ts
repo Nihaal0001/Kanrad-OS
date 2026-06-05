@@ -3,6 +3,7 @@
 import { revalidatePath, unstable_cache } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { askGemini } from "@/lib/ai/gemini"
 
 // ==================== Market Intel — Prices ====================
 
@@ -293,3 +294,114 @@ export const getInventoryForecast = unstable_cache(
   ["inventory-forecast"],
   { tags: ["materials"], revalidate: 3600 }
 )
+
+// ==================== AI Price Prediction ====================
+
+export type PricePrediction = {
+  date: string
+  predicted_price: number
+  low: number
+  high: number
+}
+
+export type PriceForecastResult = {
+  material_name: string
+  unit: string
+  last_known_price: number
+  last_known_date: string
+  predictions: PricePrediction[]
+  reasoning: string
+  factors: string[]
+  confidence: "high" | "medium" | "low"
+}
+
+export async function predictMaterialPrice(materialId: string): Promise<{ data: PriceForecastResult } | { error: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
+  const adminSupabase = createAdminClient()
+
+  // Fetch material info, price history, and recent news in parallel
+  const [{ data: material }, { data: priceHistory }, { data: news }] = await Promise.all([
+    adminSupabase.from("materials").select("id, name, unit, category:material_categories(name)").eq("id", materialId).single(),
+    adminSupabase
+      .from("material_price_history")
+      .select("price_per_unit, recorded_at, notes, supplier:suppliers(name)")
+      .eq("material_id", materialId)
+      .order("recorded_at", { ascending: false })
+      .limit(30),
+    adminSupabase
+      .from("market_news")
+      .select("title, summary, category, published_at, source")
+      .order("published_at", { ascending: false })
+      .limit(20),
+  ])
+
+  if (!material) return { error: "Material not found" }
+  if (!priceHistory || priceHistory.length === 0) return { error: "No price history found for this material. Log at least one price first." }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const cat = Array.isArray((material as any).category) ? (material as any).category[0]?.name : (material as any).category?.name
+
+  const priceRows = priceHistory.map((p: any) => ({
+    date: p.recorded_at,
+    price: p.price_per_unit,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    supplier: Array.isArray(p.supplier) ? p.supplier[0]?.name : p.supplier?.name,
+    notes: p.notes,
+  }))
+
+  const today = new Date().toISOString().split("T")[0]
+  const lastPrice = priceRows[0]
+
+  const systemPrompt = `You are a commodity price analyst for an Indian houseware manufacturing company. 
+You analyze raw material price trends and market news to forecast prices for the next 10 days.
+Always respond with valid JSON only — no markdown, no explanation outside the JSON.`
+
+  const userMessage = `
+Material: ${material.name} (category: ${cat ?? "unknown"}, unit: ${material.unit})
+Today: ${today}
+
+PRICE HISTORY (most recent first):
+${priceRows.map(p => `${p.date}: ₹${p.price}/${material.unit}${p.supplier ? ` (${p.supplier})` : ""}${p.notes ? ` — ${p.notes}` : ""}`).join("\n")}
+
+RECENT MARKET NEWS:
+${(news ?? []).map((n: any) => `[${n.category}] ${n.published_at}: ${n.title}${n.summary ? ` — ${n.summary}` : ""}`).join("\n") || "No news available."}
+
+Based on the price history trend and market news context, predict the price for the next 10 days.
+Consider: price momentum, news sentiment for this material category, typical Indian commodity market patterns.
+
+Respond ONLY with this JSON (no markdown):
+{
+  "predictions": [
+    {"date": "YYYY-MM-DD", "predicted_price": 0.00, "low": 0.00, "high": 0.00}
+  ],
+  "reasoning": "2-3 sentence explanation of the forecast",
+  "factors": ["factor 1", "factor 2", "factor 3"],
+  "confidence": "high|medium|low"
+}
+`
+
+  try {
+    const raw = await askGemini(systemPrompt, userMessage)
+    // Strip markdown code fences if present
+    const cleaned = raw.replace(/```json\s*/gi, "").replace(/```\s*/gi, "").trim()
+    const parsed = JSON.parse(cleaned)
+
+    return {
+      data: {
+        material_name: material.name,
+        unit: material.unit,
+        last_known_price: lastPrice.price,
+        last_known_date: lastPrice.date,
+        predictions: parsed.predictions ?? [],
+        reasoning: parsed.reasoning ?? "",
+        factors: parsed.factors ?? [],
+        confidence: parsed.confidence ?? "medium",
+      },
+    }
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "AI forecast failed" }
+  }
+}
