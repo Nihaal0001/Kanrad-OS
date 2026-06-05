@@ -13,6 +13,7 @@ import { formatDate } from "@/lib/utils"
 import { cn } from "@/lib/utils"
 
 const NEWS_CATEGORIES = [
+  { value: "cookware", label: "Cookware" },
   { value: "raw_material", label: "Raw Material" },
   { value: "industry", label: "Industry" },
   { value: "regulation", label: "Regulation" },
@@ -20,6 +21,7 @@ const NEWS_CATEGORIES = [
 ]
 
 const CATEGORY_COLORS: Record<string, string> = {
+  cookware: "bg-orange-500/15 text-orange-600 border-orange-500/20",
   raw_material: "bg-amber-500/15 text-amber-600 border-amber-500/20",
   industry: "bg-blue-500/15 text-blue-600 border-blue-500/20",
   regulation: "bg-purple-500/15 text-purple-600 border-purple-500/20",
@@ -324,41 +326,40 @@ export function MarketIntelClient({ materials, news, suppliers }: {
 
       {/* News Tab */}
       {tab === "news" && (
-        <div className="space-y-3">
+        <div className="space-y-4">
           {news.length === 0 && (
             <div className="rounded-xl border border-border bg-card p-12 text-center text-muted-foreground">
-              No news yet. Click "Add News" to add industry updates.
+              No news yet. News auto-fetches every 4 hours, or click "Add News" to add manually.
             </div>
           )}
-          {news.map(item => (
-            <Card key={item.id}>
-              <CardContent className="pt-4 pb-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap mb-1">
-                      <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full border capitalize", CATEGORY_COLORS[item.category] ?? CATEGORY_COLORS.general)}>
-                        {NEWS_CATEGORIES.find(c => c.value === item.category)?.label ?? item.category}
-                      </span>
-                      <span className="text-xs text-muted-foreground">{formatDate(item.published_at)}</span>
-                      {item.source && <span className="text-xs text-muted-foreground">· {item.source}</span>}
-                    </div>
-                    <h3 className="font-semibold leading-snug">{item.title}</h3>
-                    {item.summary && <p className="text-sm text-muted-foreground mt-1">{item.summary}</p>}
-                    {item.url && (
-                      <a href={item.url} target="_blank" rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-xs text-primary hover:underline mt-1.5">
-                        Read more <ExternalLink className="h-3 w-3" />
-                      </a>
-                    )}
-                  </div>
-                  <Button variant="ghost" size="icon" className="shrink-0 text-muted-foreground hover:text-destructive"
-                    onClick={() => handleDeleteNews(item.id)} disabled={isPending}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+
+          {/* Cookware news — highlighted at top */}
+          {news.filter(n => n.category === "cookware").length > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold uppercase tracking-wider text-orange-600">🍳 Cookware Industry</span>
+                <div className="flex-1 h-px bg-orange-500/20" />
+              </div>
+              {news.filter(n => n.category === "cookware").map(item => (
+                <NewsCard key={item.id} item={item} onDelete={handleDeleteNews} isPending={isPending} highlight />
+              ))}
+            </div>
+          )}
+
+          {/* Rest of news */}
+          {news.filter(n => n.category !== "cookware").length > 0 && (
+            <div className="space-y-2">
+              {news.filter(n => n.category === "cookware").length > 0 && (
+                <div className="flex items-center gap-2 pt-2">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Other News</span>
+                  <div className="flex-1 h-px bg-border" />
                 </div>
-              </CardContent>
-            </Card>
-          ))}
+              )}
+              {news.filter(n => n.category !== "cookware").map(item => (
+                <NewsCard key={item.id} item={item} onDelete={handleDeleteNews} isPending={isPending} />
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -470,6 +471,45 @@ export function MarketIntelClient({ materials, news, suppliers }: {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+function NewsCard({ item, onDelete, isPending, highlight }: {
+  item: News
+  onDelete: (id: string) => void
+  isPending: boolean
+  highlight?: boolean
+}) {
+  return (
+    <div className={cn(
+      "rounded-xl border p-4",
+      highlight ? "border-orange-500/30 bg-orange-500/5" : "border-border bg-card"
+    )}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap mb-1">
+            <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full border", CATEGORY_COLORS[item.category] ?? CATEGORY_COLORS.general)}>
+              {NEWS_CATEGORIES.find(c => c.value === item.category)?.label ?? item.category}
+            </span>
+            <span className="text-xs text-muted-foreground">{formatDate(item.published_at)}</span>
+            {item.source && <span className="text-xs text-muted-foreground">· {item.source}</span>}
+          </div>
+          <h3 className={cn("font-semibold leading-snug", highlight && "text-orange-900 dark:text-orange-100")}>{item.title}</h3>
+          {item.summary && <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{item.summary}</p>}
+          {item.url && (
+            <a href={item.url} target="_blank" rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-xs text-primary hover:underline mt-1.5">
+              Read more <ExternalLink className="h-3 w-3" />
+            </a>
+          )}
+        </div>
+        <button
+          className="shrink-0 text-muted-foreground hover:text-destructive p-1 rounded transition-colors"
+          onClick={() => onDelete(item.id)} disabled={isPending}>
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      </div>
     </div>
   )
 }

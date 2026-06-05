@@ -202,7 +202,7 @@ const toolDeclarations: FunctionDeclaration[] = [
   // ── Market Intel tools ──
   {
     name: "get_market_news",
-    description: "Get recent market news — international commodity prices, India manufacturing, Karnataka/Bangalore industry, Bommasandra industrial area, regulations.",
+    description: "Get recent market news — cookware industry, international commodity prices, India manufacturing, Karnataka/Bangalore industry, Bommasandra industrial area, regulations.",
     parameters: {
       type: SchemaType.OBJECT,
       properties: {

@@ -3,23 +3,29 @@ import { createAdminClient } from "@/lib/supabase/admin"
 
 export const dynamic = "force-dynamic"
 
-// RSS feeds covering international, India, Karnataka, Bangalore, Bommasandra + commodities
+// RSS feeds covering cookware, international, India, Karnataka, Bangalore, Bommasandra + commodities
 const FEEDS = [
-  // Raw material / commodity prices
+  // ── Cookware / kitchenware (highest priority — shown at top) ──
+  { url: "https://news.google.com/rss/search?q=cookware+kitchenware+industry+market&hl=en&gl=US&ceid=US:en", category: "cookware" },
+  { url: "https://news.google.com/rss/search?q=aluminium+cookware+kadai+pressure+cooker+india&hl=en-IN&gl=IN&ceid=IN:en", category: "cookware" },
+  { url: "https://news.google.com/rss/search?q=non+stick+cookware+houseware+india+market&hl=en-IN&gl=IN&ceid=IN:en", category: "cookware" },
+  { url: "https://news.google.com/rss/search?q=cookware+export+import+india+trade&hl=en-IN&gl=IN&ceid=IN:en", category: "cookware" },
+  { url: "https://news.google.com/rss/search?q=houseware+kitchenware+BIS+standard+india&hl=en-IN&gl=IN&ceid=IN:en", category: "cookware" },
+  // ── Raw material / commodity prices ──
   { url: "https://news.google.com/rss/search?q=aluminium+price+commodity+international&hl=en&gl=US&ceid=US:en", category: "raw_material" },
   { url: "https://news.google.com/rss/search?q=steel+copper+zinc+commodity+price&hl=en&gl=US&ceid=US:en", category: "raw_material" },
   { url: "https://news.google.com/rss/search?q=aluminium+steel+price+india&hl=en-IN&gl=IN&ceid=IN:en", category: "raw_material" },
   { url: "https://news.google.com/rss/search?q=commodity+metal+price+india+2025&hl=en-IN&gl=IN&ceid=IN:en", category: "raw_material" },
-  // India manufacturing / industry
+  // ── India manufacturing / industry ──
   { url: "https://news.google.com/rss/search?q=india+manufacturing+industry+news&hl=en-IN&gl=IN&ceid=IN:en", category: "industry" },
   { url: "https://news.google.com/rss/search?q=houseware+cookware+aluminium+india&hl=en-IN&gl=IN&ceid=IN:en", category: "industry" },
-  // Karnataka / Bangalore
+  // ── Karnataka / Bangalore / Bommasandra ──
   { url: "https://news.google.com/rss/search?q=Karnataka+industry+manufacturing&hl=en-IN&gl=IN&ceid=IN:en", category: "industry" },
   { url: "https://news.google.com/rss/search?q=Bangalore+industrial+manufacturing&hl=en-IN&gl=IN&ceid=IN:en", category: "industry" },
-  // Bommasandra
   { url: "https://news.google.com/rss/search?q=Bommasandra+industrial+area&hl=en-IN&gl=IN&ceid=IN:en", category: "industry" },
-  // Regulation / GST / trade
+  // ── Regulation / GST / trade ──
   { url: "https://news.google.com/rss/search?q=india+GST+import+export+manufacturing+regulation&hl=en-IN&gl=IN&ceid=IN:en", category: "regulation" },
+  { url: "https://news.google.com/rss/search?q=cookware+BIS+FSSAI+regulation+india&hl=en-IN&gl=IN&ceid=IN:en", category: "regulation" },
 ]
 
 function extractField(xml: string, tag: string): string {
