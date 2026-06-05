@@ -3,11 +3,11 @@ import type { UserRole } from "@/lib/constants"
 export type Permission =
   | "dashboard" | "orders" | "inventory" | "production"
   | "quality" | "tasks" | "finance" | "hr"
-  | "notifications" | "settings" | "users"
+  | "notifications" | "settings" | "users" | "analytics"
 
 export const ALL_PERMISSIONS: Permission[] = [
   "dashboard", "orders", "inventory", "production", "quality",
-  "tasks", "finance", "hr", "notifications", "settings", "users",
+  "tasks", "finance", "hr", "notifications", "settings", "users", "analytics",
 ]
 
 export const MODULE_LABELS: Record<Permission, string> = {
@@ -22,6 +22,7 @@ export const MODULE_LABELS: Record<Permission, string> = {
   notifications: "Notifications",
   settings: "Settings",
   users: "User Management",
+  analytics: "Analytics (Market Intel, Schedule, Forecasting)",
 }
 
 export const ROLE_LABELS: Record<UserRole, string> = {
@@ -35,9 +36,9 @@ export const ROLE_LABELS: Record<UserRole, string> = {
 
 // Hardcoded fallback used only when the DB table doesn't exist yet
 export const DEFAULT_ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
-  admin: ["dashboard","orders","inventory","production","quality","tasks","finance","hr","notifications","settings","users"],
-  production_manager: ["dashboard","orders","production","quality","tasks","hr","notifications","settings"],
-  inventory_manager: ["dashboard","orders","inventory","tasks","finance","notifications","settings"],
+  admin: ["dashboard","orders","inventory","production","quality","tasks","finance","hr","notifications","settings","users","analytics"],
+  production_manager: ["dashboard","orders","production","quality","tasks","hr","notifications","settings","analytics"],
+  inventory_manager: ["dashboard","orders","inventory","tasks","finance","notifications","settings","analytics"],
   qc_head: ["dashboard","production","quality","tasks","notifications","settings"],
   floor_supervisor: ["dashboard","production","quality","tasks","hr","notifications","settings"],
   worker: ["dashboard","tasks","notifications"],

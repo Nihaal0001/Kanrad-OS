@@ -25,6 +25,9 @@ import {
   AlertTriangle,
   Archive,
   Send,
+  TrendingUp,
+  CalendarRange,
+  Newspaper,
   type LucideIcon,
 } from "lucide-react"
 
@@ -161,6 +164,16 @@ export const navigation: NavSection[] = [
       { title: "Leaves",     href: "/hr/leaves",      icon: CalendarDays, permission: "hr" },
       { title: "Payroll",    href: "/hr/payroll",     icon: CheckCircle,  permission: "hr" },
       { title: "Shifts",     href: "/hr/shifts",      icon: RefreshCcw,   permission: "hr" },
+    ],
+  },
+  {
+    id: "analytics",
+    title: "Analytics",
+    icon: TrendingUp,
+    items: [
+      { title: "Market Intel",  href: "/market-intel",  icon: Newspaper,    permission: "analytics" },
+      { title: "Schedule",      href: "/schedule",      icon: CalendarRange, permission: "analytics" },
+      { title: "Forecasting",   href: "/forecasting",   icon: TrendingUp,   permission: "analytics" },
     ],
   },
   {
