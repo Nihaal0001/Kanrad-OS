@@ -171,9 +171,9 @@ export const navigation: NavSection[] = [
     title: "Analytics",
     icon: TrendingUp,
     items: [
-      { title: "Market Intel",  href: "/market-intel",  icon: Newspaper,    permission: "analytics" },
-      { title: "Schedule",      href: "/schedule",      icon: CalendarRange, permission: "analytics" },
-      { title: "Forecasting",   href: "/forecasting",   icon: TrendingUp,   permission: "analytics" },
+      { title: "Market Intel",  href: "/market-intel",  icon: Newspaper,    permission: "dashboard" },
+      { title: "Schedule",      href: "/schedule",      icon: CalendarRange, permission: "dashboard" },
+      { title: "Forecasting",   href: "/forecasting",   icon: TrendingUp,   permission: "dashboard" },
     ],
   },
   {
