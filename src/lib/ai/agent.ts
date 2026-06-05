@@ -37,6 +37,10 @@ export const TOOL_PERMISSIONS: Record<string, string> = {
   get_pending_leaves: "hr",
   approve_leave: "hr",
   reject_leave: "hr",
+  // Analytics / Market Intel
+  get_market_news: "analytics",
+  get_material_prices: "analytics",
+  predict_material_price: "analytics",
   // General
   get_workers: "dashboard",
   // Notifications
@@ -193,6 +197,41 @@ const toolDeclarations: FunctionDeclaration[] = [
     name: "get_profit_loss",
     description: "Get P&L for the current month — revenue, COGS, gross profit, expenses by category, and net profit.",
     parameters: { type: SchemaType.OBJECT, properties: {} },
+  },
+
+  // ── Market Intel tools ──
+  {
+    name: "get_market_news",
+    description: "Get recent market news — international commodity prices, India manufacturing, Karnataka/Bangalore industry, Bommasandra industrial area, regulations.",
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        category: { type: SchemaType.STRING, description: "Filter by category: raw_material, industry, regulation, general (optional)" },
+        limit: { type: SchemaType.NUMBER, description: "Number of news items to return (default 10)" },
+      },
+    },
+  },
+  {
+    name: "get_material_prices",
+    description: "Get price history for a raw material. Use to analyze price trends and answer questions about material costs.",
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        material_name: { type: SchemaType.STRING, description: "Name or partial name of the material (e.g. aluminium, steel)" },
+      },
+      required: ["material_name"],
+    },
+  },
+  {
+    name: "predict_material_price",
+    description: "Use AI to forecast the price of a raw material for the next 10 days based on price history and market news. Use when the user asks about future prices, price predictions, or what prices will be.",
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        material_name: { type: SchemaType.STRING, description: "Name or partial name of the material to forecast" },
+      },
+      required: ["material_name"],
+    },
   },
 
   // ── Write tools ──
@@ -771,6 +810,82 @@ async function executeReadTool(
       }
     }
 
+    case "get_market_news": {
+      const category = args.category ? String(args.category) : null
+      const limit = args.limit ? Number(args.limit) : 10
+      let query = admin.from("market_news").select("title, summary, category, source, published_at, url").order("published_at", { ascending: false }).limit(limit)
+      if (category) query = query.eq("category", category)
+      const { data } = await query
+      return { news: data ?? [], count: (data ?? []).length }
+    }
+
+    case "get_material_prices": {
+      const name = String(args.material_name ?? "")
+      const { data: materials } = await admin.from("materials").select("id, name, unit").ilike("name", `%${name}%`).limit(3)
+      if (!materials || materials.length === 0) return { error: `No material found matching "${name}"` }
+      const material = materials[0]
+      const { data: prices } = await admin
+        .from("material_price_history")
+        .select("price_per_unit, recorded_at, supplier:suppliers(name), notes")
+        .eq("material_id", material.id)
+        .order("recorded_at", { ascending: false })
+        .limit(20)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const priceList = (prices ?? []).map((p: any) => ({
+        date: p.recorded_at,
+        price: p.price_per_unit,
+        unit: material.unit,
+        supplier: Array.isArray(p.supplier) ? p.supplier[0]?.name : p.supplier?.name,
+        notes: p.notes,
+      }))
+      const latest = priceList[0]
+      const oldest = priceList[priceList.length - 1]
+      const trend = priceList.length >= 2
+        ? priceList[0].price > priceList[Math.min(4, priceList.length - 1)].price ? "rising" : "falling"
+        : "unknown"
+      return { material: material.name, unit: material.unit, latest_price: latest, price_trend: trend, history: priceList, total_entries: priceList.length, oldest_entry: oldest }
+    }
+
+    case "predict_material_price": {
+      const name = String(args.material_name ?? "")
+      const { data: materials } = await admin.from("materials").select("id, name, unit, category:material_categories(name)").ilike("name", `%${name}%`).limit(1)
+      if (!materials || materials.length === 0) return { error: `No material found matching "${name}"` }
+      const material = materials[0]
+      const { data: prices } = await admin.from("material_price_history").select("price_per_unit, recorded_at, notes, supplier:suppliers(name)").eq("material_id", material.id).order("recorded_at", { ascending: false }).limit(30)
+      const { data: news } = await admin.from("market_news").select("title, summary, category, published_at").order("published_at", { ascending: false }).limit(15)
+
+      if (!prices || prices.length === 0) return { error: `No price history for "${name}". Please log prices in Market Intel first.` }
+
+      const { askGemini } = await import("@/lib/ai/gemini")
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const cat = Array.isArray((material as any).category) ? (material as any).category[0]?.name : (material as any).category?.name
+      const today = new Date().toISOString().split("T")[0]
+
+      const prompt = `You are a commodity analyst for a Bangalore houseware manufacturer. Predict prices for the next 10 days.
+Material: ${material.name} (${cat ?? "unknown"}, unit: ${material.unit})
+Today: ${today}
+Price history (newest first):
+${(prices ?? []).map((p: any) => `${p.recorded_at}: ₹${p.price_per_unit}/${material.unit}`).join("\n")}
+Recent market news:
+${(news ?? []).map((n: any) => `[${n.category}] ${n.published_at}: ${n.title}`).join("\n")}
+Respond ONLY with JSON: {"predictions":[{"date":"YYYY-MM-DD","predicted_price":0.00,"low":0.00,"high":0.00}],"reasoning":"...","factors":["..."],"confidence":"high|medium|low"}`
+
+      try {
+        const raw = await askGemini("You are a commodity price analyst. Respond with valid JSON only.", prompt)
+        const cleaned = raw.replace(/```json\s*/gi, "").replace(/```\s*/gi, "").trim()
+        const parsed = JSON.parse(cleaned)
+        return {
+          material: material.name,
+          unit: material.unit,
+          last_price: prices[0].price_per_unit,
+          forecast: parsed,
+          summary: `Based on ${prices.length} price records and ${(news ?? []).length} news items, the ${parsed.confidence} confidence forecast for ${material.name} shows prices ranging from ₹${Math.min(...parsed.predictions.map((p: any) => p.low))} to ₹${Math.max(...parsed.predictions.map((p: any) => p.high))} over the next 10 days.`
+        }
+      } catch {
+        return { error: "AI forecast failed. Try again." }
+      }
+    }
+
     default:
       return { error: `Unknown read tool: ${name}` }
   }
@@ -832,6 +947,9 @@ Rules:
 - Use a tool for every actionable or query request — do not just describe what you would do.
 - For ambiguous worker names, pick the closest match from the workers list.
 - Keep text responses to 1-2 sentences. Be direct and concise.
+- For price questions (future price, price trend, will price go up/down, what will aluminium cost): use predict_material_price tool.
+- For market/industry news questions: use get_market_news tool.
+- For current material price questions: use get_material_prices tool.
 - For write actions, call the tool directly — do NOT call a read tool first unless you truly need data that is not in the context above.
 - When discussing materials, use cookware manufacturing terminology: aluminium circles/discs, stainless steel blanks, lids, handles, knobs, screws, packing materials (cartons, bubble wrap, stickers).
 - If the user asks you to do something you don't have tools for, explain politely that they need to use the app for that.`
