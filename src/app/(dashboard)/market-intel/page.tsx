@@ -1,3 +1,5 @@
+export const revalidate = 60
+
 import { getLatestMaterialPrices, getMarketNews } from "@/actions/analytics"
 import { getSuppliers } from "@/actions/suppliers"
 import { MarketIntelClient } from "./market-intel-client"

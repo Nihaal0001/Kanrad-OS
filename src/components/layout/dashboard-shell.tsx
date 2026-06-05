@@ -7,6 +7,7 @@ import { Topbar } from "@/components/layout/topbar"
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav"
 import { CommandPalette } from "@/components/command-palette"
 import { AIChatWidget } from "@/components/shared/ai-chat-widget"
+import { KeepAlive } from "@/components/shared/keep-alive"
 import { cn } from "@/lib/utils"
 
 interface UserProfile {
@@ -69,6 +70,7 @@ export function DashboardShell({ children, unreadCount, userProfile, allowedPerm
       <MobileBottomNav />
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
       <AIChatWidget />
+      <KeepAlive />
     </div>
   )
 }

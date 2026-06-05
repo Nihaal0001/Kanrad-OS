@@ -1,3 +1,5 @@
+export const revalidate = 60
+
 import { Factory } from "lucide-react"
 
 import { getProductionOverview, getProductionStages, getOrdersForProduction, getOrdersForBatch } from "@/actions/production"

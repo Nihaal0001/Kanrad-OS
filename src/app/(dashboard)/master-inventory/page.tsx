@@ -1,3 +1,5 @@
+export const revalidate = 60
+
 import { Package } from "lucide-react"
 
 import { getMaterials, getCategories } from "@/actions/inventory"

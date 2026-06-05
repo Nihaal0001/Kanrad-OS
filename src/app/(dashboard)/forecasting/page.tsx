@@ -1,3 +1,5 @@
+export const revalidate = 60
+
 import { getDemandForecast, getInventoryForecast } from "@/actions/analytics"
 import { ForecastingClient } from "./forecasting-client"
 
