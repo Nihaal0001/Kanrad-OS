@@ -44,7 +44,7 @@ export function MarketIntelClient({ commodities, news, suppliers }: {
   news: News[]
   suppliers: Supplier[]
 }) {
-  const [tab, setTab] = useState<"prices" | "news" | "schedule">("prices")
+  const [tab, setTab] = useState<"prices" | "news">("prices")
   const [isPending, startTransition] = useTransition()
   const [fetchingNews, setFetchingNews] = useState(false)
   const [fetchResult, setFetchResult] = useState("")
@@ -177,12 +177,12 @@ export function MarketIntelClient({ commodities, news, suppliers }: {
 
       {/* Tabs */}
       <div className="flex gap-1 rounded-lg bg-muted p-1 w-fit">
-        {(["prices", "schedule", "news"] as const).map(t => (
+        {(["prices", "news"] as const).map(t => (
           <button key={t} onClick={() => setTab(t)}
             className={cn("rounded-md px-4 py-1.5 text-sm font-medium transition-all",
               tab === t ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
             )}>
-            {t === "prices" ? "Commodity Prices" : t === "schedule" ? "Price Schedule" : "Industry News"}
+            {t === "prices" ? "Commodity Prices" : "Industry News"}
           </button>
         ))}
       </div>
@@ -364,11 +364,6 @@ export function MarketIntelClient({ commodities, news, suppliers }: {
         </div>
       )}
 
-      {/* Schedule Tab */}
-      {tab === "schedule" && (
-        <ScheduleTab commodities={commodities} onLogPrice={openLogPrice} />
-      )}
-
       {/* News Tab */}
       {tab === "news" && (
         <div className="space-y-4">
@@ -523,156 +518,6 @@ export function MarketIntelClient({ commodities, news, suppliers }: {
           </div>
         </div>
       )}
-    </div>
-  )
-}
-
-const FREQUENCIES = [
-  { value: "7", label: "Weekly" },
-  { value: "14", label: "Fortnightly" },
-  { value: "30", label: "Monthly" },
-  { value: "60", label: "Every 2 months" },
-  { value: "0", label: "No schedule" },
-]
-
-const STORAGE_KEY = "commodity-price-schedules"
-
-function loadSchedules(): Record<string, number> {
-  if (typeof window === "undefined") return {}
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}") } catch { return {} }
-}
-
-function saveSchedules(s: Record<string, number>) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(s))
-}
-
-function ScheduleTab({ commodities, onLogPrice }: {
-  commodities: Commodity[]
-  onLogPrice: (categoryId: string) => void
-}) {
-  const [schedules, setSchedules] = useState<Record<string, number>>(() => loadSchedules())
-  const today = new Date()
-
-  function setFrequency(categoryId: string, days: number) {
-    setSchedules(prev => {
-      const next = { ...prev, [categoryId]: days }
-      saveSchedules(next)
-      return next
-    })
-  }
-
-  const rows = commodities.map(c => {
-    const lastDate = c.latest_price?.date ? new Date(c.latest_price.date) : null
-    const daysSince = lastDate ? Math.floor((today.getTime() - lastDate.getTime()) / 86400000) : null
-    const freq = schedules[c.id] ?? 0
-    const nextDue = (freq > 0 && lastDate)
-      ? new Date(lastDate.getTime() + freq * 86400000)
-      : null
-    const daysUntilDue = nextDue ? Math.ceil((nextDue.getTime() - today.getTime()) / 86400000) : null
-    const isOverdue = daysUntilDue !== null && daysUntilDue <= 0
-    const isDueSoon = daysUntilDue !== null && daysUntilDue > 0 && daysUntilDue <= 2
-    return { ...c, daysSince, lastDate, freq, nextDue, daysUntilDue, isOverdue, isDueSoon }
-  }).sort((a, b) => {
-    // Overdue first, then due soon, then no schedule, then upcoming
-    if (a.isOverdue && !b.isOverdue) return -1
-    if (!a.isOverdue && b.isOverdue) return 1
-    if (a.isDueSoon && !b.isDueSoon) return -1
-    if (!a.isDueSoon && b.isDueSoon) return 1
-    if (a.freq > 0 && b.freq === 0) return -1
-    if (a.freq === 0 && b.freq > 0) return 1
-    if (a.daysUntilDue !== null && b.daysUntilDue !== null) return a.daysUntilDue - b.daysUntilDue
-    return a.name.localeCompare(b.name)
-  })
-
-  const overdueCount = rows.filter(r => r.isOverdue).length
-  const dueSoonCount = rows.filter(r => r.isDueSoon).length
-  const scheduledCount = rows.filter(r => r.freq > 0).length
-
-  function dueLabel(row: typeof rows[0]) {
-    if (row.freq === 0) return { text: "No schedule", color: "text-muted-foreground" }
-    if (row.lastDate === null) return { text: "Log first price to start schedule", color: "text-muted-foreground" }
-    if (row.isOverdue) return { text: `Overdue by ${Math.abs(row.daysUntilDue!)}d`, color: "text-red-600" }
-    if (row.isDueSoon) return { text: `Due in ${row.daysUntilDue}d`, color: "text-amber-600" }
-    return { text: `Due ${row.nextDue!.toLocaleDateString("en-IN", { day: "numeric", month: "short" })}`, color: "text-muted-foreground" }
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-3 gap-3">
-        <div className="rounded-xl border border-border bg-card p-4">
-          <div className="text-2xl font-bold">{scheduledCount}</div>
-          <div className="text-xs text-muted-foreground mt-0.5">Scheduled</div>
-        </div>
-        <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-4">
-          <div className="text-2xl font-bold text-red-600">{overdueCount}</div>
-          <div className="text-xs text-muted-foreground mt-0.5">Overdue</div>
-        </div>
-        <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
-          <div className="text-2xl font-bold text-amber-600">{dueSoonCount}</div>
-          <div className="text-xs text-muted-foreground mt-0.5">Due within 2 days</div>
-        </div>
-      </div>
-
-      <div className="rounded-xl border border-border bg-card overflow-hidden">
-        <div className="px-4 py-3 border-b border-border bg-muted/40">
-          <span className="text-sm font-medium text-muted-foreground">Set how often to check each commodity price</span>
-        </div>
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border">
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Commodity</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Last Price</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Check Frequency</th>
-              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Next Due</th>
-              <th className="px-4 py-3" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {rows.map(c => {
-              const { text, color } = dueLabel(c)
-              return (
-                <tr key={c.id} className={cn("transition-colors", c.isOverdue ? "bg-red-500/5 hover:bg-red-500/8" : "hover:bg-muted/20")}>
-                  <td className="px-4 py-3">
-                    <div className="font-medium">{c.name}</div>
-                    {c.daysSince !== null && (
-                      <div className="text-xs text-muted-foreground">Last logged {c.daysSince}d ago</div>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    {c.latest_price ? (
-                      <span className="font-medium">
-                        ₹{c.latest_price.price.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                        <span className="text-xs font-normal text-muted-foreground ml-1">/{c.latest_price.unit}</span>
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground">—</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 w-44">
-                    <Select
-                      value={String(c.freq)}
-                      onValueChange={v => setFrequency(c.id, Number(v))}
-                    >
-                      <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {FREQUENCIES.map(f => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={cn("text-xs font-medium", color)}>{text}</span>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <Button size="sm" variant={c.isOverdue ? "default" : "outline"} onClick={() => onLogPrice(c.id)}>
-                      <Plus className="h-3 w-3 mr-1" />Log Price
-                    </Button>
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
     </div>
   )
 }
