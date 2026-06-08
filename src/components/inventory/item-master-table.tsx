@@ -3,11 +3,12 @@
 import { useState, useMemo, useCallback } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { MoreHorizontal, Search, Pencil, Trash2, AlertTriangle, IndianRupee, Lock } from "lucide-react"
+import { MoreHorizontal, Search, Pencil, Trash2, AlertTriangle, IndianRupee, Lock, Download } from "lucide-react"
 
 import type { MaterialWithCategory } from "@/lib/supabase/types"
 import { friendlyError } from "@/lib/utils"
 import { deleteMaterial } from "@/actions/inventory"
+import { downloadExcel } from "@/lib/export"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -111,9 +112,42 @@ export function ItemMasterTable({ materials, categories }: ItemMasterTableProps)
             className="pl-9"
           />
         </div>
-        <p className="text-sm text-muted-foreground">
-          {filteredMaterials.length} material{filteredMaterials.length !== 1 ? "s" : ""}
-        </p>
+        <div className="flex items-center gap-2">
+          <p className="text-sm text-muted-foreground">
+            {filteredMaterials.length} material{filteredMaterials.length !== 1 ? "s" : ""}
+          </p>
+          <Button size="sm" variant="outline" onClick={() => downloadExcel(
+            filteredMaterials.map(m => ({
+              sku: m.sku,
+              name: m.name,
+              category: m.category?.name ?? "",
+              unit: m.unit,
+              current_stock: m.current_stock,
+              min_stock_level: m.min_stock_level ?? "",
+              cost_per_unit: m.cost_per_unit ?? "",
+              supplier: m.supplier_name ?? "",
+              notes: m.notes ?? "",
+              is_active: m.is_active ? "Yes" : "No",
+            })),
+            [
+              { key: "sku", label: "SKU" },
+              { key: "name", label: "Name" },
+              { key: "category", label: "Category" },
+              { key: "unit", label: "Unit" },
+              { key: "current_stock", label: "Current Stock" },
+              { key: "min_stock_level", label: "Min Stock Level" },
+              { key: "cost_per_unit", label: "Cost Per Unit (₹)" },
+              { key: "supplier", label: "Supplier" },
+              { key: "notes", label: "Notes" },
+              { key: "is_active", label: "Active" },
+            ],
+            `item-master-${new Date().toISOString().split("T")[0]}.xlsx`,
+            "Item Master"
+          )}>
+            <Download className="h-4 w-4 mr-1.5" />
+            Export Excel
+          </Button>
+        </div>
       </div>
 
       {/* Category filters */}
