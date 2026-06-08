@@ -1,43 +1,52 @@
 "use server"
 
-import { revalidatePath } from "next/cache"
+import { revalidatePath, revalidateTag, unstable_cache } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { logAudit } from "@/actions/audit"
 import { rejectionSchema, approveReturnSchema } from "@/lib/validators/rejections"
 import type { RejectionFormData, ApproveReturnFormData } from "@/lib/validators/rejections"
 
 // ── Queries ──────────────────────────────────────────────────
 
-export async function getRejections() {
-  const supabase = await createClient()
-  const { data, error } = await supabase
-    .from("rejections")
-    .select("*")
-    .order("created_at", { ascending: false })
+export const getRejections = unstable_cache(
+  async () => {
+    const supabase = createAdminClient()
+    const { data, error } = await supabase
+      .from("rejections")
+      .select("*")
+      .order("created_at", { ascending: false })
 
-  if (error) throw new Error(error.message)
-  return data ?? []
-}
+    if (error) throw new Error(error.message)
+    return data ?? []
+  },
+  ["rejections"],
+  { tags: ["rejections"], revalidate: 60 }
+)
 
-export async function getRejectionSummary() {
-  const supabase = await createClient()
-  const { data, error } = await supabase
-    .from("rejections")
-    .select("quantity, return_type")
+export const getRejectionSummary = unstable_cache(
+  async () => {
+    const supabase = createAdminClient()
+    const { data, error } = await supabase
+      .from("rejections")
+      .select("quantity, return_type")
 
-  if (error) return { totalRejected: 0, totalReturned: 0, totalLoss: 0 }
+    if (error) return { totalRejected: 0, totalReturned: 0, totalLoss: 0 }
 
-  const rows = data ?? []
-  const totalRejected = rows.reduce((acc, r) => acc + (r.quantity ?? 0), 0)
-  const totalReturned = rows
-    .filter((r) => r.return_type === "return_to_usable" || r.return_type === "saleable")
-    .reduce((acc, r) => acc + (r.quantity ?? 0), 0)
-  const totalLoss = rows
-    .filter((r) => r.return_type === "loss" || r.return_type === "non_saleable")
-    .reduce((acc, r) => acc + (r.quantity ?? 0), 0)
+    const rows = data ?? []
+    const totalRejected = rows.reduce((acc, r) => acc + (r.quantity ?? 0), 0)
+    const totalReturned = rows
+      .filter((r) => r.return_type === "return_to_usable" || r.return_type === "saleable")
+      .reduce((acc, r) => acc + (r.quantity ?? 0), 0)
+    const totalLoss = rows
+      .filter((r) => r.return_type === "loss" || r.return_type === "non_saleable")
+      .reduce((acc, r) => acc + (r.quantity ?? 0), 0)
 
-  return { totalRejected, totalReturned, totalLoss }
-}
+    return { totalRejected, totalReturned, totalLoss }
+  },
+  ["rejections-summary"],
+  { tags: ["rejections"], revalidate: 60 }
+)
 
 // ── Mutations ────────────────────────────────────────────────
 
@@ -73,6 +82,7 @@ export async function createRejection(formData: RejectionFormData) {
     newValues: { stage: validated.stage, quantity: validated.quantity, reason: validated.reason },
   })
 
+  revalidateTag("rejections", {})
   revalidatePath("/rejections")
   return { data }
 }
@@ -103,6 +113,7 @@ export async function approveRejectionReturn(id: string, formData: ApproveReturn
     newValues: { return_type: validated.return_type },
   })
 
+  revalidateTag("rejections", {})
   revalidatePath("/rejections")
   return { data }
 }

@@ -1,7 +1,8 @@
 "use server"
 
-import { revalidatePath } from "next/cache"
+import { revalidatePath, revalidateTag, unstable_cache } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { logAudit } from "@/actions/audit"
 import { issueSchema } from "@/lib/validators/issues"
 import type { IssueFormData } from "@/lib/validators/issues"
@@ -10,20 +11,25 @@ const VALID_STATUSES = ["open", "in_progress", "resolved"] as const
 
 // ── Queries ──────────────────────────────────────────────────
 
-export async function getIssues(filters?: { status?: string; severity?: string }) {
-  const supabase = await createClient()
-  let query = supabase
-    .from("issues")
-    .select("*")
-    .order("created_at", { ascending: false })
+export const getIssues = (filters?: { status?: string; severity?: string }) =>
+  unstable_cache(
+    async () => {
+      const supabase = createAdminClient()
+      let query = supabase
+        .from("issues")
+        .select("*")
+        .order("created_at", { ascending: false })
 
-  if (filters?.status) query = query.eq("status", filters.status)
-  if (filters?.severity) query = query.eq("severity", filters.severity)
+      if (filters?.status) query = query.eq("status", filters.status)
+      if (filters?.severity) query = query.eq("severity", filters.severity)
 
-  const { data, error } = await query
-  if (error) throw new Error(error.message)
-  return data ?? []
-}
+      const { data, error } = await query
+      if (error) throw new Error(error.message)
+      return data ?? []
+    },
+    [`issues-${filters?.status ?? "all"}-${filters?.severity ?? "all"}`],
+    { tags: ["issues"], revalidate: 60 }
+  )()
 
 // ── Mutations ────────────────────────────────────────────────
 
@@ -58,6 +64,7 @@ export async function createIssue(formData: IssueFormData) {
     newValues: { module: validated.module, severity: validated.severity },
   })
 
+  revalidateTag("issues", {})
   revalidatePath("/issues")
   return { data }
 }
@@ -97,6 +104,7 @@ export async function updateIssueStatus(id: string, status: string) {
     newValues: { status },
   })
 
+  revalidateTag("issues", {})
   revalidatePath("/issues")
   return { success: true }
 }

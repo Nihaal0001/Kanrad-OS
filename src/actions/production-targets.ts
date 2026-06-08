@@ -1,26 +1,32 @@
 "use server"
 
-import { revalidatePath } from "next/cache"
+import { revalidatePath, revalidateTag, unstable_cache } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { logAudit } from "@/actions/audit"
 import { productionTargetSchema, recordActualSchema } from "@/lib/validators/production-targets"
 import type { ProductionTargetFormData, RecordActualFormData } from "@/lib/validators/production-targets"
 
 // ── Queries ──────────────────────────────────────────────────
 
-export async function getProductionTargets(filters?: { status?: string }) {
-  const supabase = await createClient()
-  let query = supabase
-    .from("production_targets")
-    .select("*")
-    .order("target_date", { ascending: false })
+export const getProductionTargets = (filters?: { status?: string }) =>
+  unstable_cache(
+    async () => {
+      const supabase = createAdminClient()
+      let query = supabase
+        .from("production_targets")
+        .select("*")
+        .order("target_date", { ascending: false })
 
-  if (filters?.status) query = query.eq("status", filters.status)
+      if (filters?.status) query = query.eq("status", filters.status)
 
-  const { data, error } = await query
-  if (error) throw new Error(error.message)
-  return data ?? []
-}
+      const { data, error } = await query
+      if (error) throw new Error(error.message)
+      return data ?? []
+    },
+    [`production-targets-${filters?.status ?? "all"}`],
+    { tags: ["production_targets"], revalidate: 60 }
+  )()
 
 // ── Mutations ────────────────────────────────────────────────
 
@@ -54,6 +60,7 @@ export async function createProductionTarget(formData: ProductionTargetFormData)
     newValues: { product_name: validated.product_name, daily_target_qty: validated.daily_target_qty, target_date: validated.target_date },
   })
 
+  revalidateTag("production_targets", {})
   revalidatePath("/production/targets")
   return { data }
 }
@@ -99,6 +106,7 @@ export async function recordActualProduction(id: string, formData: RecordActualF
     newValues: { actual_qty: validated.actual_qty, status },
   })
 
+  revalidateTag("production_targets", {})
   revalidatePath("/production/targets")
   return { data }
 }

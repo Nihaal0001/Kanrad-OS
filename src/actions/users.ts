@@ -48,6 +48,8 @@ export async function createUser(data: {
 
   if (profileError) return { error: profileError.message }
 
+  revalidateTag("users", {})
+  revalidateTag("permissions", {})
   revalidatePath("/users")
   return { success: true }
 }
@@ -68,16 +70,20 @@ async function requireAdmin(): Promise<{ supabase: Awaited<ReturnType<typeof cre
   return { supabase, userId: user.id }
 }
 
-export async function getUsers(): Promise<UserRow[]> {
-  const supabase = await createClient()
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("id, full_name, email, role, department, is_active, created_at")
-    .order("full_name")
+export const getUsers = unstable_cache(
+  async (): Promise<UserRow[]> => {
+    const supabase = createAdminClient()
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id, full_name, email, role, department, is_active, created_at")
+      .order("full_name")
 
-  if (error) throw new Error(error.message)
-  return (data ?? []) as UserRow[]
-}
+    if (error) throw new Error(error.message)
+    return (data ?? []) as UserRow[]
+  },
+  ["users"],
+  { tags: ["users"], revalidate: 300 }
+)
 
 export async function updateUserRole(
   id: string,
@@ -92,6 +98,8 @@ export async function updateUserRole(
   const { error } = await supabase.from("profiles").update({ role }).eq("id", id)
   if (error) return { error: error.message }
 
+  revalidateTag("users", {})
+  revalidateTag("permissions", {})
   revalidatePath("/users")
   return { success: true }
 }
@@ -107,32 +115,37 @@ export async function toggleUserActive(
   const { error } = await supabase.from("profiles").update({ is_active }).eq("id", id)
   if (error) return { error: error.message }
 
+  revalidateTag("users", {})
+  revalidateTag("permissions", {})
   revalidatePath("/users")
   return { success: true }
 }
 
 // ── Role permissions (DB-backed) ────────────────────────────────────────────
 
-export async function getAllRolePermissions(): Promise<Record<string, string[]>> {
-  const supabase = await createClient()
-  const { data, error } = await supabase
-    .from("role_permissions")
-    .select("role, permission")
+export const getAllRolePermissions = unstable_cache(
+  async (): Promise<Record<string, string[]>> => {
+    const supabase = createAdminClient()
+    const { data, error } = await supabase
+      .from("role_permissions")
+      .select("role, permission")
 
-  if (error) {
-    // Fallback to hardcoded defaults if table doesn't exist yet
-    return Object.fromEntries(
-      userRoles.map((r) => [r, [...(DEFAULT_ROLE_PERMISSIONS[r] ?? [])]])
-    )
-  }
+    if (error) {
+      return Object.fromEntries(
+        userRoles.map((r) => [r, [...(DEFAULT_ROLE_PERMISSIONS[r] ?? [])]])
+      )
+    }
 
-  const result: Record<string, string[]> = Object.fromEntries(userRoles.map((r) => [r, []]))
-  for (const row of data ?? []) {
-    result[row.role] ??= []
-    result[row.role].push(row.permission)
-  }
-  return result
-}
+    const result: Record<string, string[]> = Object.fromEntries(userRoles.map((r) => [r, []]))
+    for (const row of data ?? []) {
+      result[row.role] ??= []
+      result[row.role].push(row.permission)
+    }
+    return result
+  },
+  ["all-role-permissions"],
+  { tags: ["permissions"], revalidate: 300 }
+)
 
 export const getRolePermissions = unstable_cache(
   async (role: string): Promise<string[]> => {

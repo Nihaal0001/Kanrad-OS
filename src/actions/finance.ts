@@ -1,7 +1,8 @@
 "use server"
 
-import { revalidatePath } from "next/cache"
+import { revalidatePath, revalidateTag, unstable_cache } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 import {
   invoiceSchema,
   paymentSchema,
@@ -14,45 +15,53 @@ import { logAudit } from "@/actions/audit"
 
 // ===== Invoices =====
 
-export async function getInvoices(filters?: { status?: string }) {
-  const supabase = await createClient()
-  let query = supabase
-    .from("invoices")
-    .select("*")
-    .order("created_at", { ascending: false })
+export const getInvoices = (filters?: { status?: string }) =>
+  unstable_cache(
+    async () => {
+      const supabase = createAdminClient()
+      let query = supabase
+        .from("invoices")
+        .select("*")
+        .order("created_at", { ascending: false })
 
-  if (filters?.status) {
-    query = query.eq("status", filters.status)
-  }
+      if (filters?.status) query = query.eq("status", filters.status)
 
-  const { data, error } = await query
-  if (error) throw new Error(error.message)
-  return data ?? []
-}
+      const { data, error } = await query
+      if (error) throw new Error(error.message)
+      return data ?? []
+    },
+    [`invoices-${filters?.status ?? "all"}`],
+    { tags: ["invoices"], revalidate: 60 }
+  )()
 
-export async function getInvoice(id: string) {
-  const supabase = await createClient()
-  const { data, error } = await supabase
-    .from("invoices")
-    .select(`
-      *,
-      order:orders(id, order_number, product_variant),
-      invoice_items(*)
-    `)
-    .eq("id", id)
-    .single()
+export const getInvoice = (id: string) =>
+  unstable_cache(
+    async () => {
+      const supabase = createAdminClient()
+      const { data, error } = await supabase
+        .from("invoices")
+        .select(`
+          *,
+          order:orders(id, order_number, product_variant),
+          invoice_items(*)
+        `)
+        .eq("id", id)
+        .single()
 
-  if (error) throw new Error(error.message)
+      if (error) throw new Error(error.message)
 
-  return {
-    ...data,
-    order: Array.isArray(data.order) ? data.order[0] ?? null : data.order,
-    invoice_items: (data.invoice_items ?? []).sort(
-      (a: { created_at: string }, b: { created_at: string }) =>
-        a.created_at.localeCompare(b.created_at)
-    ),
-  }
-}
+      return {
+        ...data,
+        order: Array.isArray(data.order) ? data.order[0] ?? null : data.order,
+        invoice_items: (data.invoice_items ?? []).sort(
+          (a: { created_at: string }, b: { created_at: string }) =>
+            a.created_at.localeCompare(b.created_at)
+        ),
+      }
+    },
+    [`invoice-${id}`],
+    { tags: ["invoices"], revalidate: 60 }
+  )()
 
 export async function createInvoice(formData: InvoiceFormData) {
   const validated = invoiceSchema.parse(formData)
@@ -95,6 +104,8 @@ export async function createInvoice(formData: InvoiceFormData) {
   const { error: itemsErr } = await supabase.from("invoice_items").insert(items)
   if (itemsErr) return { error: itemsErr.message }
 
+  revalidateTag("invoices", {})
+  revalidateTag("orders", {})
   revalidatePath("/finance/invoices")
   await logAudit({ entityType: "invoice", entityId: invoice.id, entityLabel: invoice.invoice_number, action: "created" })
   return { data: invoice }
@@ -197,7 +208,7 @@ export async function deleteInvoice(id: string) {
 
 // Helper for invoice creation: fetch order + customer info
 export async function getOrderForInvoice(orderId: string) {
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { data, error } = await supabase
     .from("orders")
     .select(`
@@ -226,50 +237,55 @@ export async function getOrderForInvoice(orderId: string) {
 }
 
 // Helper: fetch all orderable (completed/dispatched) orders for invoice creation
-export async function getOrdersForInvoice() {
-  const supabase = await createClient()
-  const { data, error } = await supabase
-    .from("orders")
-    .select("id, order_number, product_variant, status, customer:customers(id, name)")
-    .in("status", ["completed", "dispatched"])
-    .order("created_at", { ascending: false })
+export const getOrdersForInvoice = unstable_cache(
+  async () => {
+    const supabase = createAdminClient()
+    const { data, error } = await supabase
+      .from("orders")
+      .select("id, order_number, product_variant, status, customer:customers(id, name)")
+      .in("status", ["completed", "dispatched"])
+      .order("created_at", { ascending: false })
 
-  if (error) return []
+    if (error) return []
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (data ?? []).map((o: any) => ({
-    ...o,
-    customer: (() => {
-      const customer = Array.isArray(o.customer) ? o.customer[0] ?? null : o.customer
-      if (!customer) return null
-      return {
-        id: customer.id,
-        name: customer.name,
-      }
-    })(),
-  }))
-}
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (data ?? []).map((o: any) => ({
+      ...o,
+      customer: (() => {
+        const customer = Array.isArray(o.customer) ? o.customer[0] ?? null : o.customer
+        if (!customer) return null
+        return { id: customer.id, name: customer.name }
+      })(),
+    }))
+  },
+  ["orders-for-invoice"],
+  { tags: ["orders"], revalidate: 60 }
+)
 
 // ===== Payments =====
 
-export async function getPayments() {
-  const supabase = await createClient()
-  const { data, error } = await supabase
-    .from("payments")
-    .select(`
-      *,
-      invoice:invoices(id, invoice_number, customer_name, total_amount)
-    `)
-    .order("payment_date", { ascending: false })
+export const getPayments = unstable_cache(
+  async () => {
+    const supabase = createAdminClient()
+    const { data, error } = await supabase
+      .from("payments")
+      .select(`
+        *,
+        invoice:invoices(id, invoice_number, customer_name, total_amount)
+      `)
+      .order("payment_date", { ascending: false })
 
-  if (error) throw new Error(error.message)
+    if (error) throw new Error(error.message)
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (data ?? []).map((p: any) => ({
-    ...p,
-    invoice: Array.isArray(p.invoice) ? p.invoice[0] ?? null : p.invoice,
-  }))
-}
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (data ?? []).map((p: any) => ({
+      ...p,
+      invoice: Array.isArray(p.invoice) ? p.invoice[0] ?? null : p.invoice,
+    }))
+  },
+  ["payments"],
+  { tags: ["payments"], revalidate: 60 }
+)
 
 export async function createPayment(formData: PaymentFormData) {
   const validated = paymentSchema.parse(formData)
@@ -293,6 +309,8 @@ export async function createPayment(formData: PaymentFormData) {
 
   if (error) return { error: error.message }
 
+  revalidateTag("payments", {})
+  revalidateTag("invoices", {})
   revalidatePath("/finance/payments")
   revalidatePath("/finance/invoices")
   revalidatePath("/finance/cash-flow")
@@ -310,6 +328,8 @@ export async function deletePayment(id: string) {
   const { error } = await supabase.from("payments").delete().eq("id", id)
   if (error) return { error: error.message }
 
+  revalidateTag("payments", {})
+  revalidateTag("invoices", {})
   revalidatePath("/finance/payments")
   revalidatePath("/finance/invoices")
   revalidatePath("/finance/cash-flow")
@@ -319,24 +339,28 @@ export async function deletePayment(id: string) {
 
 // ===== Order Costing =====
 
-export async function getOrderCostings() {
-  const supabase = await createClient()
-  const { data, error } = await supabase
-    .from("order_costings")
-    .select(`
-      *,
-      order:orders(id, order_number, product_variant, total_quantity)
-    `)
-    .order("created_at", { ascending: false })
+export const getOrderCostings = unstable_cache(
+  async () => {
+    const supabase = createAdminClient()
+    const { data, error } = await supabase
+      .from("order_costings")
+      .select(`
+        *,
+        order:orders(id, order_number, product_variant, total_quantity)
+      `)
+      .order("created_at", { ascending: false })
 
-  if (error) throw new Error(error.message)
+    if (error) throw new Error(error.message)
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (data ?? []).map((c: any) => ({
-    ...c,
-    order: Array.isArray(c.order) ? c.order[0] ?? null : c.order,
-  }))
-}
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (data ?? []).map((c: any) => ({
+      ...c,
+      order: Array.isArray(c.order) ? c.order[0] ?? null : c.order,
+    }))
+  },
+  ["order-costings"],
+  { tags: ["order_costings"], revalidate: 60 }
+)
 
 export async function getOrderCosting(orderId: string) {
   const supabase = await createClient()
@@ -540,6 +564,7 @@ export async function upsertOrderCosting(orderId: string, formData: CostingFormD
 
   if (error) return { error: error.message }
 
+  revalidateTag("order_costings", {})
   revalidatePath("/finance/costing")
   revalidatePath(`/finance/costing/${orderId}`)
   return { data }

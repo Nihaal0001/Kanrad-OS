@@ -1,7 +1,8 @@
 "use server"
 
-import { revalidatePath } from "next/cache"
+import { revalidatePath, revalidateTag, unstable_cache } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { logAudit } from "@/actions/audit"
 import {
   expenseSchema,
@@ -12,17 +13,21 @@ import {
 
 // ===== Expense Categories =====
 
-export async function getExpenseCategories() {
-  const supabase = await createClient()
-  const { data, error } = await supabase
-    .from("expense_categories")
-    .select("*")
-    .eq("is_active", true)
-    .order("name")
+export const getExpenseCategories = unstable_cache(
+  async () => {
+    const supabase = createAdminClient()
+    const { data, error } = await supabase
+      .from("expense_categories")
+      .select("*")
+      .eq("is_active", true)
+      .order("name")
 
-  if (error) throw new Error(error.message)
-  return data ?? []
-}
+    if (error) throw new Error(error.message)
+    return data ?? []
+  },
+  ["expense-categories"],
+  { tags: ["expense_categories"], revalidate: 300 }
+)
 
 export async function createExpenseCategory(formData: ExpenseCategoryFormData) {
   const validated = expenseCategorySchema.parse(formData)
@@ -39,6 +44,8 @@ export async function createExpenseCategory(formData: ExpenseCategoryFormData) {
 
   if (error) return { error: error.message }
 
+  revalidateTag("expenses", {})
+  revalidateTag("expense_categories", {})
   revalidatePath("/finance/expenses")
   await logAudit({ entityType: "expense_category", entityId: data.id, entityLabel: data.name, action: "created" })
   return { data }
@@ -66,6 +73,8 @@ export async function deleteExpenseCategory(id: string) {
 
   if (error) return { error: error.message }
 
+  revalidateTag("expenses", {})
+  revalidateTag("expense_categories", {})
   revalidatePath("/finance/expenses")
   await logAudit({ entityType: "expense_category", entityId: id, action: "deleted" })
   return { success: true }
@@ -73,41 +82,36 @@ export async function deleteExpenseCategory(id: string) {
 
 // ===== Expenses =====
 
-export async function getExpenses(filters?: {
-  category_id?: string
-  from?: string
-  to?: string
-}) {
-  const supabase = await createClient()
-  let query = supabase
-    .from("expenses")
-    .select(`
-      *,
-      category:expense_categories(id, name),
-      order:orders(id, order_number, product_variant)
-    `)
-    .order("expense_date", { ascending: false })
+export const getExpenses = (filters?: { category_id?: string; from?: string; to?: string }) =>
+  unstable_cache(
+    async () => {
+      const supabase = createAdminClient()
+      let query = supabase
+        .from("expenses")
+        .select(`
+          *,
+          category:expense_categories(id, name),
+          order:orders(id, order_number, product_variant)
+        `)
+        .order("expense_date", { ascending: false })
 
-  if (filters?.category_id) {
-    query = query.eq("category_id", filters.category_id)
-  }
-  if (filters?.from) {
-    query = query.gte("expense_date", filters.from)
-  }
-  if (filters?.to) {
-    query = query.lte("expense_date", filters.to)
-  }
+      if (filters?.category_id) query = query.eq("category_id", filters.category_id)
+      if (filters?.from) query = query.gte("expense_date", filters.from)
+      if (filters?.to) query = query.lte("expense_date", filters.to)
 
-  const { data, error } = await query
-  if (error) throw new Error(error.message)
+      const { data, error } = await query
+      if (error) throw new Error(error.message)
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (data ?? []).map((e: any) => ({
-    ...e,
-    category: Array.isArray(e.category) ? e.category[0] ?? null : e.category,
-    order: Array.isArray(e.order) ? e.order[0] ?? null : e.order,
-  }))
-}
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return (data ?? []).map((e: any) => ({
+        ...e,
+        category: Array.isArray(e.category) ? e.category[0] ?? null : e.category,
+        order: Array.isArray(e.order) ? e.order[0] ?? null : e.order,
+      }))
+    },
+    [`expenses-${filters?.category_id ?? "all"}-${filters?.from ?? ""}-${filters?.to ?? ""}`],
+    { tags: ["expenses"], revalidate: 60 }
+  )()
 
 export async function createExpense(formData: ExpenseFormData) {
   const validated = expenseSchema.parse(formData)
@@ -131,6 +135,8 @@ export async function createExpense(formData: ExpenseFormData) {
 
   if (error) return { error: error.message }
 
+  revalidateTag("expenses", {})
+  revalidateTag("expense_categories", {})
   revalidatePath("/finance/expenses")
   revalidatePath("/finance/cash-flow")
   revalidatePath("/finance")
@@ -176,6 +182,8 @@ export async function createImportedExpense(
 
   if (error) return { error: error.message }
 
+  revalidateTag("expenses", {})
+  revalidateTag("expense_categories", {})
   revalidatePath("/finance/expenses")
   revalidatePath("/finance/cash-flow")
   revalidatePath("/finance")
@@ -216,6 +224,8 @@ export async function updateExpense(id: string, formData: ExpenseFormData) {
 
   if (error) return { error: error.message }
 
+  revalidateTag("expenses", {})
+  revalidateTag("expense_categories", {})
   revalidatePath("/finance/expenses")
   revalidatePath("/finance/cash-flow")
   revalidatePath("/finance")
@@ -242,6 +252,8 @@ export async function deleteExpense(id: string) {
   const { error } = await supabase.from("expenses").delete().eq("id", id)
   if (error) return { error: error.message }
 
+  revalidateTag("expenses", {})
+  revalidateTag("expense_categories", {})
   revalidatePath("/finance/expenses")
   revalidatePath("/finance/cash-flow")
   revalidatePath("/finance")

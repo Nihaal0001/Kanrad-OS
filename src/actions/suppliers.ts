@@ -28,17 +28,22 @@ export const getSuppliers = unstable_cache(
   { tags: ["suppliers"], revalidate: 300 }
 )
 
-export async function getSupplier(id: string) {
-  const supabase = await createClient()
-  const { data, error } = await supabase
-    .from("suppliers")
-    .select("*")
-    .eq("id", id)
-    .single()
+export const getSupplier = (id: string) =>
+  unstable_cache(
+    async () => {
+      const supabase = createAdminClient()
+      const { data, error } = await supabase
+        .from("suppliers")
+        .select("*")
+        .eq("id", id)
+        .single()
 
-  if (error) throw new Error(error.message)
-  return data
-}
+      if (error) throw new Error(error.message)
+      return data
+    },
+    [`supplier-${id}`],
+    { tags: ["suppliers"], revalidate: 60 }
+  )()
 
 export async function createSupplier(formData: SupplierFormData) {
   const validated = supplierSchema.parse(formData)

@@ -1,65 +1,75 @@
 "use server"
 
-import { revalidatePath } from "next/cache"
+import { revalidatePath, revalidateTag, unstable_cache } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { bomSchema, type BomFormData } from "@/lib/validators/bom"
 import { logAudit } from "@/actions/audit"
 
-export async function getProducts() {
-  const supabase = await createClient()
-  const { data, error } = await supabase
-    .from("bom_headers")
-    .select(`
-      *,
-      bom_items(
-        id, material_id, qty_required, unit, wastage_pct,
-        material:materials(id, name, sku, cost_per_unit, unit, current_stock)
-      )
-    `)
-    .eq("is_active", true)
-    .order("product_name", { ascending: true })
+export const getProducts = unstable_cache(
+  async () => {
+    const supabase = createAdminClient()
+    const { data, error } = await supabase
+      .from("bom_headers")
+      .select(`
+        *,
+        bom_items(
+          id, material_id, qty_required, unit, wastage_pct,
+          material:materials(id, name, sku, cost_per_unit, unit, current_stock)
+        )
+      `)
+      .eq("is_active", true)
+      .order("product_name", { ascending: true })
 
-  if (error) throw new Error(error.message)
+    if (error) throw new Error(error.message)
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (data ?? []).map((bom: any) => {
-    const items = (bom.bom_items ?? []).map((item: any) => ({
-      ...item,
-      material: Array.isArray(item.material) ? item.material[0] ?? null : item.material,
-    }))
-    const materialCost = items.reduce((sum: number, item: any) => {
-      const costPerUnit = item.material?.cost_per_unit ?? 0
-      const effective = item.qty_required * (1 + (item.wastage_pct ?? 0) / 100)
-      return sum + effective * costPerUnit
-    }, 0)
-    return { ...bom, bom_items: items, materialCost }
-  })
-}
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (data ?? []).map((bom: any) => {
+      const items = (bom.bom_items ?? []).map((item: any) => ({
+        ...item,
+        material: Array.isArray(item.material) ? item.material[0] ?? null : item.material,
+      }))
+      const materialCost = items.reduce((sum: number, item: any) => {
+        const costPerUnit = item.material?.cost_per_unit ?? 0
+        const effective = item.qty_required * (1 + (item.wastage_pct ?? 0) / 100)
+        return sum + effective * costPerUnit
+      }, 0)
+      return { ...bom, bom_items: items, materialCost }
+    })
+  },
+  ["bom-products"],
+  { tags: ["bom"], revalidate: 60 }
+)
 
-export async function getProduct(id: string) {
-  const supabase = await createClient()
-  const { data, error } = await supabase
-    .from("bom_headers")
-    .select(`
-      *,
-      bom_items(
-        id, material_id, qty_required, unit, wastage_pct, notes,
-        material:materials(id, name, sku, cost_per_unit, unit, current_stock)
-      )
-    `)
-    .eq("id", id)
-    .single()
+export const getProduct = (id: string) =>
+  unstable_cache(
+    async () => {
+      const supabase = createAdminClient()
+      const { data, error } = await supabase
+        .from("bom_headers")
+        .select(`
+          *,
+          bom_items(
+            id, material_id, qty_required, unit, wastage_pct, notes,
+            material:materials(id, name, sku, cost_per_unit, unit, current_stock)
+          )
+        `)
+        .eq("id", id)
+        .single()
 
-  if (error) throw new Error(error.message)
+      if (error) throw new Error(error.message)
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const items = (data.bom_items ?? []).map((item: any) => ({
-    ...item,
-    material: Array.isArray(item.material) ? item.material[0] ?? null : item.material,
-  }))
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const items = (data.bom_items ?? []).map((item: any) => ({
+        ...item,
+        material: Array.isArray(item.material) ? item.material[0] ?? null : item.material,
+      }))
 
-  return { ...data, bom_items: items }
-}
+      return { ...data, bom_items: items }
+    },
+    [`bom-product-${id}`],
+    { tags: ["bom"], revalidate: 60 }
+  )()
 
 export async function createProduct(formData: BomFormData) {
   const validated = bomSchema.parse(formData)
@@ -113,6 +123,7 @@ export async function createProduct(formData: BomFormData) {
   const { error: itemsErr } = await supabase.from("bom_items").insert(items)
   if (itemsErr) return { error: itemsErr.message }
 
+  revalidateTag("bom", {})
   revalidatePath("/products")
   await logAudit({
     entityType: "product",
@@ -174,6 +185,7 @@ export async function updateProduct(id: string, formData: BomFormData) {
   const { error: itemsErr } = await supabase.from("bom_items").insert(items)
   if (itemsErr) return { error: itemsErr.message }
 
+  revalidateTag("bom", {})
   revalidatePath("/products")
   revalidatePath(`/products/${id}`)
   await logAudit({
@@ -199,6 +211,7 @@ export async function deleteProduct(id: string) {
 
   if (error) return { error: error.message }
 
+  revalidateTag("bom", {})
   revalidatePath("/products")
   await logAudit({ entityType: "product", entityId: id, action: "deleted" })
   return { success: true }

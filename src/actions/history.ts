@@ -1,71 +1,92 @@
 "use server"
 
-import { createClient } from "@/lib/supabase/server"
+import { unstable_cache } from "next/cache"
+import { createAdminClient } from "@/lib/supabase/admin"
 
-export async function getHistoryOrders() {
-  const supabase = await createClient()
-  const { data, error } = await supabase
-    .from("orders")
-    .select("id, order_number, product_variant, status, total_quantity, created_at, customer:customers(name, company)")
-    .in("status", ["completed", "dispatched", "cancelled"])
-    .order("created_at", { ascending: false })
+export const getHistoryOrders = unstable_cache(
+  async () => {
+    const supabase = createAdminClient()
+    const { data, error } = await supabase
+      .from("orders")
+      .select("id, order_number, product_variant, status, total_quantity, created_at, customer:customers(name, company)")
+      .in("status", ["completed", "dispatched", "cancelled"])
+      .order("created_at", { ascending: false })
 
-  if (error) throw new Error(error.message)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (data ?? []).map((o: any) => ({
-    ...o,
-    customer: Array.isArray(o.customer) ? o.customer[0] ?? null : o.customer,
-  }))
-}
+    if (error) throw new Error(error.message)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (data ?? []).map((o: any) => ({
+      ...o,
+      customer: Array.isArray(o.customer) ? o.customer[0] ?? null : o.customer,
+    }))
+  },
+  ["history-orders"],
+  { tags: ["orders"], revalidate: 60 }
+)
 
-export async function getHistoryProduction() {
-  const supabase = await createClient()
-  const { data, error } = await supabase
-    .from("production_tracking")
-    .select("id, status, created_at, order:orders(order_number, product_variant)")
-    .eq("status", "completed")
-    .order("created_at", { ascending: false })
+export const getHistoryProduction = unstable_cache(
+  async () => {
+    const supabase = createAdminClient()
+    const { data, error } = await supabase
+      .from("production_tracking")
+      .select("id, status, created_at, order:orders(order_number, product_variant)")
+      .eq("status", "completed")
+      .order("created_at", { ascending: false })
 
-  if (error) throw new Error(error.message)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (data ?? []).map((p: any) => ({
-    ...p,
-    order: Array.isArray(p.order) ? p.order[0] ?? null : p.order,
-  }))
-}
+    if (error) throw new Error(error.message)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (data ?? []).map((p: any) => ({
+      ...p,
+      order: Array.isArray(p.order) ? p.order[0] ?? null : p.order,
+    }))
+  },
+  ["history-production"],
+  { tags: ["production"], revalidate: 60 }
+)
 
-export async function getHistoryPurchaseOrders() {
-  const supabase = await createClient()
-  const { data, error } = await supabase
-    .from("purchase_orders")
-    .select("id, po_number, supplier_name, status, total_amount, created_at")
-    .in("status", ["received", "cancelled"])
-    .order("created_at", { ascending: false })
+export const getHistoryPurchaseOrders = unstable_cache(
+  async () => {
+    const supabase = createAdminClient()
+    const { data, error } = await supabase
+      .from("purchase_orders")
+      .select("id, po_number, supplier_name, status, total_amount, created_at")
+      .in("status", ["received", "cancelled"])
+      .order("created_at", { ascending: false })
 
-  if (error) throw new Error(error.message)
-  return data ?? []
-}
+    if (error) throw new Error(error.message)
+    return data ?? []
+  },
+  ["history-purchase-orders"],
+  { tags: ["purchase_orders"], revalidate: 60 }
+)
 
-export async function getHistoryLogistics() {
-  const supabase = await createClient()
-  const { data, error } = await supabase
-    .from("shipments")
-    .select("id, shipment_number, customer_name, courier_name, tracking_number, status, expected_delivery_date, created_at")
-    .eq("status", "delivered")
-    .order("created_at", { ascending: false })
+export const getHistoryLogistics = unstable_cache(
+  async () => {
+    const supabase = createAdminClient()
+    const { data, error } = await supabase
+      .from("shipments")
+      .select("id, shipment_number, customer_name, courier_name, tracking_number, status, expected_delivery_date, created_at")
+      .eq("status", "delivered")
+      .order("created_at", { ascending: false })
 
-  if (error) throw new Error(error.message)
-  return data ?? []
-}
+    if (error) throw new Error(error.message)
+    return data ?? []
+  },
+  ["history-logistics"],
+  { tags: ["shipments"], revalidate: 60 }
+)
 
-export async function getHistoryFinance() {
-  const supabase = await createClient()
-  const { data, error } = await supabase
-    .from("invoices")
-    .select("id, invoice_number, customer_name, total_amount, amount_paid, status, issue_date, created_at")
-    .eq("status", "paid")
-    .order("created_at", { ascending: false })
+export const getHistoryFinance = unstable_cache(
+  async () => {
+    const supabase = createAdminClient()
+    const { data, error } = await supabase
+      .from("invoices")
+      .select("id, invoice_number, customer_name, total_amount, amount_paid, status, issue_date, created_at")
+      .eq("status", "paid")
+      .order("created_at", { ascending: false })
 
-  if (error) throw new Error(error.message)
-  return data ?? []
-}
+    if (error) throw new Error(error.message)
+    return data ?? []
+  },
+  ["history-finance"],
+  { tags: ["invoices"], revalidate: 60 }
+)

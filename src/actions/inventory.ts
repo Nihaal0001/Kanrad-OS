@@ -59,17 +59,22 @@ export const getMaterials = unstable_cache(
   { tags: ["materials"], revalidate: 60 }
 )
 
-export async function getMaterial(id: string) {
-  const supabase = await createClient()
-  const { data, error } = await supabase
-    .from("materials")
-    .select("*, category:material_categories(*)")
-    .eq("id", id)
-    .single()
+export const getMaterial = (id: string) =>
+  unstable_cache(
+    async () => {
+      const supabase = createAdminClient()
+      const { data, error } = await supabase
+        .from("materials")
+        .select("*, category:material_categories(*)")
+        .eq("id", id)
+        .single()
 
-  if (error) throw new Error(error.message)
-  return data
-}
+      if (error) throw new Error(error.message)
+      return data
+    },
+    [`material-${id}`],
+    { tags: ["materials"], revalidate: 60 }
+  )()
 
 export async function createMaterial(formData: MaterialFormData) {
   const validated = materialSchema.parse(formData)
@@ -152,17 +157,22 @@ export async function deleteMaterial(id: string) {
 
 // ==================== Stock Transactions ====================
 
-export async function getStockTransactions(materialId: string) {
-  const supabase = await createClient()
-  const { data, error } = await supabase
-    .from("stock_transactions")
-    .select("*")
-    .eq("material_id", materialId)
-    .order("created_at", { ascending: false })
+export const getStockTransactions = (materialId: string) =>
+  unstable_cache(
+    async () => {
+      const supabase = createAdminClient()
+      const { data, error } = await supabase
+        .from("stock_transactions")
+        .select("*")
+        .eq("material_id", materialId)
+        .order("created_at", { ascending: false })
 
-  if (error) throw new Error(error.message)
-  return data
-}
+      if (error) throw new Error(error.message)
+      return data
+    },
+    [`stock-transactions-${materialId}`],
+    { tags: ["stock_transactions"], revalidate: 60 }
+  )()
 
 export async function createStockTransaction(formData: StockAdjustmentFormData) {
   const validated = stockAdjustmentSchema.parse(formData)
@@ -188,6 +198,7 @@ export async function createStockTransaction(formData: StockAdjustmentFormData) 
   if (error) return { error: error.message }
 
   revalidateTag("materials", {})
+  revalidateTag("stock_transactions", {})
   revalidateTag("dashboard", {})
   revalidatePath("/inventory")
   revalidatePath(`/inventory/${validated.material_id}`)
@@ -196,44 +207,46 @@ export async function createStockTransaction(formData: StockAdjustmentFormData) 
 
 // ==================== Purchase Orders ====================
 
-export async function getPurchaseOrders(filters?: {
-  status?: string
-  approval_status?: string
-  search?: string
-}) {
-  const supabase = await createClient()
-  let query = supabase
-    .from("purchase_orders")
-    .select("*")
-    .order("created_at", { ascending: false })
+export const getPurchaseOrders = (filters?: { status?: string; approval_status?: string; search?: string }) =>
+  unstable_cache(
+    async () => {
+      const supabase = createAdminClient()
+      let query = supabase
+        .from("purchase_orders")
+        .select("*")
+        .order("created_at", { ascending: false })
 
-  if (filters?.status) {
-    query = query.eq("status", filters.status)
-  }
-  if (filters?.approval_status) {
-    query = query.eq("approval_status", filters.approval_status)
-  }
-  if (filters?.search) {
-    const escaped = filters.search.replace(/%/g, "\\%").replace(/_/g, "\\_")
-    query = query.or(`po_number.ilike.%${escaped}%,supplier_name.ilike.%${escaped}%`)
-  }
+      if (filters?.status) query = query.eq("status", filters.status)
+      if (filters?.approval_status) query = query.eq("approval_status", filters.approval_status)
+      if (filters?.search) {
+        const escaped = filters.search.replace(/%/g, "\\%").replace(/_/g, "\\_")
+        query = query.or(`po_number.ilike.%${escaped}%,supplier_name.ilike.%${escaped}%`)
+      }
 
-  const { data, error } = await query
-  if (error) throw new Error(error.message)
-  return data
-}
+      const { data, error } = await query
+      if (error) throw new Error(error.message)
+      return data
+    },
+    [`purchase-orders-${filters?.status ?? "all"}-${filters?.approval_status ?? "all"}-${filters?.search ?? ""}`],
+    { tags: ["purchase_orders"], revalidate: 60 }
+  )()
 
-export async function getPurchaseOrder(id: string) {
-  const supabase = await createClient()
-  const { data, error } = await supabase
-    .from("purchase_orders")
-    .select("*, items:purchase_order_items(*, material:materials(id, name, sku, unit, diameter_mm, thickness_mm, circle_type))")
-    .eq("id", id)
-    .single()
+export const getPurchaseOrder = (id: string) =>
+  unstable_cache(
+    async () => {
+      const supabase = createAdminClient()
+      const { data, error } = await supabase
+        .from("purchase_orders")
+        .select("*, items:purchase_order_items(*, material:materials(id, name, sku, unit, diameter_mm, thickness_mm, circle_type))")
+        .eq("id", id)
+        .single()
 
-  if (error) throw new Error(error.message)
-  return data
-}
+      if (error) throw new Error(error.message)
+      return data
+    },
+    [`purchase-order-${id}`],
+    { tags: ["purchase_orders"], revalidate: 60 }
+  )()
 
 export async function createPurchaseOrder(formData: PurchaseOrderFormData) {
   const validated = purchaseOrderSchema.parse(formData)
@@ -293,6 +306,7 @@ export async function createPurchaseOrder(formData: PurchaseOrderFormData) {
   }
 
   revalidateTag("dashboard", {})
+  revalidateTag("purchase_orders", {})
   revalidatePath("/inventory/purchase-orders")
   return { data: po }
 }
@@ -316,6 +330,7 @@ export async function updatePurchaseOrderStatus(id: string, status: string) {
 
   if (error) return { error: error.message }
 
+  revalidateTag("purchase_orders", {})
   revalidatePath("/inventory/purchase-orders")
   revalidatePath(`/inventory/purchase-orders/${id}`)
   return { success: true }
@@ -384,6 +399,7 @@ export async function receivePurchaseOrderItem(
 
   revalidateTag("materials", {})
   revalidateTag("dashboard", {})
+  revalidateTag("purchase_orders", {})
   revalidatePath("/inventory/purchase-orders")
   revalidatePath(`/inventory/purchase-orders/${poId}`)
   revalidatePath("/inventory")
@@ -413,6 +429,7 @@ export async function approvePurchaseOrder(id: string, notes?: string) {
 
   if (error) return { error: error.message }
 
+  revalidateTag("purchase_orders", {})
   revalidatePath("/inventory/purchase-orders")
   revalidatePath(`/inventory/purchase-orders/${id}`)
   return { success: true }
@@ -439,6 +456,7 @@ export async function rejectPurchaseOrder(id: string, notes?: string) {
 
   if (error) return { error: error.message }
 
+  revalidateTag("purchase_orders", {})
   revalidatePath("/inventory/purchase-orders")
   revalidatePath(`/inventory/purchase-orders/${id}`)
   return { success: true }
@@ -446,31 +464,33 @@ export async function rejectPurchaseOrder(id: string, notes?: string) {
 
 // ==================== Global Stock History ====================
 
-export async function getAllStockTransactions(filters?: {
-  type?: string
-  materialId?: string
-}) {
-  const supabase = await createClient()
-  let query = supabase
-    .from("stock_transactions")
-    .select(`
-      *,
-      material:materials(id, name, sku, unit)
-    `)
-    .order("created_at", { ascending: false })
-    .limit(200)
+export const getAllStockTransactions = (filters?: { type?: string; materialId?: string }) =>
+  unstable_cache(
+    async () => {
+      const supabase = createAdminClient()
+      let query = supabase
+        .from("stock_transactions")
+        .select(`
+          *,
+          material:materials(id, name, sku, unit)
+        `)
+        .order("created_at", { ascending: false })
+        .limit(200)
 
-  if (filters?.type) query = query.eq("type", filters.type)
-  if (filters?.materialId) query = query.eq("material_id", filters.materialId)
+      if (filters?.type) query = query.eq("type", filters.type)
+      if (filters?.materialId) query = query.eq("material_id", filters.materialId)
 
-  const { data, error } = await query
-  if (error) throw new Error(error.message)
+      const { data, error } = await query
+      if (error) throw new Error(error.message)
 
-  return (data ?? []).map((t: any) => ({ // eslint-disable-line @typescript-eslint/no-explicit-any
-    ...t,
-    material: Array.isArray(t.material) ? t.material[0] ?? null : t.material,
-  }))
-}
+      return (data ?? []).map((t: any) => ({ // eslint-disable-line @typescript-eslint/no-explicit-any
+        ...t,
+        material: Array.isArray(t.material) ? t.material[0] ?? null : t.material,
+      }))
+    },
+    [`all-stock-transactions-${filters?.type ?? "all"}-${filters?.materialId ?? "all"}`],
+    { tags: ["stock_transactions"], revalidate: 60 }
+  )()
 
 export async function deletePurchaseOrder(id: string) {
   const supabase = await createClient()
@@ -482,6 +502,7 @@ export async function deletePurchaseOrder(id: string) {
 
   if (error) return { error: error.message }
 
+  revalidateTag("purchase_orders", {})
   revalidatePath("/inventory/purchase-orders")
   return { success: true }
 }

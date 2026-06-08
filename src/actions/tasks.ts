@@ -1,35 +1,40 @@
 "use server"
 
-import { revalidatePath } from "next/cache"
+import { revalidatePath, revalidateTag, unstable_cache } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { taskSchema, type TaskFormData } from "@/lib/validators/tasks"
 
-export async function getTasks(filters?: { status?: string }) {
-  const supabase = await createClient()
-  let query = supabase
-    .from("tasks")
-    .select(`
-      *,
-      order:orders(id, order_number, product_variant),
-      stage:production_stages(id, name)
-    `)
-    .order("created_at", { ascending: false })
+export const getTasks = (filters?: { status?: string }) =>
+  unstable_cache(
+    async () => {
+      const supabase = createAdminClient()
+      let query = supabase
+        .from("tasks")
+        .select(`
+          *,
+          order:orders(id, order_number, product_variant),
+          stage:production_stages(id, name)
+        `)
+        .order("created_at", { ascending: false })
 
-  if (filters?.status) {
-    query = query.eq("status", filters.status)
-  }
+      if (filters?.status) {
+        query = query.eq("status", filters.status)
+      }
 
-  const { data, error } = await query
-  if (error) throw new Error(error.message)
+      const { data, error } = await query
+      if (error) throw new Error(error.message)
 
-  // Normalize joins
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (data ?? []).map((t: any) => ({
-    ...t,
-    order: Array.isArray(t.order) ? t.order[0] ?? null : t.order,
-    stage: Array.isArray(t.stage) ? t.stage[0] ?? null : t.stage,
-  }))
-}
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return (data ?? []).map((t: any) => ({
+        ...t,
+        order: Array.isArray(t.order) ? t.order[0] ?? null : t.order,
+        stage: Array.isArray(t.stage) ? t.stage[0] ?? null : t.stage,
+      }))
+    },
+    [`tasks-${filters?.status ?? "all"}`],
+    { tags: ["tasks"], revalidate: 60 }
+  )()
 
 const VALID_TASK_STATUSES = ["todo", "in_progress", "done", "cancelled"] as const
 
@@ -56,6 +61,7 @@ export async function createTask(formData: TaskFormData) {
 
   if (error) return { error: error.message }
 
+  revalidateTag("tasks", {})
   revalidatePath("/tasks")
   return { data }
 }
@@ -84,6 +90,7 @@ export async function updateTask(id: string, formData: TaskFormData) {
 
   if (error) return { error: error.message }
 
+  revalidateTag("tasks", {})
   revalidatePath("/tasks")
   return { data }
 }
@@ -105,6 +112,7 @@ export async function updateTaskStatus(id: string, status: string) {
 
   if (error) return { error: error.message }
 
+  revalidateTag("tasks", {})
   revalidatePath("/tasks")
   return { success: true }
 }
@@ -119,6 +127,7 @@ export async function deleteTask(id: string) {
 
   if (error) return { error: error.message }
 
+  revalidateTag("tasks", {})
   revalidatePath("/tasks")
   return { success: true }
 }

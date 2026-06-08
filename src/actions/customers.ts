@@ -28,17 +28,22 @@ export const getCustomers = unstable_cache(
   { tags: ["customers"], revalidate: 300 }
 )
 
-export async function getCustomer(id: string) {
-  const supabase = await createClient()
-  const { data, error } = await supabase
-    .from("customers")
-    .select("*")
-    .eq("id", id)
-    .single()
+export const getCustomer = (id: string) =>
+  unstable_cache(
+    async () => {
+      const supabase = createAdminClient()
+      const { data, error } = await supabase
+        .from("customers")
+        .select("*")
+        .eq("id", id)
+        .single()
 
-  if (error) throw new Error(error.message)
-  return data
-}
+      if (error) throw new Error(error.message)
+      return data
+    },
+    [`customer-${id}`],
+    { tags: ["customers"], revalidate: 60 }
+  )()
 
 export async function createCustomer(formData: CustomerFormData) {
   const validated = customerSchema.parse(formData)

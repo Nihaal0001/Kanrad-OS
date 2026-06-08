@@ -35,21 +35,26 @@ export const getOrders = unstable_cache(
   { tags: ["orders"], revalidate: 60 }
 )
 
-export async function getOrder(id: string) {
-  const supabase = await createClient()
-  const { data, error } = await supabase
-    .from("orders")
-    .select("*, customer:customers(*), order_items(*)")
-    .eq("id", id)
-    .single()
+export const getOrder = (id: string) =>
+  unstable_cache(
+    async () => {
+      const supabase = createAdminClient()
+      const { data, error } = await supabase
+        .from("orders")
+        .select("*, customer:customers(*), order_items(*)")
+        .eq("id", id)
+        .single()
 
-  if (error) throw new Error(error.message)
-  return {
-    ...data,
-    customer: Array.isArray(data.customer) ? data.customer[0] ?? null : data.customer,
-    order_items: data.order_items ?? [],
-  }
-}
+      if (error) throw new Error(error.message)
+      return {
+        ...data,
+        customer: Array.isArray(data.customer) ? data.customer[0] ?? null : data.customer,
+        order_items: data.order_items ?? [],
+      }
+    },
+    [`order-${id}`],
+    { tags: ["orders"], revalidate: 60 }
+  )()
 
 const VALID_ORDER_STATUSES = ["draft", "confirmed", "in_production", "completed", "dispatched", "cancelled"] as const
 

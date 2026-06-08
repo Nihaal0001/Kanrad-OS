@@ -1,7 +1,8 @@
 "use server"
 
-import { revalidatePath } from "next/cache"
+import { revalidatePath, revalidateTag, unstable_cache } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { logAudit } from "@/actions/audit"
 import { shipmentSchema } from "@/lib/validators/logistics"
 import type { ShipmentFormData } from "@/lib/validators/logistics"
@@ -10,42 +11,50 @@ const VALID_STATUSES = ["pending", "dispatched", "in_transit", "delivered", "del
 
 // ── Queries ──────────────────────────────────────────────────
 
-export async function getShipments(filters?: { status?: string }) {
-  const supabase = await createClient()
-  let query = supabase
-    .from("shipments")
-    .select("*, order:orders(id, order_number, product_variant)")
-    .order("created_at", { ascending: false })
+export const getShipments = (filters?: { status?: string }) =>
+  unstable_cache(
+    async () => {
+      const supabase = createAdminClient()
+      let query = supabase
+        .from("shipments")
+        .select("*, order:orders(id, order_number, product_variant)")
+        .order("created_at", { ascending: false })
 
-  if (filters?.status) query = query.eq("status", filters.status)
+      if (filters?.status) query = query.eq("status", filters.status)
 
-  const { data, error } = await query
-  if (error) throw new Error(error.message)
+      const { data, error } = await query
+      if (error) throw new Error(error.message)
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (data ?? []).map((s: any) => ({
-    ...s,
-    order: Array.isArray(s.order) ? s.order[0] ?? null : s.order,
-  }))
-}
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return (data ?? []).map((s: any) => ({
+        ...s,
+        order: Array.isArray(s.order) ? s.order[0] ?? null : s.order,
+      }))
+    },
+    [`shipments-${filters?.status ?? "all"}`],
+    { tags: ["shipments"], revalidate: 60 }
+  )()
 
-// Lightweight order list for the create form select
-export async function getOrdersForSelect() {
-  const supabase = await createClient()
-  const { data, error } = await supabase
-    .from("orders")
-    .select("id, order_number, product_variant, customer:customers(name)")
-    .in("status", ["confirmed", "in_production", "completed"])
-    .order("created_at", { ascending: false })
+export const getOrdersForSelect = unstable_cache(
+  async () => {
+    const supabase = createAdminClient()
+    const { data, error } = await supabase
+      .from("orders")
+      .select("id, order_number, product_variant, customer:customers(name)")
+      .in("status", ["confirmed", "in_production", "completed"])
+      .order("created_at", { ascending: false })
 
-  if (error) return []
+    if (error) return []
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (data ?? []).map((o: any) => ({
-    ...o,
-    customer: Array.isArray(o.customer) ? o.customer[0] ?? null : o.customer,
-  }))
-}
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (data ?? []).map((o: any) => ({
+      ...o,
+      customer: Array.isArray(o.customer) ? o.customer[0] ?? null : o.customer,
+    }))
+  },
+  ["orders-for-select"],
+  { tags: ["orders"], revalidate: 60 }
+)
 
 // ── Mutations ────────────────────────────────────────────────
 
@@ -82,6 +91,7 @@ export async function createShipment(formData: ShipmentFormData) {
     newValues: { courier_name: validated.courier_name, tracking_number: validated.tracking_number },
   })
 
+  revalidateTag("shipments", {})
   revalidatePath("/logistics")
   return { data }
 }
@@ -115,6 +125,7 @@ export async function updateShipmentStatus(id: string, status: string) {
     newValues: { status },
   })
 
+  revalidateTag("shipments", {})
   revalidatePath("/logistics")
   return { success: true }
 }
