@@ -94,20 +94,12 @@ export function ItemMasterTable({ materials, categories }: ItemMasterTableProps)
 
   const aluPriceNum = parseFloat(aluPrice) || 0
 
-  function parseNameDimensions(name: string, sku: string): { dia: number; thick: number } | null {
-    const nameMatch = name.match(/(\d+(?:\.\d+)?)\s*[*xX]\s*(\d+(?:\.\d+)?)/i)
+  function parseNameDimensions(name: string): { dia: number; thick: number } | null {
+    // Format: "Alu Circle 263 x 2.9" — also handles "263*2.9", "263*2.9(126)"
+    const nameMatch = name.match(/(\d+(?:\.\d+)?)\s*[x*]\s*(\d+(?:\.\d+)?)/i)
     if (nameMatch) {
       const dia = parseFloat(nameMatch[1])
       const thick = parseFloat(nameMatch[2])
-      if (dia > 0 && thick > 0) return { dia, thick }
-    }
-    const skuMatch = sku.replace(/\s/g, "").match(/^(?:ALU)?(\d{3,4})(\d{1,2})$/i)
-    if (skuMatch) {
-      const dia = parseFloat(skuMatch[1])
-      const thickRaw = skuMatch[2]
-      const thick = thickRaw.length === 2 && parseInt(thickRaw) < 10
-        ? parseFloat(thickRaw) / 10
-        : parseFloat(thickRaw)
       if (dia > 0 && thick > 0) return { dia, thick }
     }
     return null
@@ -118,7 +110,7 @@ export function ItemMasterTable({ materials, categories }: ItemMasterTableProps)
     let dia = material.diameter_mm
     let thick = material.thickness_mm
     if (!dia || !thick) {
-      const parsed = parseNameDimensions(material.name, material.sku)
+      const parsed = parseNameDimensions(material.name)
       if (!parsed) return null
       dia = parsed.dia
       thick = parsed.thick
@@ -178,7 +170,7 @@ export function ItemMasterTable({ materials, categories }: ItemMasterTableProps)
                 </span>
               </p>
             )}
-            <p className="text-muted-foreground/70">Reads dia & thickness from name (e.g. "263*2.9") automatically</p>
+            <p className="text-muted-foreground/70">Reads dia & thickness from name — format: "Alu Circle 263 x 2.9"</p>
           </div>
           <Button
             size="sm"
