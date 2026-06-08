@@ -138,6 +138,35 @@ export async function updateMaterial(id: string, formData: MaterialFormData) {
   return { data }
 }
 
+/**
+ * Parses diameter and thickness from a circle material name or SKU.
+ * Handles formats like: "263*2.9", "263*2.9(126)", "263 X 2.9 MM", "263 x 2.9mm", "ALU 26329"
+ */
+function parseCircleDimensions(name: string, sku: string): { dia: number; thick: number } | null {
+  // Primary: parse from name — matches "263*2.9", "263 X 2.9", "263 x 2.9 MM", etc.
+  const nameMatch = name.match(/(\d+(?:\.\d+)?)\s*[*xX]\s*(\d+(?:\.\d+)?)/i)
+  if (nameMatch) {
+    const dia = parseFloat(nameMatch[1])
+    const thick = parseFloat(nameMatch[2])
+    if (dia > 0 && thick > 0) return { dia, thick }
+  }
+
+  // Fallback: parse from SKU like "ALU 26329" → dia=263, thick=2.9
+  // Format: digits where last 1-2 digits are thickness×10, rest is dia
+  const skuMatch = sku.replace(/\s/g, "").match(/^(?:ALU)?(\d{3,4})(\d{1,2})$/i)
+  if (skuMatch) {
+    const dia = parseFloat(skuMatch[1])
+    const thickRaw = skuMatch[2]
+    // "29" → 2.9, "24" → 2.4, "5" → 5, "3" → 3
+    const thick = thickRaw.length === 2 && parseInt(thickRaw) < 10
+      ? parseFloat(thickRaw) / 10
+      : parseFloat(thickRaw)
+    if (dia > 0 && thick > 0) return { dia, thick }
+  }
+
+  return null
+}
+
 export async function applyCirclePricing(aluPricePerKg: number) {
   const supabase = await createClient()
   const admin = createAdminClient()
@@ -147,24 +176,42 @@ export async function applyCirclePricing(aluPricePerKg: number) {
 
   if (!aluPricePerKg || aluPricePerKg <= 0) return { error: "Price must be greater than 0" }
 
+  // Fetch ALL circle materials — including those without diameter_mm/thickness_mm set
   const { data: circles, error: fetchError } = await admin
     .from("materials")
-    .select("id, diameter_mm, thickness_mm")
+    .select("id, name, sku, diameter_mm, thickness_mm")
     .not("circle_type", "is", null)
-    .not("diameter_mm", "is", null)
-    .not("thickness_mm", "is", null)
     .eq("is_active", true)
 
   if (fetchError) return { error: fetchError.message }
   if (!circles || circles.length === 0) return { error: "No circle materials found" }
 
-  const updates = circles
-    .map((c) => {
-      const dia = c.diameter_mm!
-      const thick = c.thickness_mm!
-      const costPerPiece = Math.round(dia * dia * thick * 0.000002127 * aluPricePerKg * 100) / 100
-      return { id: c.id, cost_per_unit: costPerPiece }
-    })
+  const updates: { id: string; cost_per_unit: number; diameter_mm?: number; thickness_mm?: number }[] = []
+  let skipped = 0
+
+  for (const c of circles) {
+    let dia = c.diameter_mm
+    let thick = c.thickness_mm
+
+    // If dimensions are missing, try to parse from name/SKU
+    if (!dia || !thick) {
+      const parsed = parseCircleDimensions(c.name, c.sku)
+      if (!parsed) { skipped++; continue }
+      dia = parsed.dia
+      thick = parsed.thick
+    }
+
+    const costPerPiece = Math.round(dia * dia * thick * 0.000002127 * aluPricePerKg * 100) / 100
+    const update: typeof updates[0] = { id: c.id, cost_per_unit: costPerPiece }
+
+    // Also save parsed dimensions back if they were missing
+    if (!c.diameter_mm) update.diameter_mm = dia
+    if (!c.thickness_mm) update.thickness_mm = thick
+
+    updates.push(update)
+  }
+
+  if (updates.length === 0) return { error: "Could not parse dimensions from any circle material names" }
 
   const { error: updateError } = await admin
     .from("materials")
@@ -175,7 +222,7 @@ export async function applyCirclePricing(aluPricePerKg: number) {
   revalidateTag("materials", {})
   revalidatePath("/master-inventory")
   revalidatePath("/inventory")
-  return { success: true, updated: updates.length }
+  return { success: true, updated: updates.length, skipped }
 }
 
 export async function deleteMaterial(id: string) {

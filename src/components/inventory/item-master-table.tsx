@@ -94,9 +94,37 @@ export function ItemMasterTable({ materials, categories }: ItemMasterTableProps)
 
   const aluPriceNum = parseFloat(aluPrice) || 0
 
-  function calcCircleCost(dia: number | null, thick: number | null): number | null {
-    if (!dia || !thick || aluPriceNum <= 0) return null
-    return Math.round(dia * dia * thick * CIRCLE_WEIGHT_FACTOR * aluPriceNum * 100) / 100
+  function parseNameDimensions(name: string, sku: string): { dia: number; thick: number } | null {
+    const nameMatch = name.match(/(\d+(?:\.\d+)?)\s*[*xX]\s*(\d+(?:\.\d+)?)/i)
+    if (nameMatch) {
+      const dia = parseFloat(nameMatch[1])
+      const thick = parseFloat(nameMatch[2])
+      if (dia > 0 && thick > 0) return { dia, thick }
+    }
+    const skuMatch = sku.replace(/\s/g, "").match(/^(?:ALU)?(\d{3,4})(\d{1,2})$/i)
+    if (skuMatch) {
+      const dia = parseFloat(skuMatch[1])
+      const thickRaw = skuMatch[2]
+      const thick = thickRaw.length === 2 && parseInt(thickRaw) < 10
+        ? parseFloat(thickRaw) / 10
+        : parseFloat(thickRaw)
+      if (dia > 0 && thick > 0) return { dia, thick }
+    }
+    return null
+  }
+
+  function calcCircleCost(material: MaterialWithCategory): { cost: number; dia: number; thick: number } | null {
+    if (aluPriceNum <= 0) return null
+    let dia = material.diameter_mm
+    let thick = material.thickness_mm
+    if (!dia || !thick) {
+      const parsed = parseNameDimensions(material.name, material.sku)
+      if (!parsed) return null
+      dia = parsed.dia
+      thick = parsed.thick
+    }
+    const cost = Math.round(dia * dia * thick * CIRCLE_WEIGHT_FACTOR * aluPriceNum * 100) / 100
+    return { cost, dia, thick }
   }
 
   function handleApplyCirclePricing() {
@@ -109,7 +137,10 @@ export function ItemMasterTable({ materials, categories }: ItemMasterTableProps)
       if ("error" in result && result.error) {
         toast.error(result.error)
       } else if ("success" in result) {
-        toast.success(`Updated cost for ${result.updated} circle material${result.updated !== 1 ? "s" : ""}`)
+        const msg = (result.skipped ?? 0) > 0
+          ? `Updated ${result.updated} circles. ${result.skipped} skipped (name format not recognised).`
+          : `Updated cost for ${result.updated} circle material${result.updated !== 1 ? "s" : ""}`
+        toast.success(msg)
         router.refresh()
       }
     })
@@ -142,11 +173,12 @@ export function ItemMasterTable({ materials, categories }: ItemMasterTableProps)
             <p className="font-medium">Formula: dia × dia × thickness × 0.000002127 × price</p>
             {aluPriceNum > 0 && (
               <p className="text-foreground">
-                e.g. 263×263×2.9×0.000002127×{aluPriceNum} = <span className="font-semibold">
+                e.g. 263×2.9mm → 263²×2.9×0.000002127×{aluPriceNum} = <span className="font-semibold">
                   ₹{(263 * 263 * 2.9 * CIRCLE_WEIGHT_FACTOR * aluPriceNum).toFixed(2)}/pc
-                </span> (263×2.9mm)
+                </span>
               </p>
             )}
+            <p className="text-muted-foreground/70">Reads dia & thickness from name (e.g. "263*2.9") automatically</p>
           </div>
           <Button
             size="sm"
@@ -295,16 +327,16 @@ export function ItemMasterTable({ materials, categories }: ItemMasterTableProps)
                   <TableCell className="text-right">
                     {(() => {
                       const isCircle = material.circle_type != null
-                      const calculated = isCircle
-                        ? calcCircleCost(material.diameter_mm, material.thickness_mm)
-                        : null
-                      if (calculated !== null) {
+                      const calc = isCircle ? calcCircleCost(material) : null
+                      if (calc !== null) {
                         return (
                           <div className="text-right">
                             <span className="tabular-nums font-semibold">
-                              ₹{formatCurrency(calculated)}
+                              ₹{formatCurrency(calc.cost)}
                             </span>
-                            <span className="block text-xs text-muted-foreground">per pc (preview)</span>
+                            <span className="block text-xs text-muted-foreground">
+                              {calc.dia}×{calc.thick}mm · preview
+                            </span>
                           </div>
                         )
                       }
