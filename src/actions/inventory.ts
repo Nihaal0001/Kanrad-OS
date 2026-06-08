@@ -177,15 +177,13 @@ export const getStockTransactions = (materialId: string) =>
 export async function createStockTransaction(formData: StockAdjustmentFormData) {
   const validated = stockAdjustmentSchema.parse(formData)
   const supabase = await createClient()
+  const admin = createAdminClient()
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: "Not authenticated" }
 
-  // For production_out, quantity should be negative
-  const quantity =
-    validated.type === "production_out"
-      ? -Math.abs(validated.quantity)
-      : Math.abs(validated.quantity)
+  const isOutbound = validated.type === "production_out"
+  const quantity = isOutbound ? -Math.abs(validated.quantity) : Math.abs(validated.quantity)
 
   const { error } = await supabase.from("stock_transactions").insert({
     material_id: validated.material_id,
@@ -196,6 +194,27 @@ export async function createStockTransaction(formData: StockAdjustmentFormData) 
   })
 
   if (error) return { error: error.message }
+
+  // FIFO: consume oldest batches first on outbound movements
+  if (isOutbound) {
+    let remaining = Math.abs(validated.quantity)
+    const { data: batches } = await admin
+      .from("stock_batches")
+      .select("id, quantity_remaining")
+      .eq("material_id", validated.material_id)
+      .gt("quantity_remaining", 0)
+      .order("received_at", { ascending: true })
+
+    for (const batch of batches ?? []) {
+      if (remaining <= 0) break
+      const consume = Math.min(remaining, batch.quantity_remaining)
+      await admin
+        .from("stock_batches")
+        .update({ quantity_remaining: batch.quantity_remaining - consume })
+        .eq("id", batch.id)
+      remaining -= consume
+    }
+  }
 
   revalidateTag("materials", {})
   revalidateTag("stock_transactions", {})
@@ -342,6 +361,7 @@ export async function receivePurchaseOrderItem(
   poId: string
 ) {
   const supabase = await createClient()
+  const admin = createAdminClient()
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: "Not authenticated" }
@@ -351,13 +371,25 @@ export async function receivePurchaseOrderItem(
     .from("purchase_order_items")
     .update({ quantity_received: quantityReceived })
     .eq("id", itemId)
-    .select("*, material:materials(id, name)")
+    .select("*, material:materials(id, current_stock, cost_per_unit)")
     .single()
 
   if (itemError) return { error: itemError.message }
 
-  // Create stock transaction for received items
   if (quantityReceived > 0) {
+    const unitPrice: number = item.unit_price ?? 0
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const mat = Array.isArray(item.material) ? item.material[0] : item.material as any
+    const existingStock: number = mat?.current_stock ?? 0
+    const existingCost: number = mat?.cost_per_unit ?? 0
+
+    // Weighted average cost
+    const totalQty = existingStock + quantityReceived
+    const newAvgCost = totalQty > 0
+      ? (existingStock * existingCost + quantityReceived * unitPrice) / totalQty
+      : unitPrice
+
+    // 1. Stock transaction
     const { error: txnError } = await supabase
       .from("stock_transactions")
       .insert({
@@ -368,8 +400,21 @@ export async function receivePurchaseOrderItem(
         reference_id: poId,
         notes: `Received from PO`,
       })
-
     if (txnError) return { error: txnError.message }
+
+    // 2. FIFO batch record
+    await admin.from("stock_batches").insert({
+      material_id: item.material_id,
+      quantity_remaining: quantityReceived,
+      unit_cost: unitPrice,
+      purchase_order_id: poId,
+    })
+
+    // 3. Update weighted average cost on the material
+    await admin
+      .from("materials")
+      .update({ cost_per_unit: Math.round(newAvgCost * 100) / 100 })
+      .eq("id", item.material_id)
   }
 
   // Check if all items are fully received
