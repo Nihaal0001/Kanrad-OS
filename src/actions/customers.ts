@@ -28,8 +28,8 @@ export const getCustomers = unstable_cache(
   { tags: ["customers"], revalidate: 300 }
 )
 
-export const getCustomer = (id: string) =>
-  unstable_cache(
+export async function getCustomer(id: string) {
+  return unstable_cache(
     async () => {
       const supabase = createAdminClient()
       const { data, error } = await supabase
@@ -44,6 +44,7 @@ export const getCustomer = (id: string) =>
     [`customer-${id}`],
     { tags: ["customers"], revalidate: 60 }
   )()
+}
 
 export async function createCustomer(formData: CustomerFormData) {
   const validated = customerSchema.parse(formData)

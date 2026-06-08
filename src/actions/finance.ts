@@ -15,8 +15,8 @@ import { logAudit } from "@/actions/audit"
 
 // ===== Invoices =====
 
-export const getInvoices = (filters?: { status?: string }) =>
-  unstable_cache(
+export async function getInvoices(filters?: { status?: string }) {
+  return unstable_cache(
     async () => {
       const supabase = createAdminClient()
       let query = supabase
@@ -33,9 +33,10 @@ export const getInvoices = (filters?: { status?: string }) =>
     [`invoices-${filters?.status ?? "all"}`],
     { tags: ["invoices"], revalidate: 60 }
   )()
+}
 
-export const getInvoice = (id: string) =>
-  unstable_cache(
+export async function getInvoice(id: string) {
+  return unstable_cache(
     async () => {
       const supabase = createAdminClient()
       const { data, error } = await supabase
@@ -62,6 +63,7 @@ export const getInvoice = (id: string) =>
     [`invoice-${id}`],
     { tags: ["invoices"], revalidate: 60 }
   )()
+}
 
 export async function createInvoice(formData: InvoiceFormData) {
   const validated = invoiceSchema.parse(formData)

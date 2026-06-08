@@ -1,14 +1,15 @@
 "use client"
 
-import { useState, useMemo, useCallback } from "react"
+import { useState, useMemo, useCallback, useTransition } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { MoreHorizontal, Search, Pencil, Trash2, AlertTriangle, IndianRupee, Lock, Download } from "lucide-react"
+import { MoreHorizontal, Search, Pencil, Trash2, AlertTriangle, IndianRupee, Lock, Download, RefreshCw } from "lucide-react"
 
 import type { MaterialWithCategory } from "@/lib/supabase/types"
 import { friendlyError } from "@/lib/utils"
-import { deleteMaterial } from "@/actions/inventory"
+import { deleteMaterial, applyCirclePricing } from "@/actions/inventory"
 import { downloadExcel } from "@/lib/export"
+import { CIRCLE_WEIGHT_FACTOR } from "@/lib/circle-calc"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -45,6 +46,8 @@ export function ItemMasterTable({ materials, categories }: ItemMasterTableProps)
   const [categoryFilter, setCategoryFilter] = useState<string>("all")
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [confirmId, setConfirmId] = useState<string | null>(null)
+  const [aluPrice, setAluPrice] = useState<string>("")
+  const [isPending, startTransition] = useTransition()
 
   const filteredMaterials = useMemo(() => {
     let result = materials
@@ -89,8 +92,74 @@ export function ItemMasterTable({ materials, categories }: ItemMasterTableProps)
     [router]
   )
 
+  const aluPriceNum = parseFloat(aluPrice) || 0
+
+  function calcCircleCost(dia: number | null, thick: number | null): number | null {
+    if (!dia || !thick || aluPriceNum <= 0) return null
+    return Math.round(dia * dia * thick * CIRCLE_WEIGHT_FACTOR * aluPriceNum * 100) / 100
+  }
+
+  function handleApplyCirclePricing() {
+    if (aluPriceNum <= 0) {
+      toast.error("Enter a valid aluminium price per kg first")
+      return
+    }
+    startTransition(async () => {
+      const result = await applyCirclePricing(aluPriceNum)
+      if ("error" in result && result.error) {
+        toast.error(result.error)
+      } else if ("success" in result) {
+        toast.success(`Updated cost for ${result.updated} circle material${result.updated !== 1 ? "s" : ""}`)
+        router.refresh()
+      }
+    })
+  }
+
   return (
     <div className="space-y-4">
+      {/* Aluminium Circle Pricing */}
+      <div className="rounded-lg border bg-muted/30 px-4 py-3">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+          Aluminium Circle Price
+        </p>
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="flex-1 min-w-[180px] max-w-xs space-y-1">
+            <label className="text-xs text-muted-foreground">Price per kg (₹)</label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">₹</span>
+              <Input
+                type="number"
+                min={0}
+                step="0.01"
+                placeholder="e.g. 388"
+                value={aluPrice}
+                onChange={(e) => setAluPrice(e.target.value)}
+                className="pl-6"
+              />
+            </div>
+          </div>
+          <div className="text-xs text-muted-foreground space-y-0.5 pb-1">
+            <p className="font-medium">Formula: dia × dia × thickness × 0.000002127 × price</p>
+            {aluPriceNum > 0 && (
+              <p className="text-foreground">
+                e.g. 263×263×2.9×0.000002127×{aluPriceNum} = <span className="font-semibold">
+                  ₹{(263 * 263 * 2.9 * CIRCLE_WEIGHT_FACTOR * aluPriceNum).toFixed(2)}/pc
+                </span> (263×2.9mm)
+              </p>
+            )}
+          </div>
+          <Button
+            size="sm"
+            disabled={aluPriceNum <= 0 || isPending}
+            onClick={handleApplyCirclePricing}
+            className="shrink-0"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${isPending ? "animate-spin" : ""}`} />
+            {isPending ? "Updating…" : "Apply to All Circles"}
+          </Button>
+        </div>
+      </div>
+
       {/* Unpriced warning */}
       {unpricedCount > 0 && (
         <div className="flex items-center gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm">
@@ -224,19 +293,38 @@ export function ItemMasterTable({ materials, categories }: ItemMasterTableProps)
                   </TableCell>
                   <TableCell className="text-muted-foreground">{material.unit}</TableCell>
                   <TableCell className="text-right">
-                    {material.cost_per_unit > 0 ? (
-                      <span className="tabular-nums font-semibold">
-                        ₹{formatCurrency(material.cost_per_unit)}
-                      </span>
-                    ) : (
-                      <Link
-                        href={`/inventory/${material.id}/edit`}
-                        className="inline-flex items-center gap-1 text-xs text-amber-600 hover:underline"
-                      >
-                        <IndianRupee className="h-3 w-3" />
-                        Set price
-                      </Link>
-                    )}
+                    {(() => {
+                      const isCircle = material.circle_type != null
+                      const calculated = isCircle
+                        ? calcCircleCost(material.diameter_mm, material.thickness_mm)
+                        : null
+                      if (calculated !== null) {
+                        return (
+                          <div className="text-right">
+                            <span className="tabular-nums font-semibold">
+                              ₹{formatCurrency(calculated)}
+                            </span>
+                            <span className="block text-xs text-muted-foreground">per pc (preview)</span>
+                          </div>
+                        )
+                      }
+                      if (material.cost_per_unit > 0) {
+                        return (
+                          <span className="tabular-nums font-semibold">
+                            ₹{formatCurrency(material.cost_per_unit)}
+                          </span>
+                        )
+                      }
+                      return (
+                        <Link
+                          href={`/inventory/${material.id}/edit`}
+                          className="inline-flex items-center gap-1 text-xs text-amber-600 hover:underline"
+                        >
+                          <IndianRupee className="h-3 w-3" />
+                          Set price
+                        </Link>
+                      )
+                    })()}
                   </TableCell>
                   <TableCell>
                     {material.supplier_name ?? (

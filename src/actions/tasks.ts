@@ -5,8 +5,8 @@ import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { taskSchema, type TaskFormData } from "@/lib/validators/tasks"
 
-export const getTasks = (filters?: { status?: string }) =>
-  unstable_cache(
+export async function getTasks(filters?: { status?: string }) {
+  return unstable_cache(
     async () => {
       const supabase = createAdminClient()
       let query = supabase
@@ -35,6 +35,7 @@ export const getTasks = (filters?: { status?: string }) =>
     [`tasks-${filters?.status ?? "all"}`],
     { tags: ["tasks"], revalidate: 60 }
   )()
+}
 
 const VALID_TASK_STATUSES = ["todo", "in_progress", "done", "cancelled"] as const
 

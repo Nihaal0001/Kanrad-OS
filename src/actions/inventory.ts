@@ -59,8 +59,8 @@ export const getMaterials = unstable_cache(
   { tags: ["materials"], revalidate: 60 }
 )
 
-export const getMaterial = (id: string) =>
-  unstable_cache(
+export async function getMaterial(id: string) {
+  return unstable_cache(
     async () => {
       const supabase = createAdminClient()
       const { data, error } = await supabase
@@ -75,6 +75,7 @@ export const getMaterial = (id: string) =>
     [`material-${id}`],
     { tags: ["materials"], revalidate: 60 }
   )()
+}
 
 export async function createMaterial(formData: MaterialFormData) {
   const validated = materialSchema.parse(formData)
@@ -137,6 +138,46 @@ export async function updateMaterial(id: string, formData: MaterialFormData) {
   return { data }
 }
 
+export async function applyCirclePricing(aluPricePerKg: number) {
+  const supabase = await createClient()
+  const admin = createAdminClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
+  if (!aluPricePerKg || aluPricePerKg <= 0) return { error: "Price must be greater than 0" }
+
+  const { data: circles, error: fetchError } = await admin
+    .from("materials")
+    .select("id, diameter_mm, thickness_mm")
+    .not("circle_type", "is", null)
+    .not("diameter_mm", "is", null)
+    .not("thickness_mm", "is", null)
+    .eq("is_active", true)
+
+  if (fetchError) return { error: fetchError.message }
+  if (!circles || circles.length === 0) return { error: "No circle materials found" }
+
+  const updates = circles
+    .map((c) => {
+      const dia = c.diameter_mm!
+      const thick = c.thickness_mm!
+      const costPerPiece = Math.round(dia * dia * thick * 0.000002127 * aluPricePerKg * 100) / 100
+      return { id: c.id, cost_per_unit: costPerPiece }
+    })
+
+  const { error: updateError } = await admin
+    .from("materials")
+    .upsert(updates, { onConflict: "id" })
+
+  if (updateError) return { error: updateError.message }
+
+  revalidateTag("materials", {})
+  revalidatePath("/master-inventory")
+  revalidatePath("/inventory")
+  return { success: true, updated: updates.length }
+}
+
 export async function deleteMaterial(id: string) {
   const supabase = await createClient()
 
@@ -157,8 +198,8 @@ export async function deleteMaterial(id: string) {
 
 // ==================== Stock Transactions ====================
 
-export const getStockTransactions = (materialId: string) =>
-  unstable_cache(
+export async function getStockTransactions(materialId: string) {
+  return unstable_cache(
     async () => {
       const supabase = createAdminClient()
       const { data, error } = await supabase
@@ -173,6 +214,7 @@ export const getStockTransactions = (materialId: string) =>
     [`stock-transactions-${materialId}`],
     { tags: ["stock_transactions"], revalidate: 60 }
   )()
+}
 
 export async function createStockTransaction(formData: StockAdjustmentFormData) {
   const validated = stockAdjustmentSchema.parse(formData)
@@ -226,8 +268,8 @@ export async function createStockTransaction(formData: StockAdjustmentFormData) 
 
 // ==================== Purchase Orders ====================
 
-export const getPurchaseOrders = (filters?: { status?: string; approval_status?: string; search?: string }) =>
-  unstable_cache(
+export async function getPurchaseOrders(filters?: { status?: string; approval_status?: string; search?: string }) {
+  return unstable_cache(
     async () => {
       const supabase = createAdminClient()
       let query = supabase
@@ -249,9 +291,10 @@ export const getPurchaseOrders = (filters?: { status?: string; approval_status?:
     [`purchase-orders-${filters?.status ?? "all"}-${filters?.approval_status ?? "all"}-${filters?.search ?? ""}`],
     { tags: ["purchase_orders"], revalidate: 60 }
   )()
+}
 
-export const getPurchaseOrder = (id: string) =>
-  unstable_cache(
+export async function getPurchaseOrder(id: string) {
+  return unstable_cache(
     async () => {
       const supabase = createAdminClient()
       const { data, error } = await supabase
@@ -266,6 +309,7 @@ export const getPurchaseOrder = (id: string) =>
     [`purchase-order-${id}`],
     { tags: ["purchase_orders"], revalidate: 60 }
   )()
+}
 
 export async function createPurchaseOrder(formData: PurchaseOrderFormData) {
   const validated = purchaseOrderSchema.parse(formData)
@@ -509,8 +553,8 @@ export async function rejectPurchaseOrder(id: string, notes?: string) {
 
 // ==================== Global Stock History ====================
 
-export const getAllStockTransactions = (filters?: { type?: string; materialId?: string }) =>
-  unstable_cache(
+export async function getAllStockTransactions(filters?: { type?: string; materialId?: string }) {
+  return unstable_cache(
     async () => {
       const supabase = createAdminClient()
       let query = supabase
@@ -536,6 +580,7 @@ export const getAllStockTransactions = (filters?: { type?: string; materialId?: 
     [`all-stock-transactions-${filters?.type ?? "all"}-${filters?.materialId ?? "all"}`],
     { tags: ["stock_transactions"], revalidate: 60 }
   )()
+}
 
 export async function deletePurchaseOrder(id: string) {
   const supabase = await createClient()

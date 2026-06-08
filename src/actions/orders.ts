@@ -35,8 +35,8 @@ export const getOrders = unstable_cache(
   { tags: ["orders"], revalidate: 60 }
 )
 
-export const getOrder = (id: string) =>
-  unstable_cache(
+export async function getOrder(id: string) {
+  return unstable_cache(
     async () => {
       const supabase = createAdminClient()
       const { data, error } = await supabase
@@ -55,6 +55,7 @@ export const getOrder = (id: string) =>
     [`order-${id}`],
     { tags: ["orders"], revalidate: 60 }
   )()
+}
 
 const VALID_ORDER_STATUSES = ["draft", "confirmed", "in_production", "completed", "dispatched", "cancelled"] as const
 

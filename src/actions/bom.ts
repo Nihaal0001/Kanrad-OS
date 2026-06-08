@@ -41,8 +41,8 @@ export const getProducts = unstable_cache(
   { tags: ["bom"], revalidate: 60 }
 )
 
-export const getProduct = (id: string) =>
-  unstable_cache(
+export async function getProduct(id: string) {
+  return unstable_cache(
     async () => {
       const supabase = createAdminClient()
       const { data, error } = await supabase
@@ -70,6 +70,7 @@ export const getProduct = (id: string) =>
     [`bom-product-${id}`],
     { tags: ["bom"], revalidate: 60 }
   )()
+}
 
 export async function createProduct(formData: BomFormData) {
   const validated = bomSchema.parse(formData)

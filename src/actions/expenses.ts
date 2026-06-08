@@ -82,8 +82,8 @@ export async function deleteExpenseCategory(id: string) {
 
 // ===== Expenses =====
 
-export const getExpenses = (filters?: { category_id?: string; from?: string; to?: string }) =>
-  unstable_cache(
+export async function getExpenses(filters?: { category_id?: string; from?: string; to?: string }) {
+  return unstable_cache(
     async () => {
       const supabase = createAdminClient()
       let query = supabase
@@ -112,6 +112,7 @@ export const getExpenses = (filters?: { category_id?: string; from?: string; to?
     [`expenses-${filters?.category_id ?? "all"}-${filters?.from ?? ""}-${filters?.to ?? ""}`],
     { tags: ["expenses"], revalidate: 60 }
   )()
+}
 
 export async function createExpense(formData: ExpenseFormData) {
   const validated = expenseSchema.parse(formData)

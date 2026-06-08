@@ -11,8 +11,8 @@ const VALID_STATUSES = ["open", "in_progress", "resolved"] as const
 
 // ── Queries ──────────────────────────────────────────────────
 
-export const getIssues = (filters?: { status?: string; severity?: string }) =>
-  unstable_cache(
+export async function getIssues(filters?: { status?: string; severity?: string }) {
+  return unstable_cache(
     async () => {
       const supabase = createAdminClient()
       let query = supabase
@@ -30,6 +30,7 @@ export const getIssues = (filters?: { status?: string; severity?: string }) =>
     [`issues-${filters?.status ?? "all"}-${filters?.severity ?? "all"}`],
     { tags: ["issues"], revalidate: 60 }
   )()
+}
 
 // ── Mutations ────────────────────────────────────────────────
 

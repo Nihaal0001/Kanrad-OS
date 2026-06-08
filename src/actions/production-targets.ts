@@ -9,8 +9,8 @@ import type { ProductionTargetFormData, RecordActualFormData } from "@/lib/valid
 
 // ── Queries ──────────────────────────────────────────────────
 
-export const getProductionTargets = (filters?: { status?: string }) =>
-  unstable_cache(
+export async function getProductionTargets(filters?: { status?: string }) {
+  return unstable_cache(
     async () => {
       const supabase = createAdminClient()
       let query = supabase
@@ -27,6 +27,7 @@ export const getProductionTargets = (filters?: { status?: string }) =>
     [`production-targets-${filters?.status ?? "all"}`],
     { tags: ["production_targets"], revalidate: 60 }
   )()
+}
 
 // ── Mutations ────────────────────────────────────────────────
 

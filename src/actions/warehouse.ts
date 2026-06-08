@@ -9,8 +9,8 @@ import type { WarehouseItemFormData, ExitItemFormData } from "@/lib/validators/w
 
 // ── Queries ──────────────────────────────────────────────────
 
-export const getWarehouseItems = (filters?: { status?: string; location?: string }) =>
-  unstable_cache(
+export async function getWarehouseItems(filters?: { status?: string; location?: string }) {
+  return unstable_cache(
     async () => {
       const supabase = createAdminClient()
       let query = supabase
@@ -28,6 +28,7 @@ export const getWarehouseItems = (filters?: { status?: string; location?: string
     [`warehouse-items-${filters?.status ?? "all"}-${filters?.location ?? "all"}`],
     { tags: ["warehouse_items"], revalidate: 60 }
   )()
+}
 
 export const getWarehouseLocations = unstable_cache(
   async (): Promise<string[]> => {

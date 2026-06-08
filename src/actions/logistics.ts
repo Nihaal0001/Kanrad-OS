@@ -11,8 +11,8 @@ const VALID_STATUSES = ["pending", "dispatched", "in_transit", "delivered", "del
 
 // ── Queries ──────────────────────────────────────────────────
 
-export const getShipments = (filters?: { status?: string }) =>
-  unstable_cache(
+export async function getShipments(filters?: { status?: string }) {
+  return unstable_cache(
     async () => {
       const supabase = createAdminClient()
       let query = supabase
@@ -34,6 +34,7 @@ export const getShipments = (filters?: { status?: string }) =>
     [`shipments-${filters?.status ?? "all"}`],
     { tags: ["shipments"], revalidate: 60 }
   )()
+}
 
 export const getOrdersForSelect = unstable_cache(
   async () => {
