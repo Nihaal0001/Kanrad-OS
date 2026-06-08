@@ -1,74 +1,52 @@
 "use server"
 
-import { revalidatePath, unstable_cache } from "next/cache"
+import { revalidatePath, revalidateTag, unstable_cache } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { askGemini } from "@/lib/ai/gemini"
 
-// ==================== Market Intel — Prices ====================
+// ==================== Market Intel — Commodity Prices ====================
+// Tracks market prices per material category (commodity) rather than per inventory item.
 
-export const getLatestMaterialPrices = unstable_cache(
+export const getLatestCommodityPrices = unstable_cache(
   async () => {
     const supabase = createAdminClient()
-    const [{ data: materials }, { data: prices }] = await Promise.all([
+    const [{ data: categories }, { data: prices }] = await Promise.all([
+      supabase.from("material_categories").select("id, name").order("name"),
       supabase
-        .from("materials")
-        .select("id, name, sku, unit, category:material_categories(name)")
-        .eq("is_active", true)
-        .order("name"),
-      supabase
-        .from("material_price_history")
-        .select("material_id, price_per_unit, recorded_at, supplier:suppliers(name)")
+        .from("commodity_price_history")
+        .select("category_id, price_per_unit, unit, recorded_at, supplier:suppliers(name)")
         .order("recorded_at", { ascending: false }),
     ])
 
-    const latestMap = new Map<string, { price: number; date: string; supplier: string | null }>()
+    const latestMap = new Map<string, { price: number; unit: string; date: string; supplier: string | null }>()
     for (const p of prices ?? []) {
-      if (!latestMap.has(p.material_id)) {
+      if (!latestMap.has(p.category_id)) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const sup = p.supplier as any
-        latestMap.set(p.material_id, {
+        latestMap.set(p.category_id, {
           price: p.price_per_unit,
+          unit: p.unit,
           date: p.recorded_at,
           supplier: Array.isArray(sup) ? sup[0]?.name ?? null : sup?.name ?? null,
         })
       }
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (materials ?? []).map((m: any) => ({
-      ...m,
-      category: Array.isArray(m.category) ? m.category[0] ?? null : m.category,
-      latest_price: latestMap.get(m.id) ?? null,
+    return (categories ?? []).map((c: { id: string; name: string }) => ({
+      id: c.id,
+      name: c.name,
+      latest_price: latestMap.get(c.id) ?? null,
     }))
   },
-  ["latest-material-prices"],
-  { tags: ["price-history", "materials"], revalidate: 300 }
+  ["latest-commodity-prices"],
+  { tags: ["commodity-prices", "categories"], revalidate: 300 }
 )
 
-export const getMaterialPriceHistory = unstable_cache(
-  async (materialId: string) => {
-    const supabase = createAdminClient()
-    const { data, error } = await supabase
-      .from("material_price_history")
-      .select("id, price_per_unit, recorded_at, notes, supplier:suppliers(name)")
-      .eq("material_id", materialId)
-      .order("recorded_at", { ascending: true })
-      .limit(60)
-    if (error) return []
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (data ?? []).map((r: any) => ({
-      ...r,
-      supplier: Array.isArray(r.supplier) ? r.supplier[0]?.name ?? null : r.supplier?.name ?? null,
-    }))
-  },
-  ["material-price-history"],
-  { tags: ["price-history"], revalidate: 300 }
-)
-
-export async function logMaterialPrice(payload: {
-  material_id: string
+export async function logCommodityPrice(payload: {
+  category_id: string
   price_per_unit: number
+  unit: string
   supplier_id?: string
   recorded_at: string
   notes?: string
@@ -77,15 +55,18 @@ export async function logMaterialPrice(payload: {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: "Not authenticated" }
 
-  const { error } = await supabase.from("material_price_history").insert({
-    material_id: payload.material_id,
+  const admin = createAdminClient()
+  const { error } = await admin.from("commodity_price_history").insert({
+    category_id: payload.category_id,
     price_per_unit: payload.price_per_unit,
+    unit: payload.unit,
     supplier_id: payload.supplier_id || null,
     recorded_at: payload.recorded_at,
     notes: payload.notes || null,
   })
   if (error) return { error: error.message }
 
+  revalidateTag("commodity-prices", {})
   revalidatePath("/market-intel")
   return { success: true }
 }
@@ -119,9 +100,11 @@ export async function createMarketNews(payload: {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: "Not authenticated" }
 
-  const { error } = await supabase.from("market_news").insert(payload)
+  const admin = createAdminClient()
+  const { error } = await admin.from("market_news").insert(payload)
   if (error) return { error: error.message }
 
+  revalidateTag("market-news", {})
   revalidatePath("/market-intel")
   return { success: true }
 }
@@ -131,9 +114,11 @@ export async function deleteMarketNews(id: string) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: "Not authenticated" }
 
-  const { error } = await supabase.from("market_news").delete().eq("id", id)
+  const admin = createAdminClient()
+  const { error } = await admin.from("market_news").delete().eq("id", id)
   if (error) return { error: error.message }
 
+  revalidateTag("market-news", {})
   revalidatePath("/market-intel")
   return { success: true }
 }
@@ -315,20 +300,19 @@ export type PriceForecastResult = {
   confidence: "high" | "medium" | "low"
 }
 
-export async function predictMaterialPrice(materialId: string): Promise<{ data: PriceForecastResult } | { error: string }> {
+export async function predictCommodityPrice(categoryId: string): Promise<{ data: PriceForecastResult } | { error: string }> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: "Not authenticated" }
 
   const adminSupabase = createAdminClient()
 
-  // Fetch material info, price history, and recent news in parallel
-  const [{ data: material }, { data: priceHistory }, { data: news }] = await Promise.all([
-    adminSupabase.from("materials").select("id, name, unit, category:material_categories(name)").eq("id", materialId).single(),
+  const [{ data: category }, { data: priceHistory }, { data: news }] = await Promise.all([
+    adminSupabase.from("material_categories").select("id, name").eq("id", categoryId).single(),
     adminSupabase
-      .from("material_price_history")
-      .select("price_per_unit, recorded_at, notes, supplier:suppliers(name)")
-      .eq("material_id", materialId)
+      .from("commodity_price_history")
+      .select("price_per_unit, unit, recorded_at, notes, supplier:suppliers(name)")
+      .eq("category_id", categoryId)
       .order("recorded_at", { ascending: false })
       .limit(30),
     adminSupabase
@@ -338,16 +322,14 @@ export async function predictMaterialPrice(materialId: string): Promise<{ data: 
       .limit(20),
   ])
 
-  if (!material) return { error: "Material not found" }
-  if (!priceHistory || priceHistory.length === 0) return { error: "No price history found for this material. Log at least one price first." }
+  if (!category) return { error: "Commodity not found" }
+  if (!priceHistory || priceHistory.length === 0) return { error: "No price history found. Log at least one price first." }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const cat = Array.isArray((material as any).category) ? (material as any).category[0]?.name : (material as any).category?.name
-
   const priceRows = priceHistory.map((p: any) => ({
     date: p.recorded_at,
     price: p.price_per_unit,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    unit: p.unit,
     supplier: Array.isArray(p.supplier) ? p.supplier[0]?.name : p.supplier?.name,
     notes: p.notes,
   }))
@@ -355,22 +337,22 @@ export async function predictMaterialPrice(materialId: string): Promise<{ data: 
   const today = new Date().toISOString().split("T")[0]
   const lastPrice = priceRows[0]
 
-  const systemPrompt = `You are a commodity price analyst for an Indian houseware manufacturing company. 
+  const systemPrompt = `You are a commodity price analyst for an Indian houseware manufacturing company.
 You analyze raw material price trends and market news to forecast prices for the next 10 days.
 Always respond with valid JSON only — no markdown, no explanation outside the JSON.`
 
   const userMessage = `
-Material: ${material.name} (category: ${cat ?? "unknown"}, unit: ${material.unit})
+Commodity: ${category.name} (unit: ${lastPrice.unit})
 Today: ${today}
 
 PRICE HISTORY (most recent first):
-${priceRows.map(p => `${p.date}: ₹${p.price}/${material.unit}${p.supplier ? ` (${p.supplier})` : ""}${p.notes ? ` — ${p.notes}` : ""}`).join("\n")}
+${priceRows.map(p => `${p.date}: ₹${p.price}/${p.unit}${p.supplier ? ` (${p.supplier})` : ""}${p.notes ? ` — ${p.notes}` : ""}`).join("\n")}
 
 RECENT MARKET NEWS:
 ${(news ?? []).map((n: any) => `[${n.category}] ${n.published_at}: ${n.title}${n.summary ? ` — ${n.summary}` : ""}`).join("\n") || "No news available."}
 
-Based on the price history trend and market news context, predict the price for the next 10 days.
-Consider: price momentum, news sentiment for this material category, typical Indian commodity market patterns.
+Based on the price history trend and market news, predict the price for the next 10 days.
+Consider: price momentum, news sentiment, typical Indian commodity market patterns.
 
 Respond ONLY with this JSON (no markdown):
 {
@@ -385,14 +367,13 @@ Respond ONLY with this JSON (no markdown):
 
   try {
     const raw = await askGemini(systemPrompt, userMessage)
-    // Strip markdown code fences if present
     const cleaned = raw.replace(/```json\s*/gi, "").replace(/```\s*/gi, "").trim()
     const parsed = JSON.parse(cleaned)
 
     return {
       data: {
-        material_name: material.name,
-        unit: material.unit,
+        material_name: category.name,
+        unit: lastPrice.unit,
         last_known_price: lastPrice.price,
         last_known_date: lastPrice.date,
         predictions: parsed.predictions ?? [],

@@ -1,19 +1,19 @@
 export const revalidate = 60
 
-import { getLatestMaterialPrices, getMarketNews } from "@/actions/analytics"
+import { getLatestCommodityPrices, getMarketNews } from "@/actions/analytics"
 import { getSuppliers } from "@/actions/suppliers"
 import { MarketIntelClient } from "./market-intel-client"
 
 export default async function MarketIntelPage() {
-  const [materials, news, suppliers] = await Promise.all([
-    getLatestMaterialPrices(),
+  const [commodities, news, suppliers] = await Promise.all([
+    getLatestCommodityPrices(),
     getMarketNews(),
     getSuppliers(),
   ])
 
   return (
     <MarketIntelClient
-      materials={materials}
+      commodities={commodities}
       news={news}
       suppliers={suppliers}
     />

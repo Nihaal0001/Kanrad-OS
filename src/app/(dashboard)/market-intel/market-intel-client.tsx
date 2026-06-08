@@ -1,14 +1,14 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { TrendingUp, TrendingDown, Minus, Plus, Trash2, ExternalLink, IndianRupee, Newspaper, Sparkles, Loader2, ChevronDown, ChevronUp } from "lucide-react"
+import { Plus, Trash2, ExternalLink, IndianRupee, Newspaper, Sparkles, Loader2, ChevronDown, ChevronUp } from "lucide-react"
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { logMaterialPrice, createMarketNews, deleteMarketNews, predictMaterialPrice, type PriceForecastResult } from "@/actions/analytics"
+import { logCommodityPrice, createMarketNews, deleteMarketNews, predictCommodityPrice, type PriceForecastResult } from "@/actions/analytics"
 import { fetchMarketNews } from "@/actions/fetch-news"
 import { formatDate } from "@/lib/utils"
 import { cn } from "@/lib/utils"
@@ -29,20 +29,22 @@ const CATEGORY_COLORS: Record<string, string> = {
   general: "bg-muted text-muted-foreground",
 }
 
-type Material = {
-  id: string; name: string; sku: string; unit: string
-  category: { name: string } | null
-  latest_price: { price: number; date: string; supplier: string | null } | null
+const COMMON_UNITS = ["kg", "MT", "tonne", "piece", "litre", "sq ft", "metre", "roll"]
+
+type Commodity = {
+  id: string
+  name: string
+  latest_price: { price: number; unit: string; date: string; supplier: string | null } | null
 }
 type News = { id: string; title: string; summary: string | null; url: string | null; category: string; source: string | null; published_at: string }
 type Supplier = { id: string; name: string }
 
-export function MarketIntelClient({ materials, news, suppliers }: {
-  materials: Material[]
+export function MarketIntelClient({ commodities, news, suppliers }: {
+  commodities: Commodity[]
   news: News[]
   suppliers: Supplier[]
 }) {
-  const [tab, setTab] = useState<"prices" | "news">("prices")
+  const [tab, setTab] = useState<"prices" | "news" | "schedule">("prices")
   const [isPending, startTransition] = useTransition()
   const [fetchingNews, setFetchingNews] = useState(false)
   const [fetchResult, setFetchResult] = useState("")
@@ -58,19 +60,19 @@ export function MarketIntelClient({ materials, news, suppliers }: {
   }
 
   // AI price forecast
-  const [forecastMaterialId, setForecastMaterialId] = useState("")
+  const [forecastCategoryId, setForecastCategoryId] = useState("")
   const [forecast, setForecast] = useState<PriceForecastResult | null>(null)
   const [forecastError, setForecastError] = useState("")
   const [forecastLoading, setForecastLoading] = useState(false)
   const [forecastExpanded, setForecastExpanded] = useState(true)
 
   function handleForecast() {
-    if (!forecastMaterialId) return
+    if (!forecastCategoryId) return
     setForecastLoading(true)
     setForecastError("")
     setForecast(null)
     startTransition(async () => {
-      const res = await predictMaterialPrice(forecastMaterialId)
+      const res = await predictCommodityPrice(forecastCategoryId)
       setForecastLoading(false)
       if ("error" in res) { setForecastError(res.error); return }
       setForecast(res.data)
@@ -79,7 +81,8 @@ export function MarketIntelClient({ materials, news, suppliers }: {
   }
 
   // Price log form
-  const [priceForm, setPriceForm] = useState({ material_id: "", price_per_unit: "", supplier_id: "", recorded_at: new Date().toISOString().split("T")[0], notes: "" })
+  const emptyPriceForm = { category_id: "", price_per_unit: "", unit: "kg", supplier_id: "", recorded_at: new Date().toISOString().split("T")[0], notes: "" }
+  const [priceForm, setPriceForm] = useState(emptyPriceForm)
   const [priceOpen, setPriceOpen] = useState(false)
   const [priceError, setPriceError] = useState("")
 
@@ -88,20 +91,27 @@ export function MarketIntelClient({ materials, news, suppliers }: {
   const [newsOpen, setNewsOpen] = useState(false)
   const [newsError, setNewsError] = useState("")
 
+  function openLogPrice(categoryId = "") {
+    setPriceForm({ ...emptyPriceForm, category_id: categoryId })
+    setPriceError("")
+    setPriceOpen(true)
+  }
+
   function handleLogPrice() {
-    if (!priceForm.material_id || !priceForm.price_per_unit) { setPriceError("Material and price are required"); return }
+    if (!priceForm.category_id || !priceForm.price_per_unit) { setPriceError("Commodity and price are required"); return }
     setPriceError("")
     startTransition(async () => {
-      const res = await logMaterialPrice({
-        material_id: priceForm.material_id,
+      const res = await logCommodityPrice({
+        category_id: priceForm.category_id,
         price_per_unit: parseFloat(priceForm.price_per_unit),
+        unit: priceForm.unit,
         supplier_id: priceForm.supplier_id || undefined,
         recorded_at: priceForm.recorded_at,
         notes: priceForm.notes || undefined,
       })
       if (res && "error" in res) { setPriceError(res.error ?? "Unknown error"); return }
       setPriceOpen(false)
-      setPriceForm({ material_id: "", price_per_unit: "", supplier_id: "", recorded_at: new Date().toISOString().split("T")[0], notes: "" })
+      setPriceForm(emptyPriceForm)
     })
   }
 
@@ -127,8 +137,7 @@ export function MarketIntelClient({ materials, news, suppliers }: {
     startTransition(async () => { await deleteMarketNews(id) })
   }
 
-  const materialsWithPrice = materials.filter(m => m.latest_price)
-  const materialsWithoutPrice = materials.filter(m => !m.latest_price)
+  const commoditiesWithPrice = commodities.filter(c => c.latest_price)
 
   return (
     <div className="space-y-6">
@@ -136,7 +145,7 @@ export function MarketIntelClient({ materials, news, suppliers }: {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Market Intel</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Track raw material prices and industry news</p>
+          <p className="mt-1 text-sm text-muted-foreground">Track commodity prices and industry news</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {tab === "news" && (
@@ -145,10 +154,18 @@ export function MarketIntelClient({ materials, news, suppliers }: {
               {fetchingNews ? "Fetching…" : "Fetch Latest News"}
             </Button>
           )}
-          <Button onClick={() => tab === "prices" ? setPriceOpen(true) : setNewsOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            {tab === "prices" ? "Log Price" : "Add News"}
-          </Button>
+          {tab !== "news" && (
+            <Button onClick={() => openLogPrice()}>
+              <Plus className="h-4 w-4 mr-2" />
+              Log Price
+            </Button>
+          )}
+          {tab === "news" && (
+            <Button onClick={() => setNewsOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add News
+            </Button>
+          )}
         </div>
       </div>
 
@@ -160,12 +177,12 @@ export function MarketIntelClient({ materials, news, suppliers }: {
 
       {/* Tabs */}
       <div className="flex gap-1 rounded-lg bg-muted p-1 w-fit">
-        {(["prices", "news"] as const).map(t => (
+        {(["prices", "schedule", "news"] as const).map(t => (
           <button key={t} onClick={() => setTab(t)}
-            className={cn("rounded-md px-4 py-1.5 text-sm font-medium transition-all capitalize",
+            className={cn("rounded-md px-4 py-1.5 text-sm font-medium transition-all",
               tab === t ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
             )}>
-            {t === "prices" ? "Raw Material Prices" : "Industry News"}
+            {t === "prices" ? "Commodity Prices" : t === "schedule" ? "Price Schedule" : "Industry News"}
           </button>
         ))}
       </div>
@@ -173,32 +190,33 @@ export function MarketIntelClient({ materials, news, suppliers }: {
       {/* Prices Tab */}
       {tab === "prices" && (
         <div className="space-y-4">
-          {materialsWithPrice.length > 0 && (
+          {commoditiesWithPrice.length > 0 && (
             <div className="rounded-xl border border-border bg-card overflow-hidden">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted/40">
-                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">Material</th>
-                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">Category</th>
+                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">Commodity</th>
                     <th className="px-4 py-3 text-right font-medium text-muted-foreground">Latest Price</th>
                     <th className="px-4 py-3 text-left font-medium text-muted-foreground">Supplier</th>
                     <th className="px-4 py-3 text-left font-medium text-muted-foreground">Date</th>
+                    <th className="px-4 py-3" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {materialsWithPrice.map(m => (
-                    <tr key={m.id} className="hover:bg-muted/20 transition-colors">
-                      <td className="px-4 py-3">
-                        <div className="font-medium">{m.name}</div>
-                        <div className="text-xs text-muted-foreground">{m.sku}</div>
-                      </td>
-                      <td className="px-4 py-3 text-muted-foreground">{m.category?.name ?? "—"}</td>
+                  {commoditiesWithPrice.map(c => (
+                    <tr key={c.id} className="hover:bg-muted/20 transition-colors">
+                      <td className="px-4 py-3 font-medium">{c.name}</td>
                       <td className="px-4 py-3 text-right font-semibold">
-                        ₹{m.latest_price!.price.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                        <span className="text-xs font-normal text-muted-foreground ml-1">/{m.unit}</span>
+                        ₹{c.latest_price!.price.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                        <span className="text-xs font-normal text-muted-foreground ml-1">/{c.latest_price!.unit}</span>
                       </td>
-                      <td className="px-4 py-3 text-muted-foreground">{m.latest_price!.supplier ?? "—"}</td>
-                      <td className="px-4 py-3 text-muted-foreground text-xs">{formatDate(m.latest_price!.date)}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{c.latest_price!.supplier ?? "—"}</td>
+                      <td className="px-4 py-3 text-muted-foreground text-xs">{formatDate(c.latest_price!.date)}</td>
+                      <td className="px-4 py-3 text-right">
+                        <Button size="sm" variant="ghost" onClick={() => openLogPrice(c.id)}>
+                          <Plus className="h-3 w-3 mr-1" />Update
+                        </Button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -206,16 +224,15 @@ export function MarketIntelClient({ materials, news, suppliers }: {
             </div>
           )}
 
-          {materialsWithoutPrice.length > 0 && (
-            <div className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
-              <span className="font-medium text-foreground">{materialsWithoutPrice.length}</span> materials have no price logged yet.
-              Use "Log Price" to start tracking.
+          {commodities.length === 0 && (
+            <div className="rounded-xl border border-border bg-card p-12 text-center text-muted-foreground">
+              No material categories found. Add categories in Item Master first.
             </div>
           )}
 
-          {materials.length === 0 && (
-            <div className="rounded-xl border border-border bg-card p-12 text-center text-muted-foreground">
-              No materials found. Add materials in Item Master first.
+          {commodities.length > 0 && commoditiesWithPrice.length === 0 && (
+            <div className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
+              No prices logged yet. Click <strong>Log Price</strong> to start tracking commodity prices.
             </div>
           )}
 
@@ -236,17 +253,21 @@ export function MarketIntelClient({ materials, news, suppliers }: {
               <p className="text-xs text-muted-foreground">Uses price history + market news to predict prices for the next 10 days</p>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex gap-3">
-                <Select value={forecastMaterialId} onValueChange={(v: string) => { setForecastMaterialId(v); setForecast(null); setForecastError("") }}>
-                  <SelectTrigger className="flex-1"><SelectValue placeholder="Select a material to forecast..." /></SelectTrigger>
-                  <SelectContent>
-                    {materialsWithPrice.map(m => <SelectItem key={m.id} value={m.id}>{m.name} ({m.sku})</SelectItem>)}
-                  </SelectContent>
-                </Select>
-                <Button onClick={handleForecast} disabled={!forecastMaterialId || forecastLoading || isPending}>
-                  {forecastLoading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Forecasting…</> : <><Sparkles className="h-4 w-4 mr-2" />Forecast</>}
-                </Button>
-              </div>
+              {commoditiesWithPrice.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Log at least one commodity price to use AI forecasting.</p>
+              ) : (
+                <div className="flex gap-3">
+                  <Select value={forecastCategoryId} onValueChange={(v: string) => { setForecastCategoryId(v); setForecast(null); setForecastError("") }}>
+                    <SelectTrigger className="flex-1"><SelectValue placeholder="Select a commodity to forecast..." /></SelectTrigger>
+                    <SelectContent>
+                      {commoditiesWithPrice.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <Button onClick={handleForecast} disabled={!forecastCategoryId || forecastLoading || isPending}>
+                    {forecastLoading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Forecasting…</> : <><Sparkles className="h-4 w-4 mr-2" />Forecast</>}
+                  </Button>
+                </div>
+              )}
 
               {forecastError && (
                 <div className="rounded-lg bg-destructive/10 border border-destructive/20 px-3 py-2 text-sm text-destructive">{forecastError}</div>
@@ -254,7 +275,6 @@ export function MarketIntelClient({ materials, news, suppliers }: {
 
               {forecast && forecastExpanded && (
                 <div className="space-y-4">
-                  {/* Header */}
                   <div className="flex items-center justify-between flex-wrap gap-2">
                     <div>
                       <p className="font-semibold">{forecast.material_name}</p>
@@ -271,7 +291,6 @@ export function MarketIntelClient({ materials, news, suppliers }: {
                     </span>
                   </div>
 
-                  {/* Chart */}
                   <ResponsiveContainer width="100%" height={200}>
                     <AreaChart data={[
                       { label: "Today", price: forecast.last_known_price, low: forecast.last_known_price, high: forecast.last_known_price },
@@ -307,7 +326,6 @@ export function MarketIntelClient({ materials, news, suppliers }: {
                     </AreaChart>
                   </ResponsiveContainer>
 
-                  {/* 10-day table */}
                   <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                     {forecast.predictions.map((p, i) => {
                       const change = p.predicted_price - forecast.last_known_price
@@ -326,7 +344,6 @@ export function MarketIntelClient({ materials, news, suppliers }: {
                     })}
                   </div>
 
-                  {/* Reasoning */}
                   <div className="rounded-lg bg-muted/50 p-3 space-y-2">
                     <p className="text-sm font-medium">AI Reasoning</p>
                     <p className="text-sm text-muted-foreground">{forecast.reasoning}</p>
@@ -342,13 +359,14 @@ export function MarketIntelClient({ materials, news, suppliers }: {
                   </p>
                 </div>
               )}
-
-              {materialsWithPrice.length === 0 && (
-                <p className="text-xs text-muted-foreground">Log prices for at least one material to use AI forecasting.</p>
-              )}
             </CardContent>
           </Card>
         </div>
+      )}
+
+      {/* Schedule Tab */}
+      {tab === "schedule" && (
+        <ScheduleTab commodities={commodities} onLogPrice={openLogPrice} />
       )}
 
       {/* News Tab */}
@@ -356,11 +374,10 @@ export function MarketIntelClient({ materials, news, suppliers }: {
         <div className="space-y-4">
           {news.length === 0 && (
             <div className="rounded-xl border border-border bg-card p-12 text-center text-muted-foreground">
-              No news yet. News auto-fetches every 4 hours, or click "Add News" to add manually.
+              No news yet. News auto-fetches daily, or click "Add News" to add manually.
             </div>
           )}
 
-          {/* Cookware news — highlighted at top */}
           {news.filter(n => n.category === "cookware").length > 0 && (
             <div className="space-y-2">
               <div className="flex items-center gap-2">
@@ -373,7 +390,6 @@ export function MarketIntelClient({ materials, news, suppliers }: {
             </div>
           )}
 
-          {/* Rest of news */}
           {news.filter(n => n.category !== "cookware").length > 0 && (
             <div className="space-y-2">
               {news.filter(n => n.category === "cookware").length > 0 && (
@@ -396,30 +412,39 @@ export function MarketIntelClient({ materials, news, suppliers }: {
           <div className="bg-card rounded-2xl border border-border p-6 w-full max-w-md shadow-xl space-y-4" onClick={e => e.stopPropagation()}>
             <div className="flex items-center gap-2">
               <IndianRupee className="h-5 w-5 text-primary" />
-              <h2 className="text-lg font-semibold">Log Material Price</h2>
+              <h2 className="text-lg font-semibold">Log Commodity Price</h2>
             </div>
             {priceError && <p className="text-sm text-destructive">{priceError}</p>}
             <div className="space-y-3">
               <div>
-                <Label>Material *</Label>
-                <Select value={priceForm.material_id} onValueChange={v => setPriceForm(f => ({ ...f, material_id: v }))}>
-                  <SelectTrigger className="mt-1"><SelectValue placeholder="Select material..." /></SelectTrigger>
+                <Label>Commodity *</Label>
+                <Select value={priceForm.category_id} onValueChange={v => setPriceForm(f => ({ ...f, category_id: v }))}>
+                  <SelectTrigger className="mt-1"><SelectValue placeholder="Select commodity..." /></SelectTrigger>
                   <SelectContent>
-                    {materials.map(m => <SelectItem key={m.id} value={m.id}>{m.name} ({m.sku})</SelectItem>)}
+                    {commodities.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="col-span-2">
                   <Label>Price per unit (₹) *</Label>
                   <Input type="number" step="0.01" className="mt-1" value={priceForm.price_per_unit}
                     onChange={e => setPriceForm(f => ({ ...f, price_per_unit: e.target.value }))} placeholder="0.00" />
                 </div>
                 <div>
-                  <Label>Date</Label>
-                  <Input type="date" className="mt-1" value={priceForm.recorded_at}
-                    onChange={e => setPriceForm(f => ({ ...f, recorded_at: e.target.value }))} />
+                  <Label>Unit</Label>
+                  <Select value={priceForm.unit} onValueChange={v => setPriceForm(f => ({ ...f, unit: v }))}>
+                    <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {COMMON_UNITS.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
                 </div>
+              </div>
+              <div>
+                <Label>Date</Label>
+                <Input type="date" className="mt-1" value={priceForm.recorded_at}
+                  onChange={e => setPriceForm(f => ({ ...f, recorded_at: e.target.value }))} />
               </div>
               <div>
                 <Label>Supplier (optional)</Label>
@@ -433,7 +458,7 @@ export function MarketIntelClient({ materials, news, suppliers }: {
               <div>
                 <Label>Notes (optional)</Label>
                 <Input className="mt-1" value={priceForm.notes}
-                  onChange={e => setPriceForm(f => ({ ...f, notes: e.target.value }))} placeholder="e.g. market rate, spot price..." />
+                  onChange={e => setPriceForm(f => ({ ...f, notes: e.target.value }))} placeholder="e.g. spot rate, quoted by supplier..." />
               </div>
             </div>
             <div className="flex gap-2 justify-end pt-2">
@@ -498,6 +523,156 @@ export function MarketIntelClient({ materials, news, suppliers }: {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+const FREQUENCIES = [
+  { value: "7", label: "Weekly" },
+  { value: "14", label: "Fortnightly" },
+  { value: "30", label: "Monthly" },
+  { value: "60", label: "Every 2 months" },
+  { value: "0", label: "No schedule" },
+]
+
+const STORAGE_KEY = "commodity-price-schedules"
+
+function loadSchedules(): Record<string, number> {
+  if (typeof window === "undefined") return {}
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}") } catch { return {} }
+}
+
+function saveSchedules(s: Record<string, number>) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(s))
+}
+
+function ScheduleTab({ commodities, onLogPrice }: {
+  commodities: Commodity[]
+  onLogPrice: (categoryId: string) => void
+}) {
+  const [schedules, setSchedules] = useState<Record<string, number>>(() => loadSchedules())
+  const today = new Date()
+
+  function setFrequency(categoryId: string, days: number) {
+    setSchedules(prev => {
+      const next = { ...prev, [categoryId]: days }
+      saveSchedules(next)
+      return next
+    })
+  }
+
+  const rows = commodities.map(c => {
+    const lastDate = c.latest_price?.date ? new Date(c.latest_price.date) : null
+    const daysSince = lastDate ? Math.floor((today.getTime() - lastDate.getTime()) / 86400000) : null
+    const freq = schedules[c.id] ?? 0
+    const nextDue = (freq > 0 && lastDate)
+      ? new Date(lastDate.getTime() + freq * 86400000)
+      : null
+    const daysUntilDue = nextDue ? Math.ceil((nextDue.getTime() - today.getTime()) / 86400000) : null
+    const isOverdue = daysUntilDue !== null && daysUntilDue <= 0
+    const isDueSoon = daysUntilDue !== null && daysUntilDue > 0 && daysUntilDue <= 2
+    return { ...c, daysSince, lastDate, freq, nextDue, daysUntilDue, isOverdue, isDueSoon }
+  }).sort((a, b) => {
+    // Overdue first, then due soon, then no schedule, then upcoming
+    if (a.isOverdue && !b.isOverdue) return -1
+    if (!a.isOverdue && b.isOverdue) return 1
+    if (a.isDueSoon && !b.isDueSoon) return -1
+    if (!a.isDueSoon && b.isDueSoon) return 1
+    if (a.freq > 0 && b.freq === 0) return -1
+    if (a.freq === 0 && b.freq > 0) return 1
+    if (a.daysUntilDue !== null && b.daysUntilDue !== null) return a.daysUntilDue - b.daysUntilDue
+    return a.name.localeCompare(b.name)
+  })
+
+  const overdueCount = rows.filter(r => r.isOverdue).length
+  const dueSoonCount = rows.filter(r => r.isDueSoon).length
+  const scheduledCount = rows.filter(r => r.freq > 0).length
+
+  function dueLabel(row: typeof rows[0]) {
+    if (row.freq === 0) return { text: "No schedule", color: "text-muted-foreground" }
+    if (row.lastDate === null) return { text: "Log first price to start schedule", color: "text-muted-foreground" }
+    if (row.isOverdue) return { text: `Overdue by ${Math.abs(row.daysUntilDue!)}d`, color: "text-red-600" }
+    if (row.isDueSoon) return { text: `Due in ${row.daysUntilDue}d`, color: "text-amber-600" }
+    return { text: `Due ${row.nextDue!.toLocaleDateString("en-IN", { day: "numeric", month: "short" })}`, color: "text-muted-foreground" }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-3 gap-3">
+        <div className="rounded-xl border border-border bg-card p-4">
+          <div className="text-2xl font-bold">{scheduledCount}</div>
+          <div className="text-xs text-muted-foreground mt-0.5">Scheduled</div>
+        </div>
+        <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-4">
+          <div className="text-2xl font-bold text-red-600">{overdueCount}</div>
+          <div className="text-xs text-muted-foreground mt-0.5">Overdue</div>
+        </div>
+        <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
+          <div className="text-2xl font-bold text-amber-600">{dueSoonCount}</div>
+          <div className="text-xs text-muted-foreground mt-0.5">Due within 2 days</div>
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-border bg-card overflow-hidden">
+        <div className="px-4 py-3 border-b border-border bg-muted/40">
+          <span className="text-sm font-medium text-muted-foreground">Set how often to check each commodity price</span>
+        </div>
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border">
+              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Commodity</th>
+              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Last Price</th>
+              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Check Frequency</th>
+              <th className="px-4 py-3 text-left font-medium text-muted-foreground">Next Due</th>
+              <th className="px-4 py-3" />
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {rows.map(c => {
+              const { text, color } = dueLabel(c)
+              return (
+                <tr key={c.id} className={cn("transition-colors", c.isOverdue ? "bg-red-500/5 hover:bg-red-500/8" : "hover:bg-muted/20")}>
+                  <td className="px-4 py-3">
+                    <div className="font-medium">{c.name}</div>
+                    {c.daysSince !== null && (
+                      <div className="text-xs text-muted-foreground">Last logged {c.daysSince}d ago</div>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    {c.latest_price ? (
+                      <span className="font-medium">
+                        ₹{c.latest_price.price.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                        <span className="text-xs font-normal text-muted-foreground ml-1">/{c.latest_price.unit}</span>
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 w-44">
+                    <Select
+                      value={String(c.freq)}
+                      onValueChange={v => setFrequency(c.id, Number(v))}
+                    >
+                      <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {FREQUENCIES.map(f => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className={cn("text-xs font-medium", color)}>{text}</span>
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <Button size="sm" variant={c.isOverdue ? "default" : "outline"} onClick={() => onLogPrice(c.id)}>
+                      <Plus className="h-3 w-3 mr-1" />Log Price
+                    </Button>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }
