@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts"
+import { BarChart, Bar, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts"
 import { TrendingUp, TrendingDown, Minus, AlertTriangle, Package } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
@@ -116,15 +116,11 @@ export function ForecastingClient({ demand, inventory }: { demand: DemandData; i
                     formatter={(v) => [v, "Orders"]}
                   />
                   <ReferenceLine x={demand.actuals[splitIndex]?.label} stroke="hsl(var(--border))" strokeDasharray="4 4" label={{ value: "Forecast →", fill: "hsl(var(--muted-foreground))", fontSize: 11 }} />
-                  <Bar dataKey="count" radius={[4, 4, 0, 0]}
-                    fill="hsl(var(--primary))"
-                    opacity={0.85}
-                    // Dimmed for projected
-                    // @ts-expect-error recharts cell prop
-                    cells={chartData.map((d, i) => (
-                      <rect key={i} opacity={d.type === "projected" ? 0.4 : 0.85} />
+                  <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+                    {chartData.map((d, i) => (
+                      <Cell key={i} fill={d.type === "projected" ? "#60a5fa" : "#2563eb"} opacity={d.type === "projected" ? 0.5 : 1} />
                     ))}
-                  />
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
               <p className="text-xs text-muted-foreground mt-2 text-center">
