@@ -105,27 +105,36 @@ export function ForecastingClient({ demand, inventory }: { demand: DemandData; i
               <CardTitle className="text-base">Orders Per Month — Actual vs Projected</CardTitle>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                  <XAxis dataKey="label" tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} allowDecimals={false} />
-                  <Tooltip
-                    contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
-                    labelStyle={{ fontWeight: 600 }}
-                    formatter={(v) => [v, "Orders"]}
-                  />
-                  <ReferenceLine x={demand.actuals[splitIndex]?.label} stroke="hsl(var(--border))" strokeDasharray="4 4" label={{ value: "Forecast →", fill: "hsl(var(--muted-foreground))", fontSize: 11 }} />
-                  <Bar dataKey="count" radius={[4, 4, 0, 0]}>
-                    {chartData.map((d, i) => (
-                      <Cell key={i} fill={d.type === "projected" ? "#60a5fa" : "#2563eb"} opacity={d.type === "projected" ? 0.5 : 1} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-              <p className="text-xs text-muted-foreground mt-2 text-center">
-                Solid bars = actual orders · Faded bars = linear trend projection
-              </p>
+              {demand.actuals.every(a => a.count === 0) ? (
+                <div className="flex flex-col items-center justify-center h-[280px] text-muted-foreground gap-2">
+                  <p className="text-sm font-medium">No order data yet</p>
+                  <p className="text-xs">Orders will appear here once they are created in the system</p>
+                </div>
+              ) : (
+                <>
+                  <ResponsiveContainer width="100%" height={280}>
+                    <BarChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                      <XAxis dataKey="label" tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} allowDecimals={false} />
+                      <Tooltip
+                        contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
+                        labelStyle={{ fontWeight: 600 }}
+                        formatter={(v) => [v, "Orders"]}
+                      />
+                      <ReferenceLine x={demand.actuals[splitIndex]?.label} stroke="hsl(var(--border))" strokeDasharray="4 4" label={{ value: "Forecast →", fill: "hsl(var(--muted-foreground))", fontSize: 11 }} />
+                      <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+                        {chartData.map((d, i) => (
+                          <Cell key={i} fill={d.type === "projected" ? "#60a5fa" : "#2563eb"} opacity={d.type === "projected" ? 0.5 : 1} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                  <p className="text-xs text-muted-foreground mt-2 text-center">
+                    Solid bars = actual orders · Faded bars = linear trend projection
+                  </p>
+                </>
+              )}
             </CardContent>
           </Card>
 
