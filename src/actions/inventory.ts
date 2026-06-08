@@ -194,11 +194,13 @@ export async function applyCirclePricing(aluPricePerKg: number) {
 
   if (updates.length === 0) return { error: "Could not parse dimensions from any circle material names" }
 
-  const { error: updateError } = await admin
-    .from("materials")
-    .upsert(updates, { onConflict: "id" })
-
-  if (updateError) return { error: updateError.message }
+  for (const { id, ...fields } of updates) {
+    const { error: updateError } = await admin
+      .from("materials")
+      .update(fields)
+      .eq("id", id)
+    if (updateError) return { error: updateError.message }
+  }
 
   revalidateTag("materials", {})
   revalidatePath("/master-inventory")
