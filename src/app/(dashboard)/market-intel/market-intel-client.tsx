@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { Plus, Trash2, ExternalLink, IndianRupee, Newspaper, Sparkles, Loader2, ChevronDown, ChevronUp, TrendingUp } from "lucide-react"
+import { Plus, Trash2, ExternalLink, IndianRupee, Newspaper, Sparkles, Loader2, ChevronDown, ChevronUp } from "lucide-react"
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -10,7 +10,6 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { logCommodityPrice, createMarketNews, deleteMarketNews, predictCommodityPrice, type PriceForecastResult } from "@/actions/analytics"
 import { fetchMarketNews } from "@/actions/fetch-news"
-import { fetchCommodityPrices } from "@/actions/fetch-commodity-prices"
 import { formatDate } from "@/lib/utils"
 import { cn } from "@/lib/utils"
 
@@ -50,23 +49,6 @@ export function MarketIntelClient({ commodities, news, suppliers }: {
   const [isPending, startTransition] = useTransition()
   const [fetchingNews, setFetchingNews] = useState(false)
   const [fetchResult, setFetchResult] = useState("")
-  const [fetchingPrices, setFetchingPrices] = useState(false)
-  const [pricesFetchResult, setPricesFetchResult] = useState("")
-
-  function handleFetchPrices() {
-    setFetchingPrices(true)
-    setPricesFetchResult("")
-    startTransition(async () => {
-      const res = await fetchCommodityPrices()
-      setFetchingPrices(false)
-      if (res.errors.length > 0 && res.inserted === 0) {
-        setPricesFetchResult(`Error: ${res.errors[0]}`)
-      } else {
-        setPricesFetchResult(`✓ ${res.inserted} prices updated${res.skipped > 0 ? `, ${res.skipped} already logged today` : ""}${res.errors.length > 0 ? ` (${res.errors.length} skipped)` : ""}`)
-      }
-    })
-  }
-
   function handleFetchNews() {
     setFetchingNews(true)
     setFetchResult("")
@@ -168,12 +150,6 @@ export function MarketIntelClient({ commodities, news, suppliers }: {
           <p className="mt-1 text-sm text-muted-foreground">Track commodity prices and industry news</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          {tab === "prices" && (
-            <Button variant="outline" onClick={handleFetchPrices} disabled={fetchingPrices || isPending}>
-              {fetchingPrices ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <TrendingUp className="h-4 w-4 mr-2" />}
-              {fetchingPrices ? "Fetching…" : "Fetch Live Prices"}
-            </Button>
-          )}
           {tab === "news" && (
             <Button variant="outline" onClick={handleFetchNews} disabled={fetchingNews || isPending}>
               {fetchingNews ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Newspaper className="h-4 w-4 mr-2" />}
@@ -195,11 +171,6 @@ export function MarketIntelClient({ commodities, news, suppliers }: {
         </div>
       </div>
 
-      {pricesFetchResult && (
-        <div className={cn("text-sm px-4 py-2 rounded-lg border", pricesFetchResult.startsWith("Error") ? "bg-destructive/10 border-destructive/20 text-destructive" : "bg-emerald-500/10 border-emerald-500/20 text-emerald-700 dark:text-emerald-400")}>
-          {pricesFetchResult}
-        </div>
-      )}
       {fetchResult && (
         <div className={cn("text-sm px-4 py-2 rounded-lg border", fetchResult.startsWith("Error") ? "bg-destructive/10 border-destructive/20 text-destructive" : "bg-emerald-500/10 border-emerald-500/20 text-emerald-700 dark:text-emerald-400")}>
           {fetchResult}

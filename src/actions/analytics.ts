@@ -5,6 +5,36 @@ import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { askGemini } from "@/lib/ai/gemini"
 
+// ==================== Market Intel — Commodity Management ====================
+
+export async function addCommodity(payload: { name: string; unit: string }) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
+  const admin = createAdminClient()
+  const { error } = await admin.from("commodities").insert({ name: payload.name.trim(), unit: payload.unit })
+  if (error) return { error: error.message }
+
+  revalidateTag("commodity-prices", {})
+  revalidatePath("/market-intel")
+  return { success: true }
+}
+
+export async function removeCommodity(id: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
+  const admin = createAdminClient()
+  const { error } = await admin.from("commodities").update({ is_active: false }).eq("id", id)
+  if (error) return { error: error.message }
+
+  revalidateTag("commodity-prices", {})
+  revalidatePath("/market-intel")
+  return { success: true }
+}
+
 // ==================== Market Intel — Commodity Prices ====================
 
 export const getLatestCommodityPrices = unstable_cache(
