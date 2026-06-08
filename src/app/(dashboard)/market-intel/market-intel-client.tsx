@@ -34,6 +34,7 @@ const COMMON_UNITS = ["kg", "MT", "tonne", "piece", "litre", "sq ft", "metre", "
 type Commodity = {
   id: string
   name: string
+  defaultUnit: string
   latest_price: { price: number; unit: string; date: string; supplier: string | null } | null
 }
 type News = { id: string; title: string; summary: string | null; url: string | null; category: string; source: string | null; published_at: string }
@@ -81,7 +82,7 @@ export function MarketIntelClient({ commodities, news, suppliers }: {
   }
 
   // Price log form
-  const emptyPriceForm = { category_id: "", price_per_unit: "", unit: "kg", supplier_id: "", recorded_at: new Date().toISOString().split("T")[0], notes: "" }
+  const emptyPriceForm = { commodity_id: "", price_per_unit: "", unit: "MT", supplier_id: "", recorded_at: new Date().toISOString().split("T")[0], notes: "" }
   const [priceForm, setPriceForm] = useState(emptyPriceForm)
   const [priceOpen, setPriceOpen] = useState(false)
   const [priceError, setPriceError] = useState("")
@@ -91,18 +92,20 @@ export function MarketIntelClient({ commodities, news, suppliers }: {
   const [newsOpen, setNewsOpen] = useState(false)
   const [newsError, setNewsError] = useState("")
 
-  function openLogPrice(categoryId = "") {
-    setPriceForm({ ...emptyPriceForm, category_id: categoryId })
+  function openLogPrice(commodityId = "") {
+    const defaultUnit = commodities.find(c => c.id === commodityId)?.defaultUnit ?? "MT"
+    setPriceForm({ ...emptyPriceForm, commodity_id: commodityId, unit: defaultUnit })
     setPriceError("")
     setPriceOpen(true)
   }
 
   function handleLogPrice() {
-    if (!priceForm.category_id || !priceForm.price_per_unit) { setPriceError("Commodity and price are required"); return }
+    if (!priceForm.commodity_id || !priceForm.price_per_unit) { setPriceError("Commodity and price are required"); return }
     setPriceError("")
     startTransition(async () => {
       const res = await logCommodityPrice({
-        category_id: priceForm.category_id,
+        commodity_id: priceForm.commodity_id,
+
         price_per_unit: parseFloat(priceForm.price_per_unit),
         unit: priceForm.unit,
         supplier_id: priceForm.supplier_id || undefined,
@@ -413,7 +416,7 @@ export function MarketIntelClient({ commodities, news, suppliers }: {
             <div className="space-y-3">
               <div>
                 <Label>Commodity *</Label>
-                <Select value={priceForm.category_id} onValueChange={v => setPriceForm(f => ({ ...f, category_id: v }))}>
+                <Select value={priceForm.commodity_id} onValueChange={v => setPriceForm(f => ({ ...f, commodity_id: v }))}>
                   <SelectTrigger className="mt-1"><SelectValue placeholder="Select commodity..." /></SelectTrigger>
                   <SelectContent>
                     {commodities.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}

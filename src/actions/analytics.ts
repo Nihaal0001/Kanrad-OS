@@ -6,25 +6,24 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { askGemini } from "@/lib/ai/gemini"
 
 // ==================== Market Intel — Commodity Prices ====================
-// Tracks market prices per material category (commodity) rather than per inventory item.
 
 export const getLatestCommodityPrices = unstable_cache(
   async () => {
     const supabase = createAdminClient()
-    const [{ data: categories }, { data: prices }] = await Promise.all([
-      supabase.from("material_categories").select("id, name").order("name"),
+    const [{ data: commodities }, { data: prices }] = await Promise.all([
+      supabase.from("commodities").select("id, name, unit").eq("is_active", true).order("name"),
       supabase
         .from("commodity_price_history")
-        .select("category_id, price_per_unit, unit, recorded_at, supplier:suppliers(name)")
+        .select("commodity_id, price_per_unit, unit, recorded_at, supplier:suppliers(name)")
         .order("recorded_at", { ascending: false }),
     ])
 
     const latestMap = new Map<string, { price: number; unit: string; date: string; supplier: string | null }>()
     for (const p of prices ?? []) {
-      if (!latestMap.has(p.category_id)) {
+      if (!latestMap.has(p.commodity_id)) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const sup = p.supplier as any
-        latestMap.set(p.category_id, {
+        latestMap.set(p.commodity_id, {
           price: p.price_per_unit,
           unit: p.unit,
           date: p.recorded_at,
@@ -33,18 +32,19 @@ export const getLatestCommodityPrices = unstable_cache(
       }
     }
 
-    return (categories ?? []).map((c: { id: string; name: string }) => ({
+    return (commodities ?? []).map((c: { id: string; name: string; unit: string }) => ({
       id: c.id,
       name: c.name,
+      defaultUnit: c.unit,
       latest_price: latestMap.get(c.id) ?? null,
     }))
   },
   ["latest-commodity-prices"],
-  { tags: ["commodity-prices", "categories"], revalidate: 300 }
+  { tags: ["commodity-prices"], revalidate: 300 }
 )
 
 export async function logCommodityPrice(payload: {
-  category_id: string
+  commodity_id: string
   price_per_unit: number
   unit: string
   supplier_id?: string
@@ -57,7 +57,7 @@ export async function logCommodityPrice(payload: {
 
   const admin = createAdminClient()
   const { error } = await admin.from("commodity_price_history").insert({
-    category_id: payload.category_id,
+    commodity_id: payload.commodity_id,
     price_per_unit: payload.price_per_unit,
     unit: payload.unit,
     supplier_id: payload.supplier_id || null,
@@ -308,11 +308,11 @@ export async function predictCommodityPrice(categoryId: string): Promise<{ data:
   const adminSupabase = createAdminClient()
 
   const [{ data: category }, { data: priceHistory }, { data: news }] = await Promise.all([
-    adminSupabase.from("material_categories").select("id, name").eq("id", categoryId).single(),
+    adminSupabase.from("commodities").select("id, name").eq("id", categoryId).single(),
     adminSupabase
       .from("commodity_price_history")
       .select("price_per_unit, unit, recorded_at, notes, supplier:suppliers(name)")
-      .eq("category_id", categoryId)
+      .eq("commodity_id", categoryId)
       .order("recorded_at", { ascending: false })
       .limit(30),
     adminSupabase
