@@ -95,28 +95,28 @@ export function ItemMasterTable({ materials, categories }: ItemMasterTableProps)
   const aluPriceNum = parseFloat(aluPrice) || 0
 
   function parseNameDimensions(name: string): { dia: number; thick: number } | null {
-    // Format: "Alu Circle 263 x 2.9" — also handles "263*2.9", "263*2.9(126)"
-    const nameMatch = name.match(/(\d+(?:\.\d+)?)\s*[x*]\s*(\d+(?:\.\d+)?)/i)
-    if (nameMatch) {
-      const dia = parseFloat(nameMatch[1])
-      const thick = parseFloat(nameMatch[2])
-      if (dia > 0 && thick > 0) return { dia, thick }
-    }
-    return null
+    const m = name.match(/(\d+(?:\.\d+)?)\s*[xX*]\s*(\d+(?:\.\d+)?)/i)
+    if (!m) return null
+    const dia = parseFloat(m[1])
+    const thick = parseFloat(m[2])
+    return dia > 0 && thick > 0 ? { dia, thick } : null
   }
 
   function calcCircleCost(material: MaterialWithCategory): { cost: number; dia: number; thick: number } | null {
     if (aluPriceNum <= 0) return null
-    let dia = material.diameter_mm
-    let thick = material.thickness_mm
-    if (!dia || !thick) {
-      const parsed = parseNameDimensions(material.name)
-      if (!parsed) return null
-      dia = parsed.dia
-      thick = parsed.thick
+    // Detect by name "Alu Circle ..." or by circle_type being set
+    const isCircle = /^alu\s*circle/i.test(material.name.trim()) || material.circle_type != null
+    if (!isCircle) return null
+    const dia = material.diameter_mm
+    const thick = material.thickness_mm
+    if (dia && thick) {
+      const cost = Math.round(dia * dia * thick * CIRCLE_WEIGHT_FACTOR * aluPriceNum * 100) / 100
+      return { cost, dia, thick }
     }
-    const cost = Math.round(dia * dia * thick * CIRCLE_WEIGHT_FACTOR * aluPriceNum * 100) / 100
-    return { cost, dia, thick }
+    const parsed = parseNameDimensions(material.name)
+    if (!parsed) return null
+    const cost = Math.round(parsed.dia * parsed.dia * parsed.thick * CIRCLE_WEIGHT_FACTOR * aluPriceNum * 100) / 100
+    return { cost, dia: parsed.dia, thick: parsed.thick }
   }
 
   function handleApplyCirclePricing() {
