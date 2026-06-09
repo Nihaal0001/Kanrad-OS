@@ -1,24 +1,14 @@
-import { NextResponse } from "next/server"
-import { revalidateTag } from "next/cache"
-import { createClient } from "@/lib/supabase/server"
+import { NextRequest, NextResponse } from "next/server"
+import { revalidateTag, revalidatePath } from "next/cache"
 
-export const dynamic = "force-dynamic"
-
-export async function POST(request: Request) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("auth_id", user.id)
-    .maybeSingle()
-
-  if (profile?.role !== "admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-
-  const { tag } = await request.json().catch(() => ({ tag: "permissions" }))
-  revalidateTag(tag ?? "permissions", {})
-
-  return NextResponse.json({ ok: true, tag })
+export async function POST(req: NextRequest) {
+  const secret = req.headers.get("x-secret")
+  if (secret !== process.env.CRON_SECRET) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+  revalidateTag("materials")
+  revalidateTag("categories")
+  revalidatePath("/inventory")
+  revalidatePath("/master-inventory")
+  return NextResponse.json({ success: true })
 }
