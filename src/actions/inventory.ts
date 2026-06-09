@@ -138,6 +138,36 @@ export async function updateMaterial(id: string, formData: MaterialFormData) {
   return { data }
 }
 
+export async function zeroAllMaterialStock() {
+  const supabase = await createClient()
+  const admin = createAdminClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
+  const { data: materials, error: fetchError } = await admin
+    .from("materials")
+    .select("id")
+    .eq("is_active", true)
+
+  if (fetchError) return { error: fetchError.message }
+  if (!materials || materials.length === 0) return { success: true, updated: 0 }
+
+  let updated = 0
+  for (const mat of materials) {
+    const { error } = await admin
+      .from("materials")
+      .update({ current_stock: 0 })
+      .eq("id", mat.id)
+    if (!error) updated++
+  }
+
+  revalidateTag("materials", {})
+  revalidatePath("/inventory")
+  revalidatePath("/master-inventory")
+  return { success: true, updated }
+}
+
 /**
  * Parses diameter and thickness from "Alu Circle 263 X 3 MM" style names.
  * Finds the first "number X number" pattern in the name.
