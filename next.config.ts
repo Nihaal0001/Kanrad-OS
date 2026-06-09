@@ -6,8 +6,8 @@ const nextConfig: NextConfig = {
   productionBrowserSourceMaps: false,
   experimental: {
     staleTimes: {
-      dynamic: 60,
-      static: 300,
+      dynamic: 300,
+      static: 600,
     },
   },
   async headers() {
