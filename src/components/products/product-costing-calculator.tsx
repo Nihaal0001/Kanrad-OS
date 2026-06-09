@@ -10,6 +10,8 @@ import {
   Pencil,
   Plus,
   IndianRupee,
+  TrendingUp,
+  History,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -31,6 +33,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { CIRCLE_WEIGHT_FACTOR } from "@/lib/circle-calc"
+
+const ALU_CIRCLE_RE = /^alu\s*circle/i
+
+function parseCircleDims(name: string): { dia: number; thick: number } | null {
+  const m = name.match(/(\d+(?:\.\d+)?)\s*[xX*]\s*(\d+(?:\.\d+)?)/)
+  if (!m) return null
+  const dia = parseFloat(m[1]), thick = parseFloat(m[2])
+  return dia > 0 && thick > 0 ? { dia, thick } : null
+}
 
 interface MaterialLine {
   id: string
@@ -75,20 +87,46 @@ export function ProductCostingCalculator({ products, initialProductId }: Props) 
   const [overheadCost, setOverheadCost] = useState(0)
   const [otherCost, setOtherCost] = useState(0)
   const [marginPct, setMarginPct] = useState(20)
+  const [pricingMode, setPricingMode] = useState<"actual" | "market">("actual")
+  const [marketAluPrice, setMarketAluPrice] = useState("")
+
+  const marketAluPriceNum = parseFloat(marketAluPrice) || 0
 
   const product = products.find((p) => p.id === selectedId) ?? null
 
-  const bomLines: (MaterialLine & { effectiveQty: number; lineCost: number; hasPrice: boolean })[] =
+  const bomLines: (MaterialLine & { effectiveQty: number; lineCost: number; hasPrice: boolean; isCircle: boolean; marketCost: number | null })[] =
     useMemo(() => {
       if (!product) return []
       return product.bom_items.map((item) => {
         const mat = Array.isArray(item.material) ? item.material[0] ?? null : item.material
         const effectiveQty = item.qty_required * (1 + (item.wastage_pct ?? 0) / 100)
-        const hasPrice = mat && mat.cost_per_unit > 0
-        const lineCost = hasPrice ? effectiveQty * mat.cost_per_unit : 0
-        return { ...item, material: mat, effectiveQty, lineCost, hasPrice: !!hasPrice }
+        const isCircle = mat ? ALU_CIRCLE_RE.test(mat.name) : false
+
+        // Market cost: only for circles, only when price is entered
+        let marketCost: number | null = null
+        if (isCircle && mat && marketAluPriceNum > 0) {
+          const dims = parseCircleDims(mat.name)
+          if (dims) {
+            const costPerPc = dims.dia * dims.dia * dims.thick * CIRCLE_WEIGHT_FACTOR * marketAluPriceNum
+            marketCost = effectiveQty * costPerPc
+          }
+        }
+
+        const unitPrice = pricingMode === "market" && marketCost !== null
+          ? null // use marketCost directly
+          : mat?.cost_per_unit ?? 0
+
+        const hasPrice = pricingMode === "market" && isCircle
+          ? marketAluPriceNum > 0 && marketCost !== null
+          : !!(mat && mat.cost_per_unit > 0)
+
+        const lineCost = pricingMode === "market" && marketCost !== null
+          ? marketCost
+          : (mat && mat.cost_per_unit > 0 ? effectiveQty * mat.cost_per_unit : 0)
+
+        return { ...item, material: mat, effectiveQty, lineCost, hasPrice, isCircle, marketCost }
       })
-    }, [product])
+    }, [product, pricingMode, marketAluPriceNum])
 
   const unpriced = bomLines.filter((l) => !l.hasPrice)
   const materialCostPerUnit = bomLines.reduce((s, l) => s + l.lineCost, 0)
@@ -164,6 +202,50 @@ export function ProductCostingCalculator({ products, initialProductId }: Props) 
             </div>
           )}
 
+          {/* Pricing Mode Toggle */}
+          <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-muted/30 px-4 py-3">
+            <span className="text-sm font-medium mr-1">Circle Pricing:</span>
+            <div className="flex rounded-md border overflow-hidden text-sm">
+              <button
+                type="button"
+                onClick={() => setPricingMode("actual")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 transition-colors ${pricingMode === "actual" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted"}`}
+              >
+                <History className="h-3.5 w-3.5" />
+                Actual Purchase Price
+              </button>
+              <button
+                type="button"
+                onClick={() => setPricingMode("market")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 transition-colors ${pricingMode === "market" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted"}`}
+              >
+                <TrendingUp className="h-3.5 w-3.5" />
+                Current Market Rate
+              </button>
+            </div>
+            {pricingMode === "market" && (
+              <div className="flex items-center gap-2 ml-1">
+                <span className="text-xs text-muted-foreground">Alu price:</span>
+                <div className="relative w-28">
+                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">₹</span>
+                  <Input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    placeholder="388"
+                    value={marketAluPrice}
+                    onChange={(e) => setMarketAluPrice(e.target.value)}
+                    className="pl-6 h-8 text-sm"
+                  />
+                </div>
+                <span className="text-xs text-muted-foreground">/kg</span>
+              </div>
+            )}
+            {pricingMode === "actual" && (
+              <span className="text-xs text-muted-foreground">Using FIFO weighted-average cost from purchase receipts</span>
+            )}
+          </div>
+
           <div className="grid gap-6 lg:grid-cols-3">
             <div className="lg:col-span-2 space-y-6">
 
@@ -174,7 +256,9 @@ export function ProductCostingCalculator({ products, initialProductId }: Props) 
                     <CardTitle className="text-base">
                       Material Costs — {product.product_name}
                     </CardTitle>
-                    <CardDescription>From BOM × Master Inventory prices</CardDescription>
+                    <CardDescription>
+                      {pricingMode === "actual" ? "From BOM × actual purchase prices (FIFO)" : "From BOM × current market rate for circles"}
+                    </CardDescription>
                   </div>
                   <Button asChild size="sm" variant="ghost">
                     <Link href={`/products/${product.id}/edit`}>
@@ -200,11 +284,19 @@ export function ProductCostingCalculator({ products, initialProductId }: Props) 
                               </span>
                             )}
                             {" × "}
-                            {line.hasPrice ? (
-                              <span>₹{formatCurrency(line.material!.cost_per_unit)}</span>
-                            ) : (
-                              <span className="text-amber-500 font-medium">No price</span>
-                            )}
+                            {(() => {
+                              if (pricingMode === "market" && line.isCircle) {
+                                if (marketAluPriceNum > 0 && line.marketCost !== null) {
+                                  const dims = parseCircleDims(line.material?.name ?? "")
+                                  const cppc = dims ? dims.dia * dims.dia * dims.thick * CIRCLE_WEIGHT_FACTOR * marketAluPriceNum : 0
+                                  return <span className="text-blue-600 font-medium">₹{formatCurrency(cppc)}/pc <span className="font-normal text-muted-foreground">(market)</span></span>
+                                }
+                                return <span className="text-amber-500 font-medium">Enter alu price</span>
+                              }
+                              return line.hasPrice
+                                ? <span>₹{formatCurrency(line.material!.cost_per_unit)}</span>
+                                : <span className="text-amber-500 font-medium">No price</span>
+                            })()}
                           </p>
                         </div>
                         <p className="text-sm font-semibold tabular-nums shrink-0 ml-4">
