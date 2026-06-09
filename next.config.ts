@@ -4,12 +4,6 @@ const SUPABASE_HOST = "bdskmkfubdmmzvntzzgu.supabase.co"
 
 const nextConfig: NextConfig = {
   productionBrowserSourceMaps: false,
-  experimental: {
-    staleTimes: {
-      dynamic: 300,
-      static: 600,
-    },
-  },
   async headers() {
     return [
       {
