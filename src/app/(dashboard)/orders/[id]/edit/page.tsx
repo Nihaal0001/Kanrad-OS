@@ -2,6 +2,7 @@ import { notFound } from "next/navigation"
 
 import { getOrder } from "@/actions/orders"
 import { getCustomers } from "@/actions/customers"
+import { getProducts } from "@/actions/bom"
 import { PageHeader } from "@/components/shared/page-header"
 import { OrderForm } from "@/components/orders/order-form"
 import type { OrderDetail } from "@/lib/supabase/types"
@@ -20,7 +21,7 @@ export default async function EditOrderPage({ params }: EditOrderPageProps) {
     notFound()
   }
 
-  const customers = await getCustomers()
+  const [customers, products] = await Promise.all([getCustomers(), getProducts()])
 
   return (
     <>
@@ -35,11 +36,8 @@ export default async function EditOrderPage({ params }: EditOrderPageProps) {
       />
       <OrderForm
         order={order}
-        customers={customers.map((c) => ({
-          id: c.id,
-          name: c.name,
-          company: c.company,
-        }))}
+        customers={customers.map((c) => ({ id: c.id, name: c.name, company: c.company }))}
+        products={products.map((p) => ({ id: p.id, name: p.product_name, sku: p.product_sku }))}
       />
     </>
   )

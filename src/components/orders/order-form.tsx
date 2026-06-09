@@ -37,9 +37,10 @@ import { CustomerSelect } from "@/components/orders/customer-select"
 interface OrderFormProps {
   order?: OrderDetail
   customers: Array<{ id: string; name: string; company: string | null }>
+  products?: Array<{ id: string; name: string; sku: string }>
 }
 
-export function OrderForm({ order, customers }: OrderFormProps) {
+export function OrderForm({ order, customers, products = [] }: OrderFormProps) {
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -294,15 +295,27 @@ export function OrderForm({ order, customers }: OrderFormProps) {
               key={field.id}
               className="grid gap-3 sm:grid-cols-[1.3fr_0.7fr_0.6fr_0.7fr_90px_90px_120px_40px] items-start"
             >
-              {/* Product */}
+              {/* Product — from BOM only */}
               <div className="space-y-1">
                 <Label className="sm:hidden text-xs text-muted-foreground">
                   Product
                 </Label>
-                <Input
-                  placeholder="e.g., Kadai 240mm"
-                  {...form.register(`items.${index}.product_variant`)}
-                />
+                <Select
+                  value={form.watch(`items.${index}.product_variant`) || ""}
+                  onValueChange={(val) => form.setValue(`items.${index}.product_variant`, val, { shouldValidate: true })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select product…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {products.map((p) => (
+                      <SelectItem key={p.id} value={p.name}>
+                        <span>{p.name}</span>
+                        <span className="ml-2 text-xs text-muted-foreground font-mono">{p.sku}</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 {form.formState.errors.items?.[index]?.product_variant && (
                   <p className="text-xs text-destructive">
                     {form.formState.errors.items[index]?.product_variant?.message}
