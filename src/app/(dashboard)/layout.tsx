@@ -19,7 +19,7 @@ export default async function DashboardLayout({
   const [{ data: profileByAuthId }] = await Promise.all([
     supabase
       .from("profiles")
-      .select("id, full_name, role, avatar_url")
+      .select("id, full_name, role, avatar_url, department")
       .eq("auth_id", user.id)
       .maybeSingle(),
   ])
@@ -31,7 +31,7 @@ export default async function DashboardLayout({
   if (!profile && user.email) {
     const { data: profileByEmail } = await supabase
       .from("profiles")
-      .select("id, full_name, role, avatar_url")
+      .select("id, full_name, role, avatar_url, department")
       .eq("email", user.email)
       .maybeSingle()
 
@@ -46,7 +46,14 @@ export default async function DashboardLayout({
   }
 
   const role = profile?.role ?? "worker"
-  const allowedPermissions = await getRolePermissions(role)
+  // Admins get full access via role; non-admins use their department field directly
+  let allowedPermissions: string[]
+  if (role === "admin") {
+    allowedPermissions = await getRolePermissions(role)
+  } else {
+    const dept = profile?.department ?? ""
+    allowedPermissions = dept ? dept.split(",").map((d: string) => d.trim()).filter(Boolean) : await getRolePermissions(role)
+  }
 
   const unreadCount = await unreadCountPromise
 

@@ -162,6 +162,25 @@ export const getRolePermissions = unstable_cache(
   { tags: ["permissions"], revalidate: 300 }
 )
 
+export async function updateUserDepartments(
+  id: string,
+  departments: string[]
+): Promise<{ error?: string } | { success: boolean }> {
+  const auth = await requireAdmin()
+  if ("error" in auth) return auth
+  const { supabase } = auth
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ department: departments.length > 0 ? departments.join(",") : null })
+    .eq("id", id)
+
+  if (error) return { error: error.message }
+  revalidateTag("users", {})
+  revalidatePath("/users")
+  return { success: true }
+}
+
 export async function toggleRolePermission(
   role: string,
   permission: string,

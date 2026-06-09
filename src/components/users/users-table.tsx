@@ -3,51 +3,55 @@
 import { useState, useTransition } from "react"
 import { toast } from "sonner"
 
-import { updateUserRole, toggleUserActive, type UserRow } from "@/actions/users"
-import { userRoles } from "@/lib/constants"
+import { updateUserDepartments, toggleUserActive, type UserRow } from "@/actions/users"
 import { friendlyError } from "@/lib/utils"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+import { cn } from "@/lib/utils"
 
-const ROLE_LABELS: Record<string, string> = {
-  admin: "Admin",
-  production_manager: "Production Manager",
-  inventory_manager: "Inventory Manager",
-  qc_head: "QC Head",
-  floor_supervisor: "Floor Supervisor",
-  worker: "Worker",
-}
+const TABS = [
+  { id: "dashboard",          label: "Dashboard" },
+  { id: "orders",             label: "Orders" },
+  { id: "production",         label: "Production" },
+  { id: "production_targets", label: "Daily Targets" },
+  { id: "bom",                label: "BOM" },
+  { id: "inventory",          label: "Inventory" },
+  { id: "master_inventory",   label: "Master Inventory" },
+  { id: "purchase_orders",    label: "Purchase Orders" },
+  { id: "warehouse",          label: "Warehouse" },
+  { id: "finance",            label: "Finance" },
+  { id: "logistics",          label: "Logistics" },
+  { id: "issues",             label: "Issues" },
+  { id: "rejections",         label: "Rejections" },
+] as const
 
 interface UsersTableProps {
   users: UserRow[]
   currentUserId: string
 }
 
-function UserRow({
-  user,
-  currentUserId,
-}: {
-  user: UserRow
-  currentUserId: string
-}) {
+function UserRow({ user, currentUserId }: { user: UserRow; currentUserId: string }) {
   const [isPending, startTransition] = useTransition()
+  const [editing, setEditing] = useState(false)
   const isSelf = user.id === currentUserId
+  const isAdmin = user.role === "admin"
 
-  function handleRoleChange(role: string) {
+  const currentDepts = user.department ? user.department.split(",").map((d) => d.trim()).filter(Boolean) : []
+  const [selected, setSelected] = useState<string[]>(currentDepts)
+
+  function toggleTab(id: string) {
+    setSelected((prev) => prev.includes(id) ? prev.filter((d) => d !== id) : [...prev, id])
+  }
+
+  function handleSave() {
     startTransition(async () => {
-      const result = await updateUserRole(user.id, role)
+      const result = await updateUserDepartments(user.id, selected)
       if (result && "error" in result) {
-        toast.error(friendlyError(result.error ?? "Failed to update role"))
+        toast.error(friendlyError(result.error ?? "Failed to update"))
       } else {
-        toast.success(`${user.full_name}'s role updated to ${ROLE_LABELS[role] ?? role}`)
+        toast.success(`${user.full_name}'s access updated`)
+        setEditing(false)
       }
     })
   }
@@ -64,62 +68,82 @@ function UserRow({
   }
 
   return (
-    <Card key={user.id} className={!user.is_active ? "opacity-60" : undefined}>
-      <CardContent className="grid grid-cols-[1.5fr_1fr_1.5fr_80px_80px] items-center gap-4 p-4">
-        {/* Name + email */}
-        <div>
-          <p className="text-sm font-medium">
-            {user.full_name}
-            {isSelf && (
-              <span className="ml-2 text-[11px] font-normal text-muted-foreground">(you)</span>
+    <Card className={!user.is_active ? "opacity-60" : undefined}>
+      <CardContent className="p-4 space-y-3">
+        {/* Top row */}
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-sm font-medium">
+              {user.full_name}
+              {isSelf && <span className="ml-2 text-[11px] font-normal text-muted-foreground">(you)</span>}
+              {isAdmin && <span className="ml-2 text-[11px] font-normal text-purple-400">Admin</span>}
+            </p>
+            <p className="text-xs text-muted-foreground truncate">{user.email ?? "—"}</p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Badge
+              variant="outline"
+              className={user.is_active ? "text-emerald-600 border-emerald-600/30 text-xs" : "text-muted-foreground text-xs"}
+            >
+              {user.is_active ? "Active" : "Inactive"}
+            </Badge>
+            {!isSelf && (
+              <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground" onClick={handleToggleActive} disabled={isPending}>
+                {user.is_active ? "Deactivate" : "Activate"}
+              </Button>
             )}
-          </p>
-          <p className="text-xs text-muted-foreground truncate">{user.email ?? "—"}</p>
+          </div>
         </div>
 
-        {/* Department */}
-        <p className="text-sm text-muted-foreground">{user.department ?? "—"}</p>
-
-        {/* Role selector */}
-        <Select
-          value={user.role}
-          onValueChange={handleRoleChange}
-          disabled={isPending || isSelf}
-        >
-          <SelectTrigger className="h-8 text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {userRoles.map((r) => (
-              <SelectItem key={r} value={r} className="text-xs">
-                {ROLE_LABELS[r]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        {/* Status badge */}
-        <Badge
-          variant="outline"
-          className={
-            user.is_active
-              ? "text-emerald-600 border-emerald-600/30 text-xs"
-              : "text-muted-foreground text-xs"
-          }
-        >
-          {user.is_active ? "Active" : "Inactive"}
-        </Badge>
-
-        {/* Toggle active */}
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-8 text-xs text-muted-foreground hover:text-foreground"
-          onClick={handleToggleActive}
-          disabled={isPending || isSelf}
-        >
-          {user.is_active ? "Deactivate" : "Activate"}
-        </Button>
+        {/* Tabs access */}
+        {isAdmin ? (
+          <p className="text-xs text-purple-400">Full access to all tabs</p>
+        ) : !editing ? (
+          <div className="flex flex-wrap gap-1.5 items-center">
+            {currentDepts.length > 0 ? currentDepts.map((d) => {
+              const tab = TABS.find((t) => t.id === d)
+              return tab ? (
+                <Badge key={d} variant="secondary" className="text-xs">{tab.label}</Badge>
+              ) : null
+            }) : (
+              <span className="text-xs text-muted-foreground">No access set</span>
+            )}
+            {!isSelf && (
+              <button onClick={() => { setSelected(currentDepts); setEditing(true) }} className="text-xs text-primary hover:underline ml-1">
+                Edit
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <div className="flex flex-wrap gap-1.5">
+              {TABS.map((tab) => {
+                const checked = selected.includes(tab.id)
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => toggleTab(tab.id)}
+                    className={cn(
+                      "rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors",
+                      checked ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-primary/50"
+                    )}
+                  >
+                    {tab.label}
+                  </button>
+                )
+              })}
+            </div>
+            <div className="flex gap-2">
+              <Button size="sm" className="h-7 text-xs" onClick={handleSave} disabled={isPending}>
+                {isPending ? "Saving…" : "Save"}
+              </Button>
+              <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setEditing(false)} disabled={isPending}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   )
@@ -132,24 +156,11 @@ export function UsersTable({ users, currentUserId }: UsersTableProps) {
 
   return (
     <div className="space-y-2">
-      {/* Column headers */}
-      <div className="hidden grid-cols-[1.5fr_1fr_1.5fr_80px_80px] gap-4 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide sm:grid">
-        <span>Name</span>
-        <span>Department</span>
-        <span>Role</span>
-        <span>Status</span>
-        <span />
-      </div>
-
       {visible.map((user) => (
         <UserRow key={user.id} user={user} currentUserId={currentUserId} />
       ))}
-
       {inactiveCount > 0 && (
-        <button
-          onClick={() => setShowInactive((v) => !v)}
-          className="w-full pt-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-        >
+        <button onClick={() => setShowInactive((v) => !v)} className="w-full pt-1 text-xs text-muted-foreground hover:text-foreground transition-colors">
           {showInactive ? "Hide" : `Show ${inactiveCount} inactive`} user{inactiveCount !== 1 ? "s" : ""}
         </button>
       )}
