@@ -18,7 +18,7 @@ export default async function NewOrderPage() {
       />
       <OrderForm
         customers={customers.map((c) => ({ id: c.id, name: c.name, company: c.company }))}
-        products={products.map((p) => ({ id: p.id, name: p.product_name, sku: p.product_sku }))}
+        products={products.map((p) => ({ id: p.id, name: p.product_name, sku: p.product_sku, materialCost: p.materialCost }))}
       />
     </>
   )

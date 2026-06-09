@@ -2,7 +2,7 @@ import { z } from "zod"
 
 export const orderItemSchema = z.object({
   product_variant: z.string().min(1, "Product name is required").max(200),
-  size: z.string().min(1, "Size is required"),
+  size: z.string().optional().or(z.literal("")),
   color: z.string().optional().or(z.literal("")),
   quantity: z.number().int().min(1, "Quantity must be at least 1"),
   unit_price: z.number().min(0, "Price cannot be negative"),
