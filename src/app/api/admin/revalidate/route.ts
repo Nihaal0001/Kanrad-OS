@@ -6,8 +6,8 @@ export async function POST(req: NextRequest) {
   if (secret !== process.env.CRON_SECRET) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
-  revalidateTag("materials")
-  revalidateTag("categories")
+  revalidateTag("materials", {})
+  revalidateTag("categories", {})
   revalidatePath("/inventory")
   revalidatePath("/master-inventory")
   return NextResponse.json({ success: true })
