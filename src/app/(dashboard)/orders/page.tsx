@@ -5,6 +5,7 @@ import { ShoppingBag } from "lucide-react"
 
 import { getOrders } from "@/actions/orders"
 import { getCustomers } from "@/actions/customers"
+import { getProducts } from "@/actions/bom"
 import { PageHeader } from "@/components/shared/page-header"
 import { EmptyState } from "@/components/shared/empty-state"
 import { Button } from "@/components/ui/button"
@@ -12,9 +13,10 @@ import { OrdersTable } from "@/components/orders/orders-table"
 import { CreateOrderSheet } from "@/components/orders/create-order-sheet"
 
 export default async function OrdersPage() {
-  const [orders, customers] = await Promise.all([
+  const [orders, customers, products] = await Promise.all([
     getOrders(),
     getCustomers(),
+    getProducts(),
   ])
 
   return (
@@ -27,11 +29,8 @@ export default async function OrdersPage() {
           <Link href="/customers">Manage Customers</Link>
         </Button>
         <CreateOrderSheet
-          customers={customers.map((c) => ({
-            id: c.id,
-            name: c.name,
-            company: c.company,
-          }))}
+          customers={customers.map((c) => ({ id: c.id, name: c.name, company: c.company }))}
+          products={products.map((p) => ({ id: p.id, name: p.product_name, sku: p.product_sku, materialCost: p.materialCost }))}
         />
       </PageHeader>
 

@@ -1,15 +1,14 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { useForm, useFieldArray, Controller } from "react-hook-form"
+import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { Plus, X } from "lucide-react"
+import { Plus } from "lucide-react"
 import { toast } from "sonner"
 
 import { orderSchema, type OrderFormData } from "@/lib/validators/order"
 import { createOrder } from "@/actions/orders"
-import { formatCurrency } from "@/lib/utils"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -31,12 +30,25 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { CustomerSelect } from "@/components/orders/customer-select"
+import { useState } from "react"
+
+interface BomProduct {
+  id: string
+  name: string
+  sku: string
+  materialCost: number
+}
 
 interface Props {
   customers: Array<{ id: string; name: string; company: string | null }>
+  products?: BomProduct[]
 }
 
-export function CreateOrderSheet({ customers }: Props) {
+function fmt(n: number) {
+  return n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+export function CreateOrderSheet({ customers, products = [] }: Props) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
@@ -50,15 +62,22 @@ export function CreateOrderSheet({ customers }: Props) {
       priority: "normal",
       gst_rate: 18,
       notes: "",
-      items: [{ product_variant: "", size: "", color: "", quantity: 1, unit_price: 0, hsn_code: "" }],
+      items: [{ product_variant: "", size: "", color: "", quantity: 1, unit_price: 0, hsn_code: "", thickness_mm: null }],
     },
   })
 
-  const { fields, append, remove } = useFieldArray({ control: form.control, name: "items" })
-  const watchItems = form.watch("items")
+  const watchProduct = form.watch("items.0.product_variant")
+  const watchQty = form.watch("items.0.quantity") || 0
+  const watchPrice = form.watch("items.0.unit_price") || 0
+  const orderValue = watchQty * watchPrice
 
-  const totalQuantity = watchItems?.reduce((s, i) => s + (Number(i.quantity) || 0), 0) ?? 0
-  const totalValue = watchItems?.reduce((s, i) => s + (Number(i.quantity) || 0) * (Number(i.unit_price) || 0), 0) ?? 0
+  function handleProductChange(name: string) {
+    form.setValue("items.0.product_variant", name, { shouldValidate: true })
+    const p = products.find((p) => p.name === name)
+    if (p && p.materialCost > 0) {
+      form.setValue("items.0.unit_price", Math.round(p.materialCost * 100) / 100)
+    }
+  }
 
   function handleOpen() {
     form.reset({
@@ -68,18 +87,15 @@ export function CreateOrderSheet({ customers }: Props) {
       priority: "normal",
       gst_rate: 18,
       notes: "",
-      items: [{ product_variant: "", size: "", color: "", quantity: 1, unit_price: 0, hsn_code: "" }],
+      items: [{ product_variant: "", size: "", color: "", quantity: 1, unit_price: 0, hsn_code: "", thickness_mm: null }],
     })
     setOpen(true)
   }
 
-  function onSubmit(data: OrderFormData) {
+  function onSubmit(data: OrderFormData, asDraft?: boolean) {
     startTransition(async () => {
-      const result = await createOrder(data)
-      if (result && "error" in result && result.error) {
-        toast.error(result.error)
-        return
-      }
+      const result = await createOrder({ ...data, status: asDraft ? "draft" : "confirmed" })
+      if (result && "error" in result && result.error) { toast.error(result.error); return }
       if (result && "data" in result && result.data) {
         toast.success("Order created")
         setOpen(false)
@@ -96,13 +112,13 @@ export function CreateOrderSheet({ customers }: Props) {
       </Button>
 
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent side="right" className="w-full sm:max-w-2xl flex flex-col p-0">
+        <SheetContent side="right" className="w-full sm:max-w-md flex flex-col p-0">
           <SheetHeader className="px-6 pt-6 pb-4 border-b">
             <SheetTitle>New Order</SheetTitle>
             <SheetDescription>Create a new customer production order</SheetDescription>
           </SheetHeader>
 
-          <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col flex-1 overflow-hidden">
+          <form onSubmit={form.handleSubmit((d) => onSubmit(d))} className="flex flex-col flex-1 overflow-hidden">
             <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
 
               {/* Customer */}
@@ -120,194 +136,75 @@ export function CreateOrderSheet({ customers }: Props) {
                 )}
               </div>
 
-              {/* Description */}
+              {/* Product / BOM */}
               <div className="space-y-1.5">
-                <Label>Description</Label>
-                <textarea
-                  className="flex min-h-[60px] w-full rounded-lg border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none"
-                  placeholder="Order description…"
-                  {...form.register("description")}
-                />
+                <Label>Product *</Label>
+                <Select value={watchProduct || ""} onValueChange={handleProductChange}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select product from BOM…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {products.map((p) => (
+                      <SelectItem key={p.id} value={p.name}>
+                        <span>{p.name}</span>
+                        <span className="ml-2 text-xs text-muted-foreground font-mono">{p.sku}</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {form.formState.errors.items?.[0]?.product_variant && (
+                  <p className="text-xs text-destructive">{form.formState.errors.items[0]?.product_variant?.message}</p>
+                )}
               </div>
 
-              {/* Deadline + Priority */}
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-1.5">
-                  <Label>Deadline *</Label>
-                  <Controller
-                    control={form.control}
-                    name="deadline"
-                    render={({ field }) => (
-                      <DatePicker value={field.value ?? ""} onChange={field.onChange} />
-                    )}
-                  />
-                  {form.formState.errors.deadline && (
-                    <p className="text-xs text-destructive">{form.formState.errors.deadline.message}</p>
-                  )}
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Priority</Label>
-                  <Controller
-                    control={form.control}
-                    name="priority"
-                    render={({ field }) => (
-                      <Select value={field.value} onValueChange={field.onChange}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="low">Low</SelectItem>
-                          <SelectItem value="normal">Normal</SelectItem>
-                          <SelectItem value="high">High</SelectItem>
-                          <SelectItem value="urgent">Urgent</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    )}
-                  />
-                </div>
-              </div>
-
-              {/* GST */}
+              {/* Deadline */}
               <div className="space-y-1.5">
-                <Label>GST Rate (%)</Label>
+                <Label>Deadline *</Label>
                 <Controller
                   control={form.control}
-                  name="gst_rate"
+                  name="deadline"
                   render={({ field }) => (
-                    <Select value={String(field.value ?? 18)} onValueChange={(v) => field.onChange(Number(v))}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="0">0% — Exempt</SelectItem>
-                        <SelectItem value="5">5%</SelectItem>
-                        <SelectItem value="12">12%</SelectItem>
-                        <SelectItem value="18">18%</SelectItem>
-                        <SelectItem value="28">28%</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <DatePicker value={field.value ?? ""} onChange={field.onChange} />
                   )}
                 />
+                {form.formState.errors.deadline && (
+                  <p className="text-xs text-destructive">{form.formState.errors.deadline.message}</p>
+                )}
+              </div>
+
+              {/* Quantity */}
+              <div className="space-y-1.5">
+                <Label>Quantity (pcs) *</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  placeholder="Enter quantity"
+                  {...form.register("items.0.quantity", { valueAsNumber: true })}
+                />
+                {form.formState.errors.items?.[0]?.quantity && (
+                  <p className="text-xs text-destructive">{form.formState.errors.items[0]?.quantity?.message}</p>
+                )}
               </div>
 
               <Separator />
 
-              {/* Line items */}
-              <div className="space-y-3">
-                <p className="text-sm font-semibold">Order Items</p>
-
-                {fields.map((field, index) => (
-                  <div key={field.id} className="rounded-lg border p-3 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <p className="text-xs font-medium text-muted-foreground">Item {index + 1}</p>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                        onClick={() => remove(index)}
-                        disabled={fields.length <= 1}
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <div className="space-y-1.5">
-                        <Label className="text-xs">Product / Variant *</Label>
-                        <Input
-                          placeholder="e.g., Frypan 28cm"
-                          {...form.register(`items.${index}.product_variant`)}
-                        />
-                        {form.formState.errors.items?.[index]?.product_variant && (
-                          <p className="text-xs text-destructive">{form.formState.errors.items[index]?.product_variant?.message}</p>
-                        )}
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-xs">Size *</Label>
-                        <Input
-                          placeholder="e.g., 28cm"
-                          {...form.register(`items.${index}.size`)}
-                        />
-                        {form.formState.errors.items?.[index]?.size && (
-                          <p className="text-xs text-destructive">{form.formState.errors.items[index]?.size?.message}</p>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="grid gap-3 grid-cols-3">
-                      <div className="space-y-1.5">
-                        <Label className="text-xs">Color / Coating</Label>
-                        <Input placeholder="e.g., Black" {...form.register(`items.${index}.color`)} />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-xs">Qty *</Label>
-                        <Input
-                          type="number"
-                          min={1}
-                          placeholder="100"
-                          {...form.register(`items.${index}.quantity`, { valueAsNumber: true })}
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-xs">Unit Price (₹)</Label>
-                        <Input
-                          type="number"
-                          min={0}
-                          step="0.01"
-                          placeholder="0.00"
-                          {...form.register(`items.${index}.unit_price`, { valueAsNumber: true })}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">HSN Code</Label>
-                      <Input placeholder="e.g., 7615" {...form.register(`items.${index}.hsn_code`)} />
-                    </div>
-                  </div>
-                ))}
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="w-full"
-                  onClick={() => append({ product_variant: "", size: "", color: "", quantity: 1, unit_price: 0, hsn_code: "" })}
-                >
-                  <Plus className="h-4 w-4 mr-1" />
-                  Add Item
-                </Button>
-
-                {(totalQuantity > 0 || totalValue > 0) && (
-                  <div className="flex justify-between items-center pt-1 text-sm">
-                    <span className="text-muted-foreground">{totalQuantity} pcs</span>
-                    <span className="font-semibold">{formatCurrency(totalValue)}</span>
-                  </div>
-                )}
+              {/* Order Value */}
+              <div className="rounded-lg bg-muted/40 px-4 py-3 flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Order Value</span>
+                <span className="text-xl font-bold tabular-nums">
+                  {orderValue > 0 ? `₹${fmt(orderValue)}` : "—"}
+                </span>
               </div>
 
-              {/* Notes */}
-              <div className="space-y-1.5">
-                <Label>Notes</Label>
-                <textarea
-                  className="flex min-h-[60px] w-full rounded-lg border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none"
-                  placeholder="Additional notes…"
-                  {...form.register("notes")}
-                />
-              </div>
             </div>
 
             <div className="border-t px-6 py-4 flex justify-end gap-3">
               <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isPending}>
                 Cancel
               </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => {
-                  form.setValue("status", "draft")
-                  form.handleSubmit(onSubmit)()
-                }}
-                disabled={isPending}
-              >
-                Save as Draft
+              <Button type="button" variant="secondary" disabled={isPending}
+                onClick={() => form.handleSubmit((d) => onSubmit(d, true))()}>
+                {isPending ? "Saving…" : "Save as Draft"}
               </Button>
               <Button type="submit" disabled={isPending}>
                 {isPending ? "Creating…" : "Confirm Order"}
