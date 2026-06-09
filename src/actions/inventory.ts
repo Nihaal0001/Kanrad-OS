@@ -138,12 +138,14 @@ export async function updateMaterial(id: string, formData: MaterialFormData) {
   return { data }
 }
 
-export async function zeroAllMaterialStock() {
-  const supabase = await createClient()
-  const admin = createAdminClient()
+export async function zeroAllMaterialStock(secret?: string) {
+  if (secret !== process.env.CRON_SECRET) {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: "Not authenticated" }
+  }
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: "Not authenticated" }
+  const admin = createAdminClient()
 
   const { data: materials, error: fetchError } = await admin
     .from("materials")
