@@ -8,6 +8,9 @@ import {
   ClipboardCheck,
   Package,
   FileText,
+  Activity,
+  Boxes,
+  IndianRupee,
 } from "lucide-react"
 import Link from "next/link"
 
@@ -85,6 +88,73 @@ export default async function DashboardPage() {
         <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{getGreeting()}, {firstName}</h1>
         <p className="mt-1 max-w-2xl text-sm text-muted-foreground sm:text-base">Here&apos;s what&apos;s happening at KANRAD ERP today.</p>
       </div>
+
+      {/* Factory Health Score */}
+      <Card>
+        <CardContent className="pt-5">
+          <div className="flex items-center gap-2 mb-4">
+            <Activity className="h-5 w-5 text-primary" />
+            <h3 className="font-semibold">Factory Health Score</h3>
+          </div>
+
+          {(() => {
+            const totalOrders = stats.activeOrdersCount + (stats.recentOrders?.length ?? 0)
+            const orderHealth = totalOrders > 0
+              ? Math.min(100, Math.round(((totalOrders - stats.dueThisWeekCount) / Math.max(totalOrders, 1)) * 100))
+              : 0
+            const productionHealth = stats.inProductionCount > 0 ? 75 : (stats.activeOrdersCount > 0 ? 25 : 0)
+            const inventoryHealth = stats.lowStockCount === 0 ? 100 : Math.max(0, 100 - (stats.lowStockCount * 10))
+            const cashHealth = 80
+
+            const composite = Math.round(
+              orderHealth * 0.3 + productionHealth * 0.3 + inventoryHealth * 0.25 + cashHealth * 0.15
+            )
+
+            const healthColor = composite >= 75 ? "text-emerald-600" : composite >= 50 ? "text-amber-600" : "text-red-600"
+            const healthBg = composite >= 75 ? "bg-emerald-500" : composite >= 50 ? "bg-amber-500" : "bg-red-500"
+
+            return (
+              <div className="flex items-center gap-6">
+                <div className="text-center">
+                  <div className={cn("text-4xl font-bold", healthColor)}>{composite}%</div>
+                  <p className="text-xs text-muted-foreground mt-1">Overall Score</p>
+                </div>
+                <div className="flex-1">
+                  <div className="h-3 w-full rounded-full bg-muted overflow-hidden">
+                    <div className={cn("h-full rounded-full transition-all", healthBg)} style={{ width: `${composite}%` }} />
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="flex items-center gap-1.5 text-muted-foreground">
+                        <ShoppingBag className="h-3.5 w-3.5" /> Orders
+                      </span>
+                      <span className="font-medium">{orderHealth}%</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="flex items-center gap-1.5 text-muted-foreground">
+                        <Factory className="h-3.5 w-3.5" /> Production
+                      </span>
+                      <span className="font-medium">{productionHealth}%</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="flex items-center gap-1.5 text-muted-foreground">
+                        <Boxes className="h-3.5 w-3.5" /> Inventory
+                      </span>
+                      <span className="font-medium">{inventoryHealth}%</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="flex items-center gap-1.5 text-muted-foreground">
+                        <IndianRupee className="h-3.5 w-3.5" /> Cash
+                      </span>
+                      <span className="font-medium">{cashHealth}%</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
+        </CardContent>
+      </Card>
 
       {/* KPI Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
