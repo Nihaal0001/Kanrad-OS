@@ -80,6 +80,7 @@ export async function createOrder(formData: OrderFormData) {
     .from("orders")
     .insert({
       ...cleaned,
+      style_name: styleSummary,
       product_variant: styleSummary,
       order_number: "", // trigger will set this
     })
@@ -137,6 +138,7 @@ export async function updateOrder(id: string, formData: OrderFormData) {
     .from("orders")
     .update({
       ...cleaned,
+      style_name: styleSummary,
       product_variant: styleSummary,
     })
     .eq("id", id)
@@ -238,10 +240,12 @@ export async function duplicateOrder(id: string) {
   if (fetchError || !original) return { error: "Order not found" }
 
   // Create new order (draft), clearing dispatch fields
+  const dupStyleSummary = getOrderStyleSummary(original.order_items, original.product_variant)
   const { data: newOrder, error: createError } = await supabase
     .from("orders")
     .insert({
-      product_variant: getOrderStyleSummary(original.order_items, original.product_variant),
+      style_name: dupStyleSummary,
+      product_variant: dupStyleSummary,
       description: original.description,
       total_quantity: original.total_quantity,
       deadline: original.deadline,
