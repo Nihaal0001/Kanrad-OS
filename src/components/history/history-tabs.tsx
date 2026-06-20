@@ -28,6 +28,7 @@ interface HistoryOrder {
 interface HistoryBatch {
   id: string
   status: string
+  quantity_completed: number | null
   created_at: string
   order: { order_number: string; product_variant: string | null } | null
 }
@@ -140,13 +141,14 @@ function ProductionTab({ batches }: { batches: HistoryBatch[] }) {
             <TableHead>Batch #</TableHead>
             <TableHead>Order #</TableHead>
             <TableHead>Product</TableHead>
+            <TableHead className="text-right">Qty</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Date</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {batches.length === 0 ? (
-            <EmptyRow cols={5} />
+            <EmptyRow cols={6} />
           ) : (
             batches.map((b) => (
               <TableRow key={b.id}>
@@ -155,6 +157,9 @@ function ProductionTab({ batches }: { batches: HistoryBatch[] }) {
                   {b.order?.order_number ?? "--"}
                 </TableCell>
                 <TableCell>{b.order?.product_variant ?? "--"}</TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {b.quantity_completed !== null ? b.quantity_completed.toLocaleString("en-IN") : "--"}
+                </TableCell>
                 <TableCell><StatusBadge status={b.status} /></TableCell>
                 <TableCell className="text-sm">{formatDate(b.created_at)}</TableCell>
               </TableRow>

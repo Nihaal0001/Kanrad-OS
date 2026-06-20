@@ -28,7 +28,7 @@ export const getHistoryProduction = unstable_cache(
     const supabase = createAdminClient()
     const { data, error } = await supabase
       .from("production_tracking")
-      .select("id, status, created_at, order:orders(order_number, product_variant)")
+      .select("id, status, quantity_completed, created_at, order:orders(order_number, product_variant)")
       .eq("status", "completed")
       .order("created_at", { ascending: false })
 
