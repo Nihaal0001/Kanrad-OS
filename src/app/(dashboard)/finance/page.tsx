@@ -6,7 +6,9 @@ import {
   Wallet,
   Package,
   ShieldCheck,
+  ArrowRight,
 } from "lucide-react"
+import Link from "next/link"
 
 import { getFinanceDashboard, getCashFlowData } from "@/actions/finance-reports"
 import { PageHeader } from "@/components/shared/page-header"
@@ -110,8 +112,14 @@ export default async function FinanceDashboardPage() {
 
       {/* Cash Flow Chart */}
       <Card className="mb-6">
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-base">Cash Flow — Last 6 Months</CardTitle>
+          <Link
+            href="/finance/cash-flow"
+            className="flex items-center gap-1 text-xs font-medium text-primary underline-offset-4 hover:underline"
+          >
+            View full <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
         </CardHeader>
         <CardContent>
           <CashFlowChart data={cashFlow} />

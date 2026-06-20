@@ -1,14 +1,16 @@
 "use client"
 
 import {
-  AreaChart,
+  ComposedChart,
   Area,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
   Legend,
+  ReferenceLine,
 } from "recharts"
 import { useTheme } from "next-themes"
 
@@ -40,9 +42,12 @@ export function CashFlowChart({ data }: CashFlowChartProps) {
     )
   }
 
+  // Net cash flow per month (inflow − outflow) — the actual cash movement.
+  const chartData = data.map((d) => ({ ...d, net: d.inflow - d.outflow }))
+
   return (
     <ResponsiveContainer width="100%" height={250}>
-      <AreaChart data={data} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+      <ComposedChart data={chartData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
         <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
         <XAxis dataKey="month" tick={{ fontSize: 12, fill: textColor }} stroke={mutedColor} />
         <YAxis tickFormatter={formatCurrency} tick={{ fontSize: 12, fill: textColor }} stroke={mutedColor} />
@@ -61,6 +66,7 @@ export function CashFlowChart({ data }: CashFlowChartProps) {
           itemStyle={{ color: textColor }}
         />
         <Legend wrapperStyle={{ color: textColor }} />
+        <ReferenceLine y={0} stroke={mutedColor} strokeDasharray="2 2" />
         <Area
           type="monotone"
           dataKey="inflow"
@@ -79,7 +85,15 @@ export function CashFlowChart({ data }: CashFlowChartProps) {
           fillOpacity={0.1}
           strokeWidth={2}
         />
-      </AreaChart>
+        <Line
+          type="monotone"
+          dataKey="net"
+          name="Net Cash Flow"
+          stroke="#2563eb"
+          strokeWidth={2.5}
+          dot={{ r: 3, fill: "#2563eb" }}
+        />
+      </ComposedChart>
     </ResponsiveContainer>
   )
 }
