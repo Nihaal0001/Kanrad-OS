@@ -10,13 +10,14 @@ export async function buildERPContext(): Promise<string> {
   const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1)
   const lastMonthStart = `${lastMonthDate.getFullYear()}-${String(lastMonthDate.getMonth() + 1).padStart(2, "0")}-01`
 
+  const twoWeeksAgo = new Date(Date.now() - 14 * 86400000).toISOString().split("T")[0]
+
   const [
     ordersRes,
     dueRes,
     materialsRes,
-    productionRes,
+    recentOutputRes,
     pendingLeavesRes,
-    recentQCRes,
     workersRes,
     expensesThisMonthRes,
     expensesLastMonthRes,
@@ -32,7 +33,7 @@ export async function buildERPContext(): Promise<string> {
     // Orders due this week
     supabase
       .from("orders")
-      .select("order_number, product_variant, deadline, status, customer:customers(name)")
+      .select("id, order_number, product_variant, deadline, status, total_quantity, customer:customers(name)")
       .in("status", ["confirmed", "in_production"])
       .lte("deadline", weekFromNow)
       .gte("deadline", today)
@@ -46,15 +47,12 @@ export async function buildERPContext(): Promise<string> {
       .order("name")
       .limit(500),
 
-    // Production tracking — in progress or blocked
+    // Recent production output (last 14 days, piece logs)
     supabase
-      .from("production_tracking")
-      .select(`
-        status, quantity_completed, quantity_rejected,
-        order:orders(order_number, product_variant),
-        stage:production_stages(name)
-      `)
-      .in("status", ["in_progress", "blocked"])
+      .from("production_daily_logs")
+      .select("quantity_produced, quantity_rejected, log_date, order:orders(order_number, product_variant)")
+      .gte("log_date", twoWeeksAgo)
+      .order("log_date", { ascending: false })
       .limit(20),
 
     // Pending leaves
@@ -62,15 +60,6 @@ export async function buildERPContext(): Promise<string> {
       .from("leaves")
       .select("id")
       .eq("status", "pending"),
-
-    // Recent QC failures (last 7 days)
-    supabase
-      .from("quality_checks")
-      .select("quantity_failed, defect_type, order:orders(order_number)")
-      .gt("quantity_failed", 0)
-      .gte("created_at", new Date(Date.now() - 7 * 86400000).toISOString())
-      .order("created_at", { ascending: false })
-      .limit(10),
 
     // Total workers
     supabase
@@ -99,12 +88,23 @@ export async function buildERPContext(): Promise<string> {
 
   const activeOrders = ordersRes.data ?? []
   const dueThisWeek = dueRes.data ?? []
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const production = (productionRes.data ?? []) as any[]
   const pendingLeaves = pendingLeavesRes.data ?? []
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const recentQC = (recentQCRes.data ?? []) as any[]
+  const recentOutput = (recentOutputRes.data ?? []) as any[]
   const workers = workersRes.data ?? []
+
+  // Total pieces produced per active order (all-time), to gauge progress vs deadline
+  const activeIds = activeOrders.map((o) => o.id)
+  const producedByOrder: Record<string, number> = {}
+  if (activeIds.length > 0) {
+    const { data: producedLogs } = await supabase
+      .from("production_daily_logs")
+      .select("order_id, quantity_produced")
+      .in("order_id", activeIds)
+    for (const l of producedLogs ?? []) {
+      producedByOrder[l.order_id] = (producedByOrder[l.order_id] ?? 0) + (l.quantity_produced ?? 0)
+    }
+  }
 
   // Build expense anomaly data
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -140,7 +140,9 @@ export async function buildERPContext(): Promise<string> {
     for (const o of dueThisWeek) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const customer = Array.isArray(o.customer) ? (o.customer[0] as any)?.name : (o.customer as any)?.name
-      lines.push(`  - ${o.order_number}: ${o.product_variant}${customer ? ` for ${customer}` : ""}, deadline ${o.deadline}, status: ${o.status}`)
+      const produced = producedByOrder[o.id] ?? 0
+      const pct = o.total_quantity > 0 ? Math.round((produced / o.total_quantity) * 100) : 0
+      lines.push(`  - ${o.order_number}: ${o.product_variant}${customer ? ` for ${customer}` : ""}, deadline ${o.deadline}, produced ${produced}/${o.total_quantity} pcs (${pct}%), status: ${o.status}`)
     }
     lines.push("")
   }
@@ -153,21 +155,13 @@ export async function buildERPContext(): Promise<string> {
     lines.push("")
   }
 
-  if (production.length > 0) {
-    lines.push("Production in progress/blocked:")
-    for (const p of production) {
+  if (recentOutput.length > 0) {
+    lines.push("Recent production output (last 14 days):")
+    for (const p of recentOutput) {
       const orderNum = Array.isArray(p.order) ? p.order[0]?.order_number : p.order?.order_number
-      const stageName = Array.isArray(p.stage) ? p.stage[0]?.name : p.stage?.name
-      lines.push(`  - ${orderNum ?? "?"} at ${stageName ?? "?"}: ${p.status}, completed: ${p.quantity_completed ?? 0}, rejected: ${p.quantity_rejected ?? 0}`)
-    }
-    lines.push("")
-  }
-
-  if (recentQC.length > 0) {
-    lines.push("Recent QC failures (last 7 days):")
-    for (const q of recentQC) {
-      const orderNum = Array.isArray(q.order) ? q.order[0]?.order_number : q.order?.order_number
-      lines.push(`  - ${orderNum ?? "?"}: ${q.quantity_failed} failed, defect: ${q.defect_type ?? "unspecified"}`)
+      const variant = Array.isArray(p.order) ? p.order[0]?.product_variant : p.order?.product_variant
+      const rejected = (p.quantity_rejected ?? 0) > 0 ? `, ${p.quantity_rejected} rejected` : ""
+      lines.push(`  - ${p.log_date}: ${orderNum ?? "?"} (${variant ?? "?"}) — ${p.quantity_produced ?? 0} pcs produced${rejected}`)
     }
     lines.push("")
   }

@@ -12,9 +12,9 @@ import { cn } from "@/lib/utils"
 const VALID_HREFS = new Set([
   "/orders", "/orders/new",
   "/inventory", "/inventory/purchase-orders", "/inventory/purchase-orders/new",
-  "/production",
+  "/production", "/warehouse",
   "/tasks",
-  "/finance/invoices", "/finance/invoices/new", "/finance/payments", "/finance/costing",
+  "/finance/invoices", "/finance/invoices/new", "/finance/payments", "/finance/costing", "/finance/cash-flow",
   "/hr/attendance", "/hr/leaves", "/hr/payroll", "/hr/shifts",
   "/notifications", "/users", "/settings",
 ])
@@ -49,21 +49,20 @@ export function AIInsightsPanel() {
   const [error, setError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
 
+  // Load insights once on mount. State is set inside the async callback (not
+  // synchronously in the effect body); `loading` already starts true.
   useEffect(() => {
-    loadInsights()
-  }, [])
-
-  async function loadInsights() {
-    setLoading(true)
-    setError(null)
-    const result = await generateInsights()
-    if ("insights" in result) {
-      setInsights(result.insights)
-    } else {
-      setError(result.error)
+    let cancelled = false
+    generateInsights().then((result) => {
+      if (cancelled) return
+      if ("insights" in result) setInsights(result.insights)
+      else setError(result.error)
+      setLoading(false)
+    })
+    return () => {
+      cancelled = true
     }
-    setLoading(false)
-  }
+  }, [])
 
   async function handleRefresh() {
     setRefreshing(true)

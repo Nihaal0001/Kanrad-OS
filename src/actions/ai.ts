@@ -97,12 +97,18 @@ Return your response as a JSON array with this exact structure (no markdown, no 
 ]
 
 Rules:
-- "warning": deadline risks, quality issues, stock shortages
+- "warning": deadline risks, production behind schedule, stock shortages
 - "suggestion": optimization opportunities, cost savings
 - "alert": urgent items needing immediate attention
-- action.href must be a valid app route like /orders, /inventory, /production, /hr/attendance, /hr/payroll, /finance/invoices
+- action.href must be a valid app route like /orders, /inventory, /production, /warehouse, /hr/attendance, /hr/payroll, /finance/invoices, /finance/cash-flow
 - If there's nothing noteworthy, return a suggestion about maintaining current performance
-- Keep titles under 60 chars, descriptions under 120 chars`
+- Keep titles under 60 chars, descriptions under 120 chars
+
+BE SPECIFIC — this is the most important rule:
+- Every insight MUST cite concrete figures from the data: order numbers (e.g. KH-ORD-...), item names, exact quantities, percentages, ₹ amounts, dates.
+- Never give generic advice like "monitor inventory" or "improve efficiency". If you can't tie it to a specific number or record in the data, don't include it.
+- Prefer the single most urgent issue per area over many vague ones. Quality over quantity — return fewer, sharper insights.
+- Example of GOOD: "KH-ORD-260620-001 is 20% produced with 3 days to deadline". Example of BAD: "Some orders may be at risk".`
 
 // Simple in-memory cache
 let insightsCache: { data: Insight[]; timestamp: number } | null = null
@@ -165,8 +171,8 @@ Return your response as a JSON array (no markdown, no code fences, just raw JSON
 
 Valid routes:
 - /orders/new, /orders, /inventory, /inventory/purchase-orders/new
-- /production, /quality, /tasks, /hr/attendance, /hr/payroll, /hr/leaves
-- /finance/invoices/new, /finance/invoices, /finance/costing
+- /production, /warehouse, /tasks, /hr/attendance, /hr/payroll, /hr/leaves
+- /finance/invoices/new, /finance/invoices, /finance/costing, /finance/cash-flow
 
 Prioritize urgent items: low stock → create PO, deadline risk → check production, pending leaves → review, etc.`
 
