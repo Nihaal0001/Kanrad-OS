@@ -28,7 +28,7 @@ interface HistoryOrder {
 interface HistoryBatch {
   id: string
   status: string
-  quantity_completed: number | null
+  quantity_completed: number | null | undefined
   created_at: string
   order: { order_number: string; product_variant: string | null } | null
 }
@@ -158,7 +158,7 @@ function ProductionTab({ batches }: { batches: HistoryBatch[] }) {
                 </TableCell>
                 <TableCell>{b.order?.product_variant ?? "--"}</TableCell>
                 <TableCell className="text-right tabular-nums">
-                  {b.quantity_completed !== null ? b.quantity_completed.toLocaleString("en-IN") : "--"}
+                  {b.quantity_completed != null ? b.quantity_completed.toLocaleString("en-IN") : "--"}
                 </TableCell>
                 <TableCell><StatusBadge status={b.status} /></TableCell>
                 <TableCell className="text-sm">{formatDate(b.created_at)}</TableCell>
