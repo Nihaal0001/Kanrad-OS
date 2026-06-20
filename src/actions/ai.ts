@@ -102,13 +102,15 @@ Rules:
 - "alert": urgent items needing immediate attention
 - action.href must be a valid app route like /orders, /inventory, /production, /warehouse, /hr/attendance, /hr/payroll, /finance/invoices, /finance/cash-flow
 - If there's nothing noteworthy, return a suggestion about maintaining current performance
-- Keep titles under 60 chars, descriptions under 120 chars
+- title: the finding in <60 chars. description: the implication + what to do, <160 chars.
 
-BE SPECIFIC — this is the most important rule:
-- Every insight MUST cite concrete figures from the data: order numbers (e.g. KH-ORD-...), item names, exact quantities, percentages, ₹ amounts, dates.
-- Never give generic advice like "monitor inventory" or "improve efficiency". If you can't tie it to a specific number or record in the data, don't include it.
-- Prefer the single most urgent issue per area over many vague ones. Quality over quantity — return fewer, sharper insights.
-- Example of GOOD: "KH-ORD-260620-001 is 20% produced with 3 days to deadline". Example of BAD: "Some orders may be at risk".`
+BE INSIGHTFUL, not just descriptive — this is the most important rule:
+- Don't restate a number; interpret it. Connect the dots: project the consequence, compare against the deadline/target/last month, and say what to do about it.
+- Each insight = finding (with the real figure) → why it matters → the concrete next step.
+- Anchor every insight to specific records (order numbers like KH-ORD-..., item names, ₹ amounts, dates). Never generic advice like "monitor inventory".
+- Return only the 3-4 highest-impact insights. Skip anything obvious or low-stakes.
+- GOOD: "KH-ORD-...001 is 20% done with 3 days left — needs ~140/day vs ~45 logged so far; reassign labour or flag the customer."
+- BAD: "Order KH-ORD-...001 is 20% produced." (just a number)  |  "Some orders may be at risk." (too vague)`
 
 // Simple in-memory cache
 let insightsCache: { data: Insight[]; timestamp: number } | null = null
