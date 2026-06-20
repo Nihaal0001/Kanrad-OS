@@ -9,6 +9,7 @@ import { Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { createCustomer, updateCustomer } from "@/actions/customers"
 import { customerSchema, type CustomerFormData } from "@/lib/validators/contacts"
+import { numberOrUndefined } from "@/lib/utils"
 import type { Customer } from "@/lib/supabase/types"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -154,8 +155,8 @@ export function CustomerForm({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="payment_terms">Payment Terms</Label>
-              <Input id="payment_terms" placeholder="e.g. Net 30" {...register("payment_terms")} />
+              <Label htmlFor="payment_terms">Payment Terms (days)</Label>
+              <Input id="payment_terms" type="number" min={0} placeholder="30" {...register("payment_terms", { setValueAs: numberOrUndefined })} />
               {errors.payment_terms && <p className="text-xs text-destructive">{errors.payment_terms.message}</p>}
             </div>
           </div>
@@ -163,7 +164,7 @@ export function CustomerForm({
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="credit_limit">Credit Limit</Label>
-              <Input id="credit_limit" type="number" step="0.01" placeholder="0.00" {...register("credit_limit", { valueAsNumber: true })} />
+              <Input id="credit_limit" type="number" step="0.01" placeholder="0.00" {...register("credit_limit", { setValueAs: numberOrUndefined })} />
               {errors.credit_limit && <p className="text-xs text-destructive">{errors.credit_limit.message}</p>}
             </div>
 

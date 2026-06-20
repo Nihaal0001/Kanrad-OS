@@ -5,6 +5,30 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+/**
+ * `setValueAs` helpers for optional numeric `<input>` fields in react-hook-form.
+ *
+ * A numeric input with `valueAsNumber: true` returns `NaN` when empty, and Zod
+ * number schemas reject `NaN` — so an untouched optional field silently blocks
+ * the whole form from saving. Use these with `setValueAs` (and WITHOUT
+ * `valueAsNumber`, which would override `setValueAs`) so blanks become an
+ * "absent" value the schema accepts, while real input parses to a number.
+ *
+ * Pick the variant that matches the Zod field: `...nullable()` → `numberOrNull`,
+ * plain `.optional()` → `numberOrUndefined`.
+ */
+export function numberOrNull(value: unknown): number | null {
+  if (value === "" || value === null || value === undefined) return null
+  const n = typeof value === "number" ? value : Number(value)
+  return Number.isNaN(n) ? null : n
+}
+
+export function numberOrUndefined(value: unknown): number | undefined {
+  if (value === "" || value === null || value === undefined) return undefined
+  const n = typeof value === "number" ? value : Number(value)
+  return Number.isNaN(n) ? undefined : n
+}
+
 export function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("en-IN", {
     style: "currency",

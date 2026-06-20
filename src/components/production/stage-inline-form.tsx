@@ -8,6 +8,7 @@ import { toast } from "sonner"
 import { ChevronDown, ChevronUp } from "lucide-react"
 
 import { stageUpdateSchema, type StageUpdateFormData } from "@/lib/validators/production"
+import { numberOrUndefined } from "@/lib/utils"
 import { updateProductionStage } from "@/actions/production"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -163,7 +164,7 @@ export function StageInlineForm({
               min={0}
               className="h-9 pr-9"
               placeholder="0"
-              {...form.register("quantity_input", { valueAsNumber: true })}
+              {...form.register("quantity_input", { setValueAs: numberOrUndefined })}
             />
             <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">pcs</span>
           </div>

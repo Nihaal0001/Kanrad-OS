@@ -8,6 +8,7 @@ import { Plus, Lock, Circle } from "lucide-react"
 import { toast } from "sonner"
 
 import { materialSchema, type MaterialFormData } from "@/lib/validators/inventory"
+import { numberOrNull } from "@/lib/utils"
 import { createMaterial } from "@/actions/inventory"
 import type { MaterialCategory } from "@/lib/supabase/types"
 
@@ -223,7 +224,7 @@ export function AddMaterialSheet({ categories }: Props) {
                         min={0}
                         step="0.01"
                         placeholder="e.g., 240"
-                        {...form.register("diameter_mm", { valueAsNumber: true, setValueAs: (v) => (v === "" || isNaN(v) ? null : Number(v)) })}
+                        {...form.register("diameter_mm", { setValueAs: numberOrNull })}
                       />
                       {form.formState.errors.diameter_mm && (
                         <p className="text-xs text-destructive">{form.formState.errors.diameter_mm.message}</p>
@@ -236,7 +237,7 @@ export function AddMaterialSheet({ categories }: Props) {
                         min={0}
                         step="0.01"
                         placeholder="e.g., 3"
-                        {...form.register("thickness_mm", { valueAsNumber: true, setValueAs: (v) => (v === "" || isNaN(v) ? null : Number(v)) })}
+                        {...form.register("thickness_mm", { setValueAs: numberOrNull })}
                       />
                       {form.formState.errors.thickness_mm && (
                         <p className="text-xs text-destructive">{form.formState.errors.thickness_mm.message}</p>

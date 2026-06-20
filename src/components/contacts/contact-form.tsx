@@ -7,6 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { toast } from "sonner"
 
 import { customerSchema, supplierSchema, type CustomerFormData, type SupplierFormData } from "@/lib/validators/contacts"
+import { numberOrUndefined } from "@/lib/utils"
 import { createCustomer, updateCustomer } from "@/actions/customers"
 import { createSupplier, updateSupplier } from "@/actions/suppliers"
 import type { Customer, Supplier } from "@/lib/supabase/types"
@@ -152,12 +153,12 @@ export function ContactForm({ mode, record }: ContactFormProps) {
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label>Payment Terms (days)</Label>
-              <Input type="number" min={0} placeholder="30" {...form.register("payment_terms", { valueAsNumber: true })} />
+              <Input type="number" min={0} placeholder="30" {...form.register("payment_terms", { setValueAs: numberOrUndefined })} />
             </div>
             {mode === "customer" && (
               <div className="space-y-2">
                 <Label>Credit Limit (₹)</Label>
-                <Input type="number" min={0} placeholder="100000" {...form.register("credit_limit", { valueAsNumber: true })} />
+                <Input type="number" min={0} placeholder="100000" {...form.register("credit_limit", { setValueAs: numberOrUndefined })} />
               </div>
             )}
           </div>

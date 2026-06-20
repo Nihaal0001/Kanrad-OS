@@ -92,6 +92,7 @@ export async function createOrder(formData: OrderFormData) {
   // Insert order items
   const orderItems = items.map((item) => ({
     order_id: order.id,
+    style_name: item.product_variant,
     product_variant: item.product_variant,
     size: item.size,
     color: item.color,
@@ -155,6 +156,7 @@ export async function updateOrder(id: string, formData: OrderFormData) {
 
   const orderItems = items.map((item) => ({
     order_id: id,
+    style_name: item.product_variant,
     product_variant: item.product_variant,
     size: item.size,
     color: item.color,
@@ -264,6 +266,7 @@ export async function duplicateOrder(id: string) {
   if (original.order_items?.length) {
     const items = original.order_items.map((item: OrderItem) => ({
       order_id: newOrder.id,
+      style_name: item.product_variant,
       product_variant: item.product_variant,
       size: item.size,
       color: item.color,
