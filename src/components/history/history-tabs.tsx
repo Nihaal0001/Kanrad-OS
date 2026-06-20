@@ -27,8 +27,9 @@ interface HistoryOrder {
 
 interface HistoryBatch {
   id: string
-  status: string
-  quantity_completed: number | null | undefined
+  log_date: string
+  quantity_produced: number | null | undefined
+  quantity_rejected: number | null | undefined
   created_at: string
   order: { order_number: string; product_variant: string | null } | null
 }
@@ -138,30 +139,30 @@ function ProductionTab({ batches }: { batches: HistoryBatch[] }) {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Batch #</TableHead>
+            <TableHead>Date</TableHead>
             <TableHead>Order #</TableHead>
             <TableHead>Product</TableHead>
-            <TableHead className="text-right">Qty</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Date</TableHead>
+            <TableHead className="text-right">Produced</TableHead>
+            <TableHead className="text-right">Rejected</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {batches.length === 0 ? (
-            <EmptyRow cols={6} />
+            <EmptyRow cols={5} />
           ) : (
             batches.map((b) => (
               <TableRow key={b.id}>
-                <TableCell className="font-mono text-xs">{b.id.slice(0, 8)}</TableCell>
+                <TableCell className="text-sm">{formatDate(b.log_date)}</TableCell>
                 <TableCell className="font-mono text-xs">
                   {b.order?.order_number ?? "--"}
                 </TableCell>
                 <TableCell>{b.order?.product_variant ?? "--"}</TableCell>
                 <TableCell className="text-right tabular-nums">
-                  {b.quantity_completed != null ? b.quantity_completed.toLocaleString("en-IN") : "--"}
+                  {b.quantity_produced != null ? b.quantity_produced.toLocaleString("en-IN") : "--"}
                 </TableCell>
-                <TableCell><StatusBadge status={b.status} /></TableCell>
-                <TableCell className="text-sm">{formatDate(b.created_at)}</TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {b.quantity_rejected ? b.quantity_rejected.toLocaleString("en-IN") : "--"}
+                </TableCell>
               </TableRow>
             ))
           )}

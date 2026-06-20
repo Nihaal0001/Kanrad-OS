@@ -31,34 +31,39 @@ export const getProductionStages = unstable_cache(
 const _getProductionOverview = unstable_cache(
   async () => {
     const supabase = createAdminClient()
-  // Get all active orders (confirmed or in_production) with their tracking rows
+  // Get active orders with their daily piece logs (stage-free production tracking)
   const { data, error } = await supabase
     .from("orders")
     .select(`
       id, order_number, product_variant, total_quantity, status, deadline, priority,
       customer:customers(id, name, company),
-      production_tracking(
-        id, status, quantity_completed, quantity_rejected, stage_id,
-        stage:production_stages(id, name, sequence)
-      )
+      production_daily_logs(quantity_produced, quantity_rejected)
     `)
     .in("status", ["confirmed", "in_production"])
     .order("deadline", { ascending: true })
 
   if (error) throw new Error(error.message)
 
-  // Normalize nested relations (Supabase returns 1:1 joins as arrays)
+  // Normalize nested relations and roll the daily logs up into produced/rejected totals.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (data ?? []).map((order: any) => ({
-    ...order,
-    customer: Array.isArray(order.customer) ? order.customer[0] ?? null : order.customer,
-    production_tracking: (order.production_tracking ?? []).map((t: {
-      stage: { id: string; name: string; sequence: number } | { id: string; name: string; sequence: number }[] | null
-    }) => ({
-      ...t,
-      stage: Array.isArray(t.stage) ? t.stage[0] ?? null : t.stage,
-    })),
-  }))
+  return (data ?? []).map((order: any) => {
+    const logs: Array<{ quantity_produced: number; quantity_rejected: number }> =
+      order.production_daily_logs ?? []
+    const totalProduced = logs.reduce((s, l) => s + (l.quantity_produced ?? 0), 0)
+    const totalRejected = logs.reduce((s, l) => s + (l.quantity_rejected ?? 0), 0)
+    return {
+      id: order.id,
+      order_number: order.order_number,
+      product_variant: order.product_variant,
+      total_quantity: order.total_quantity,
+      status: order.status,
+      deadline: order.deadline,
+      priority: order.priority,
+      customer: Array.isArray(order.customer) ? order.customer[0] ?? null : order.customer,
+      total_produced: totalProduced,
+      total_rejected: totalRejected,
+    }
+  })
   },
   ["production-overview"],
   { tags: ["production", "orders"], revalidate: 30 }
@@ -468,6 +473,34 @@ export async function logDailyProduction(data: {
     }, { onConflict: "order_id,log_date" })
 
   if (error) return { error: error.message }
+
+  // Auto-advance order status from the piece log: first log → in_production,
+  // total produced reaching the order quantity → completed.
+  const { data: order } = await supabase
+    .from("orders")
+    .select("total_quantity, status")
+    .eq("id", data.order_id)
+    .single()
+
+  if (order && ["confirmed", "in_production"].includes(order.status)) {
+    const { data: logs } = await supabase
+      .from("production_daily_logs")
+      .select("quantity_produced")
+      .eq("order_id", data.order_id)
+
+    const totalProduced = (logs ?? []).reduce((s, l) => s + (l.quantity_produced ?? 0), 0)
+    const nextStatus =
+      order.total_quantity > 0 && totalProduced >= order.total_quantity
+        ? "completed"
+        : "in_production"
+
+    if (nextStatus !== order.status) {
+      await supabase.from("orders").update({ status: nextStatus }).eq("id", data.order_id)
+      revalidateTag("orders", {})
+      revalidatePath("/orders")
+      revalidatePath(`/orders/${data.order_id}`)
+    }
+  }
 
   revalidatePath(`/production/${data.order_id}`)
   revalidateTag("production", {})

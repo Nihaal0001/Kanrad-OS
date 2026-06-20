@@ -27,10 +27,9 @@ export const getHistoryProduction = unstable_cache(
   async () => {
     const supabase = createAdminClient()
     const { data, error } = await supabase
-      .from("production_tracking")
-      .select("id, status, quantity_completed, created_at, order:orders(order_number, product_variant)")
-      .eq("status", "completed")
-      .order("created_at", { ascending: false })
+      .from("production_daily_logs")
+      .select("id, log_date, quantity_produced, quantity_rejected, created_at, order:orders(order_number, product_variant)")
+      .order("log_date", { ascending: false })
 
     if (error) throw new Error(error.message)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
