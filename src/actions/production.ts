@@ -7,6 +7,7 @@ import {
   stageUpdateSchema,
   type StageUpdateFormData,
 } from "@/lib/validators/production"
+import { logAudit } from "@/actions/audit"
 
 // ==================== Production Stages ====================
 
@@ -404,9 +405,21 @@ export async function logDailyProduction(data: {
   // total produced reaching the order quantity → completed.
   const { data: order } = await supabase
     .from("orders")
-    .select("total_quantity, status")
+    .select("order_number, total_quantity, status")
     .eq("id", data.order_id)
     .single()
+
+  // Audit the production output entry
+  await logAudit({
+    entityType: "production_log",
+    entityId: data.order_id,
+    entityLabel: `${order?.order_number ?? "Order"} — ${data.log_date}`,
+    action: "created",
+    newValues: {
+      quantity_produced: data.quantity_produced,
+      quantity_rejected: data.quantity_rejected,
+    },
+  })
 
   if (order && ["confirmed", "in_production"].includes(order.status)) {
     const { data: logs } = await supabase
@@ -422,6 +435,14 @@ export async function logDailyProduction(data: {
 
     if (nextStatus !== order.status) {
       await supabase.from("orders").update({ status: nextStatus }).eq("id", data.order_id)
+      await logAudit({
+        entityType: "order",
+        entityId: data.order_id,
+        entityLabel: order.order_number,
+        action: "status_changed",
+        oldValues: { status: order.status },
+        newValues: { status: nextStatus },
+      })
       revalidateTag("orders", {})
       revalidatePath("/orders")
       revalidatePath(`/orders/${data.order_id}`)

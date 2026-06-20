@@ -35,6 +35,8 @@ const ENTITY_LABELS: Record<string, string> = {
   attendance: "Attendance",
   leave: "Leave",
   payroll: "Payroll",
+  production_log: "Production Log",
+  warehouse_item: "Warehouse Item",
 }
 
 function JsonPreview({ data }: { data: Record<string, unknown> | null }) {
