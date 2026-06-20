@@ -1,15 +1,16 @@
 import { Warehouse } from "lucide-react"
 
-import { getWarehouseItems, getWarehouseLocations } from "@/actions/warehouse"
+import { getWarehouseItems, getWarehouseLocations, getProducedItems } from "@/actions/warehouse"
 import { PageHeader } from "@/components/shared/page-header"
 import { EmptyState } from "@/components/shared/empty-state"
 import { WarehouseTable } from "@/components/warehouse/warehouse-table"
 import { WarehouseForm } from "@/components/warehouse/warehouse-form"
 
 export default async function WarehousePage() {
-  const [items, locations] = await Promise.all([
+  const [items, locations, producedItems] = await Promise.all([
     getWarehouseItems(),
     getWarehouseLocations(),
+    getProducedItems(),
   ])
 
   return (
@@ -19,7 +20,7 @@ export default async function WarehousePage() {
         description="Track finished goods in the warehouse — location, quantity, and dispatch status"
         breadcrumbs={[{ label: "Warehouse" }]}
       >
-        <WarehouseForm />
+        <WarehouseForm producedItems={producedItems} />
       </PageHeader>
 
       {items.length === 0 ? (

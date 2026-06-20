@@ -9,7 +9,7 @@ import { Plus } from "lucide-react"
 
 import { warehouseItemSchema } from "@/lib/validators/warehouse"
 import type { WarehouseItemFormData } from "@/lib/validators/warehouse"
-import { createWarehouseItem } from "@/actions/warehouse"
+import { createWarehouseItem, type ProducedItem } from "@/actions/warehouse"
 import { friendlyError } from "@/lib/utils"
 
 import { Button } from "@/components/ui/button"
@@ -33,7 +33,7 @@ import {
 const UNITS = ["pcs", "kg", "meters", "liters", "boxes", "rolls", "sets", "packs"]
 const CATEGORIES = ["Cookware", "Kitchenware", "Storage", "Home Products", "Packaging", "Other"]
 
-export function WarehouseForm() {
+export function WarehouseForm({ producedItems }: { producedItems: ProducedItem[] }) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
 
@@ -49,6 +49,13 @@ export function WarehouseForm() {
       remarks: "",
     },
   })
+
+  function handleItemSelect(name: string) {
+    const item = producedItems.find((p) => p.name === name)
+    form.setValue("item_name", name, { shouldValidate: true })
+    form.setValue("sku", item?.sku ?? "")
+    if (item?.category) form.setValue("category", item.category)
+  }
 
   async function onSubmit(data: WarehouseItemFormData) {
     const result = await createWarehouseItem(data)
@@ -77,15 +84,30 @@ export function WarehouseForm() {
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-2">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="item_name">Item Name *</Label>
-              <Input id="item_name" {...form.register("item_name")} placeholder="e.g., Steel Pressure Cooker 3L" />
+              <Label>Produced Item *</Label>
+              <Select value={form.watch("item_name") || ""} onValueChange={handleItemSelect}>
+                <SelectTrigger>
+                  <SelectValue placeholder={producedItems.length ? "Select a produced item" : "No produced items yet"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {producedItems.map((p) => (
+                    <SelectItem key={p.name} value={p.name}>
+                      <span>{p.name}</span>
+                      {p.sku && <span className="ml-2 text-xs text-muted-foreground font-mono">{p.sku}</span>}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {producedItems.length === 0 && (
+                <p className="text-xs text-muted-foreground">Log production output on an order to make it available here.</p>
+              )}
               {form.formState.errors.item_name && (
                 <p className="text-xs text-destructive">{form.formState.errors.item_name.message}</p>
               )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="sku">SKU</Label>
-              <Input id="sku" {...form.register("sku")} placeholder="e.g., KH-PC-3L-001" />
+              <Input id="sku" {...form.register("sku")} placeholder="—" readOnly className="bg-muted/50" />
             </div>
           </div>
 
