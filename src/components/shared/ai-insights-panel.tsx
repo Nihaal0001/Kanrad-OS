@@ -13,7 +13,6 @@ const VALID_HREFS = new Set([
   "/orders", "/orders/new",
   "/inventory", "/inventory/purchase-orders", "/inventory/purchase-orders/new",
   "/production",
-  "/quality",
   "/tasks",
   "/finance/invoices", "/finance/invoices/new", "/finance/payments", "/finance/costing",
   "/hr/attendance", "/hr/leaves", "/hr/payroll", "/hr/shifts",

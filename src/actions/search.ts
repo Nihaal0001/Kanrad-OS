@@ -72,7 +72,6 @@ export async function getQuickLinks() {
     { label: "New Invoice", href: "/finance/invoices/new", shortcut: "I" },
     { label: "New Task", href: "/tasks", shortcut: "T" },
     { label: "Production Overview", href: "/production", shortcut: null },
-    { label: "Quality Checks", href: "/quality", shortcut: null },
     { label: "Dashboard", href: "/", shortcut: null },
   ]
 }

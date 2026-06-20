@@ -5,9 +5,7 @@ import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import {
   stageUpdateSchema,
-  qualityCheckSchema,
   type StageUpdateFormData,
-  type QualityCheckFormData,
 } from "@/lib/validators/production"
 
 // ==================== Production Stages ====================
@@ -374,78 +372,6 @@ export async function addDailyProduction(
   revalidateTag("production", {})
   revalidatePath("/production")
   revalidatePath(`/production/${orderId}`)
-  return { success: true }
-}
-
-// ==================== Quality Checks ====================
-
-export async function getQualityChecks(filters?: {
-  order_id?: string
-  severity?: string
-}) {
-  const supabase = await createClient()
-  let query = supabase
-    .from("quality_checks")
-    .select(`
-      *,
-      order:orders(id, order_number, product_variant),
-      stage:production_stages(id, name)
-    `)
-    .order("checked_at", { ascending: false })
-
-  if (filters?.order_id) {
-    query = query.eq("order_id", filters.order_id)
-  }
-  if (filters?.severity) {
-    query = query.eq("severity", filters.severity)
-  }
-
-  const { data, error } = await query
-  if (error) throw new Error(error.message)
-  return data
-}
-
-export async function createQualityCheck(formData: QualityCheckFormData) {
-  const validated = qualityCheckSchema.parse(formData)
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: "Not authenticated" }
-
-  const { data, error } = await supabase
-    .from("quality_checks")
-    .insert({
-      order_id: validated.order_id,
-      stage_id: validated.stage_id || null,
-      quantity_inspected: validated.quantity_inspected,
-      quantity_passed: validated.quantity_passed,
-      quantity_failed: validated.quantity_failed,
-      defect_type: validated.defect_type || null,
-      severity: validated.severity || null,
-      notes: validated.notes || null,
-      checked_at: validated.checked_at,
-    })
-    .select()
-    .single()
-
-  if (error) return { error: error.message }
-
-  revalidatePath("/quality")
-  revalidatePath(`/production/${validated.order_id}`)
-  return { data }
-}
-
-export async function deleteQualityCheck(id: string) {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: "Not authenticated" }
-
-  const { error } = await supabase.from("quality_checks").delete().eq("id", id)
-
-  if (error) return { error: error.message }
-
-  revalidatePath("/quality")
   return { success: true }
 }
 

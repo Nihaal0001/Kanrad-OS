@@ -55,7 +55,6 @@ const PERMISSION_FIRST_PAGE: Record<string, string> = {
   orders: "/orders",
   hr: "/hr/attendance",
   finance: "/finance",
-  quality: "/quality",
   tasks: "/tasks",
   notifications: "/notifications",
   settings: "/settings",

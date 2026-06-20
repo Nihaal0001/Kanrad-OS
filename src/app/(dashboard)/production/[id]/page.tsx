@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Plus } from "lucide-react"
+import { ArrowLeft } from "lucide-react"
 
 import { getOrderProduction, getDailyLogs } from "@/actions/production"
 import { formatDate, cn } from "@/lib/utils"
@@ -58,12 +58,6 @@ export default async function ProductionDetailPage({
           preselectedOrderId={id}
           preselectedTotalQty={order.total_quantity}
         />
-        <Button asChild>
-          <Link href={`/production/${id}/qc`}>
-            <Plus className="h-4 w-4" />
-            Add QC Check
-          </Link>
-        </Button>
       </PageHeader>
 
       <div className="grid gap-4 sm:gap-6 lg:grid-cols-3">

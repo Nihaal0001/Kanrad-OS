@@ -2,11 +2,11 @@ import type { UserRole } from "@/lib/constants"
 
 export type Permission =
   | "dashboard" | "orders" | "inventory" | "production"
-  | "quality" | "tasks" | "finance" | "hr"
+  | "tasks" | "finance" | "hr"
   | "notifications" | "settings" | "users" | "analytics"
 
 export const ALL_PERMISSIONS: Permission[] = [
-  "dashboard", "orders", "inventory", "production", "quality",
+  "dashboard", "orders", "inventory", "production",
   "tasks", "finance", "hr", "notifications", "settings", "users", "analytics",
 ]
 
@@ -15,7 +15,6 @@ export const MODULE_LABELS: Record<Permission, string> = {
   orders: "Orders & Customers",
   inventory: "Inventory",
   production: "Production",
-  quality: "Quality Control",
   tasks: "Tasks",
   finance: "Finance",
   hr: "HR & Payroll",
@@ -36,10 +35,10 @@ export const ROLE_LABELS: Record<UserRole, string> = {
 
 // Hardcoded fallback used only when the DB table doesn't exist yet
 export const DEFAULT_ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
-  admin: ["dashboard","orders","inventory","production","quality","tasks","finance","hr","notifications","settings","users","analytics"],
-  production_manager: ["dashboard","orders","production","quality","tasks","hr","notifications","settings","analytics"],
+  admin: ["dashboard","orders","inventory","production","tasks","finance","hr","notifications","settings","users","analytics"],
+  production_manager: ["dashboard","orders","production","tasks","hr","notifications","settings","analytics"],
   inventory_manager: ["dashboard","orders","inventory","tasks","finance","notifications","settings","analytics"],
-  qc_head: ["dashboard","production","quality","tasks","notifications","settings"],
-  floor_supervisor: ["dashboard","production","quality","tasks","hr","notifications","settings"],
+  qc_head: ["dashboard","production","tasks","notifications","settings"],
+  floor_supervisor: ["dashboard","production","tasks","hr","notifications","settings"],
   worker: ["dashboard","tasks","notifications"],
 }
