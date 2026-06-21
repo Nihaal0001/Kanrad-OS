@@ -26,6 +26,7 @@ function SwipeConfirm({ label, sublabel, color, direction, loading, onConfirm }:
   const [dragging, setDragging] = useState(false)
   const [triggered, setTriggered] = useState(false)
   const startClientX = useRef(0)
+  const startX = useRef(0)
 
   const HANDLE = 44
   const THRESHOLD = 0.72
@@ -41,15 +42,19 @@ function SwipeConfirm({ label, sublabel, color, direction, loading, onConfirm }:
   function onStart(clientX: number) {
     if (loading || triggered) return
     setDragging(true)
-    startClientX.current = clientX - x
+    startClientX.current = clientX
+    startX.current = x
   }
 
   const onMove = useCallback(
     (clientX: number) => {
       if (!dragging) return
-      setX(clamp(clientX - startClientX.current))
+      // The reject track is mirrored with scaleX(-1), but pointer coordinates
+      // are not — so advance on a leftward drag when direction is "left".
+      const delta = isRight ? clientX - startClientX.current : startClientX.current - clientX
+      setX(clamp(startX.current + delta))
     },
-    [dragging] // eslint-disable-line react-hooks/exhaustive-deps
+    [dragging, isRight] // eslint-disable-line react-hooks/exhaustive-deps
   )
 
   const onEnd = useCallback(() => {
