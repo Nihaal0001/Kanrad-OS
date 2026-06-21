@@ -1,7 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { BarChart, Bar, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts"
+import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts"
+import { useTheme } from "next-themes"
 import { TrendingUp, TrendingDown, Minus, AlertTriangle, Package } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
@@ -28,6 +29,17 @@ const STATUS_CONFIG = {
 export function ForecastingClient({ demand, inventory }: { demand: DemandData; inventory: InventoryItem[] }) {
   const [tab, setTab] = useState<"demand" | "inventory">("demand")
   const [invFilter, setInvFilter] = useState<"all" | "critical" | "low">("all")
+
+  // Theme-aware chart colors — recharts SVG text doesn't pick up CSS vars reliably,
+  // so resolve explicit colors that stay legible on both light and dark backgrounds.
+  const { resolvedTheme } = useTheme()
+  const isDark = resolvedTheme === "dark"
+  const axisColor = isDark ? "#e5e7eb" : "#1f2937"
+  const mutedColor = isDark ? "#9ca3af" : "#6b7280"
+  const gridColor = isDark ? "#3f3f46" : "#e5e7eb"
+  const tooltipBg = isDark ? "#1c1917" : "#ffffff"
+  const actualBar = isDark ? "#3b82f6" : "#2563eb"
+  const projectedBar = isDark ? "#93c5fd" : "#60a5fa"
 
   const chartData = [
     ...demand.actuals.map(a => ({ ...a, type: "actual" as const })),
@@ -114,18 +126,20 @@ export function ForecastingClient({ demand, inventory }: { demand: DemandData; i
                 <>
                   <ResponsiveContainer width="100%" height={280}>
                     <BarChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                      <XAxis dataKey="label" tick={{ fontSize: 12, fill: "hsl(var(--foreground))" }} axisLine={false} tickLine={false} />
-                      <YAxis tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} allowDecimals={false} />
+                      <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
+                      <XAxis dataKey="label" tick={{ fontSize: 12, fill: axisColor }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 12, fill: mutedColor }} axisLine={false} tickLine={false} allowDecimals={false} />
                       <Tooltip
-                        contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
-                        labelStyle={{ fontWeight: 600 }}
+                        contentStyle={{ background: tooltipBg, border: `1px solid ${gridColor}`, borderRadius: 8, fontSize: 12, color: axisColor }}
+                        labelStyle={{ fontWeight: 600, color: axisColor }}
+                        itemStyle={{ color: axisColor }}
+                        cursor={{ fill: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)" }}
                         formatter={(v) => [v, "Orders"]}
                       />
-                      <ReferenceLine x={demand.actuals[splitIndex]?.label} stroke="hsl(var(--border))" strokeDasharray="4 4" label={{ value: "Forecast →", fill: "hsl(var(--muted-foreground))", fontSize: 11 }} />
+                      <ReferenceLine x={demand.actuals[splitIndex]?.label} stroke={mutedColor} strokeDasharray="4 4" label={{ value: "Forecast →", fill: mutedColor, fontSize: 11 }} />
                       <Bar dataKey="count" radius={[4, 4, 0, 0]}>
                         {chartData.map((d, i) => (
-                          <Cell key={i} fill={d.type === "projected" ? "#60a5fa" : "#2563eb"} opacity={d.type === "projected" ? 0.5 : 1} />
+                          <Cell key={i} fill={d.type === "projected" ? projectedBar : actualBar} opacity={d.type === "projected" ? 0.65 : 1} />
                         ))}
                       </Bar>
                     </BarChart>
