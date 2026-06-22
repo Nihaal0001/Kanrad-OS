@@ -1,0 +1,11 @@
+{
+  "name": "kanrad-tally-connector",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Local agent that syncs Kanrad ERP with a TallyPrime instance on the same machine/LAN.",
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "start": "node index.mjs"
+  }
+}

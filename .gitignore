@@ -43,3 +43,6 @@ GEMINI.md
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Keep the Tally connector example env (real .env stays ignored by .env*)
+!tally-connector/.env.example
