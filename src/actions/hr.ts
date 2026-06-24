@@ -222,6 +222,50 @@ export async function upsertAttendance(formData: AttendanceFormData) {
   return { data }
 }
 
+type QuickStatus = "present" | "absent" | "half_day" | "leave"
+
+/** One-tap attendance: set a worker's status for a date, preserving any
+ *  check-in/out/OT already recorded (only the status column is written). */
+export async function quickMarkAttendance(workerId: string, date: string, status: QuickStatus) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
+  const { error } = await supabase
+    .from("attendance")
+    .upsert({ worker_id: workerId, date, status }, { onConflict: "worker_id,date" })
+
+  if (error) return { error: error.message }
+  revalidatePath("/hr/attendance")
+  revalidatePath("/hr")
+  return { success: true }
+}
+
+/** Mark every active worker who isn't yet marked for the date as Present. */
+export async function markAllPresent(date: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
+  const admin = createAdminClient()
+  const [{ data: workers }, { data: existing }] = await Promise.all([
+    admin.from("profiles").select("id").eq("is_active", true),
+    admin.from("attendance").select("worker_id").eq("date", date),
+  ])
+  const marked = new Set((existing ?? []).map((a) => a.worker_id))
+  const toMark = (workers ?? [])
+    .filter((w) => !marked.has(w.id))
+    .map((w) => ({ worker_id: w.id, date, status: "present" as const }))
+
+  if (toMark.length === 0) return { count: 0 }
+  const { error } = await admin.from("attendance").upsert(toMark, { onConflict: "worker_id,date" })
+  if (error) return { error: error.message }
+
+  revalidatePath("/hr/attendance")
+  revalidatePath("/hr")
+  return { count: toMark.length }
+}
+
 export async function deleteAttendance(id: string) {
   const supabase = await createClient()
 
