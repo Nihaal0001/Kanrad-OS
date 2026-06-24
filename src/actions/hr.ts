@@ -31,6 +31,34 @@ export const getWorkers = unstable_cache(
   { tags: ["workers"], revalidate: 300 }
 )
 
+/**
+ * Bulk-add floor workers as plain profiles (no login account) so they can be
+ * marked for attendance / payroll. Accepts a list of names (one per worker).
+ */
+export async function createWorkers(input: { names: string[]; department?: string }) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
+  const names = Array.from(
+    new Set((input.names ?? []).map((n) => n.trim()).filter((n) => n.length > 0 && n.length <= 100))
+  )
+  if (names.length === 0) return { error: "Enter at least one worker name" }
+
+  const department = input.department?.trim() || null
+  const rows = names.map((full_name) => ({ full_name, role: "worker", department, is_active: true }))
+
+  // profiles is RLS-protected — insert via the service-role client (same as user creation)
+  const admin = createAdminClient()
+  const { data, error } = await admin.from("profiles").insert(rows).select("id")
+  if (error) return { error: error.message }
+
+  revalidateTag("workers", {})
+  revalidatePath("/hr")
+  revalidatePath("/hr/attendance")
+  return { count: data?.length ?? 0 }
+}
+
 // ===== Shifts =====
 
 export const getShifts = unstable_cache(

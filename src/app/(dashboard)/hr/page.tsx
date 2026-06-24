@@ -13,6 +13,7 @@ import { PageHeader } from "@/components/shared/page-header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { AddWorkersSheet } from "@/components/hr/add-workers-sheet"
 import { cn } from "@/lib/utils"
 
 const STATUS_STYLES: Record<string, string> = {
@@ -72,7 +73,9 @@ export default async function HROverviewPage() {
 
   return (
     <>
-      <PageHeader title="HR Overview" description={today} />
+      <PageHeader title="HR Overview" description={today}>
+        <AddWorkersSheet />
+      </PageHeader>
 
       {/* Stat cards */}
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-5 sm:gap-4">
