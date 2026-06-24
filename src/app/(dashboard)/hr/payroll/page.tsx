@@ -1,6 +1,6 @@
 import { FileDown } from "lucide-react"
 
-import { getPayrolls, getWorkers, updatePayrollStatus, deletePayroll } from "@/actions/hr"
+import { getPayrolls, getWorkers, getPayrollRegister, updatePayrollStatus, deletePayroll } from "@/actions/hr"
 import { PageHeader } from "@/components/shared/page-header"
 import { PayrollForm } from "@/components/hr/payroll-form"
 import { WorkerSalariesSheet } from "@/components/hr/worker-salaries-sheet"
@@ -22,9 +22,10 @@ interface Props {
 
 export default async function PayrollPage({ searchParams }: Props) {
   const { month } = await searchParams
-  const [payrolls, workers] = await Promise.all([
+  const [payrolls, workers, register] = await Promise.all([
     getPayrolls(month ? { month } : undefined),
     getWorkers(),
+    getPayrollRegister(month),
   ])
 
   const totalWages = payrolls.reduce((sum, p) => sum + p.total_wage, 0)
@@ -46,7 +47,7 @@ export default async function PayrollPage({ searchParams }: Props) {
       </PageHeader>
 
       {payrolls.length === 0 ? (
-        <WorkerPayrollList workers={workers} />
+        <WorkerPayrollList data={register} />
       ) : (
         <div className="space-y-2">
           <div className="hidden grid-cols-[1.5fr_1fr_1fr_1fr_1fr_1fr_120px] gap-4 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide sm:grid">

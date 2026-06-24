@@ -51,6 +51,57 @@ export async function setWorkerSalaries(updates: { id: string; monthly_salary: n
   return { updated }
 }
 
+/**
+ * Live monthly payroll register: every worker with their monthly salary, days
+ * present/absent from attendance, and salary payable for the days worked.
+ * `month` is "YYYY-MM" (defaults to the current month).
+ */
+export async function getPayrollRegister(month?: string) {
+  const admin = createAdminClient()
+  const now = new Date()
+  const [y, m] = month
+    ? month.split("-").map(Number)
+    : [now.getFullYear(), now.getMonth() + 1]
+  const month0 = m - 1
+  const mm = String(m).padStart(2, "0")
+  const lastDay = new Date(y, m, 0).getDate()
+  const periodStart = `${y}-${mm}-01`
+  const periodEnd = `${y}-${mm}-${String(lastDay).padStart(2, "0")}`
+
+  // working days = days in month minus Sundays
+  let workingDays = 0
+  for (let d = 1; d <= lastDay; d++) if (new Date(y, month0, d).getDay() !== 0) workingDays++
+
+  const [{ data: workers }, { data: attendance }] = await Promise.all([
+    admin.from("profiles").select("id, full_name, department, monthly_salary").eq("is_active", true).order("full_name"),
+    admin.from("attendance").select("worker_id, status").gte("date", periodStart).lte("date", periodEnd),
+  ])
+
+  const present: Record<string, number> = {}
+  for (const a of attendance ?? []) {
+    const add = a.status === "present" ? 1 : a.status === "half_day" ? 0.5 : 0
+    if (add > 0) present[a.worker_id] = (present[a.worker_id] ?? 0) + add
+  }
+
+  const rows = (workers ?? []).map((w) => {
+    const monthlySalary = Number(w.monthly_salary ?? 0)
+    const daysPresent = present[w.id] ?? 0
+    const daysAbsent = Math.max(0, workingDays - daysPresent)
+    const payable = workingDays > 0 ? Math.round((monthlySalary / workingDays) * daysPresent * 100) / 100 : 0
+    return {
+      id: w.id,
+      full_name: w.full_name as string,
+      department: (w.department as string | null) ?? null,
+      monthly_salary: monthlySalary,
+      days_present: daysPresent,
+      days_absent: daysAbsent,
+      payable,
+    }
+  })
+
+  return { month: `${y}-${mm}`, workingDays, rows }
+}
+
 /** Manual trigger: generate draft payroll for the previous calendar month. */
 export async function generatePreviousMonthPayroll() {
   const supabase = await createClient()
