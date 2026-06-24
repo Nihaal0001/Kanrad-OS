@@ -35,10 +35,6 @@
     {
       "path": "/api/cron/fetch-news",
       "schedule": "0 6 * * *"
-    },
-    {
-      "path": "/api/cron/generate-payroll",
-      "schedule": "0 6 10 * *"
     }
   ]
 }
