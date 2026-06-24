@@ -4,12 +4,13 @@ import { getPayrolls, getWorkers, updatePayrollStatus, deletePayroll } from "@/a
 import { PageHeader } from "@/components/shared/page-header"
 import { EmptyState } from "@/components/shared/empty-state"
 import { PayrollForm } from "@/components/hr/payroll-form"
+import { WorkerSalariesSheet } from "@/components/hr/worker-salaries-sheet"
+import { GeneratePayrollButton } from "@/components/hr/generate-payroll-button"
 import { HRDateFilter } from "@/components/hr/date-filter"
 import { DeleteButton } from "@/components/hr/delete-button"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
-import { cn } from "@/lib/utils"
 
 function formatCurrency(n: number) {
   return n.toLocaleString("en-IN", { minimumFractionDigits: 2 })
@@ -39,6 +40,8 @@ export default async function PayrollPage({ searchParams }: Props) {
         }
       >
         <HRDateFilter type="month" value={month ?? ""} />
+        <WorkerSalariesSheet workers={workers} />
+        <GeneratePayrollButton />
         <PayrollForm workers={workers} />
       </PageHeader>
 

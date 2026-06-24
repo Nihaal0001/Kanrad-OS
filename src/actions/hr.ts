@@ -3,6 +3,7 @@
 import { revalidatePath, revalidateTag, unstable_cache } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { runMonthlyPayroll } from "@/lib/payroll-gen"
 import {
   attendanceSchema,
   leaveSchema,
@@ -21,7 +22,7 @@ export const getWorkers = unstable_cache(
     const supabase = createAdminClient()
     const { data, error } = await supabase
       .from("profiles")
-      .select("id, full_name, role, department, is_active")
+      .select("id, full_name, role, department, is_active, monthly_salary")
       .eq("is_active", true)
       .order("full_name")
     if (error) throw new Error(error.message)
@@ -30,6 +31,41 @@ export const getWorkers = unstable_cache(
   ["workers"],
   { tags: ["workers"], revalidate: 300 }
 )
+
+/** Set monthly salary for one or more workers. */
+export async function setWorkerSalaries(updates: { id: string; monthly_salary: number }[]) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
+  const admin = createAdminClient()
+  let updated = 0
+  for (const u of updates) {
+    const salary = Number.isFinite(u.monthly_salary) && u.monthly_salary >= 0 ? u.monthly_salary : 0
+    const { error } = await admin.from("profiles").update({ monthly_salary: salary }).eq("id", u.id)
+    if (!error) updated++
+  }
+
+  revalidateTag("workers", {})
+  revalidatePath("/hr/payroll")
+  return { updated }
+}
+
+/** Manual trigger: generate draft payroll for the previous calendar month. */
+export async function generatePreviousMonthPayroll() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
+  const now = new Date()
+  const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+  const result = await runMonthlyPayroll(prev.getFullYear(), prev.getMonth())
+  if ("error" in result) return result
+
+  revalidateTag("workers", {})
+  revalidatePath("/hr/payroll")
+  return result
+}
 
 /**
  * Bulk-add floor workers as plain profiles (no login account) so they can be
