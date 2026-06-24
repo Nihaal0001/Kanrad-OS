@@ -1,11 +1,11 @@
-import { FileDown, Wallet } from "lucide-react"
+import { FileDown } from "lucide-react"
 
 import { getPayrolls, getWorkers, updatePayrollStatus, deletePayroll } from "@/actions/hr"
 import { PageHeader } from "@/components/shared/page-header"
-import { EmptyState } from "@/components/shared/empty-state"
 import { PayrollForm } from "@/components/hr/payroll-form"
 import { WorkerSalariesSheet } from "@/components/hr/worker-salaries-sheet"
 import { GeneratePayrollButton } from "@/components/hr/generate-payroll-button"
+import { WorkerPayrollList } from "@/components/hr/worker-payroll-list"
 import { HRDateFilter } from "@/components/hr/date-filter"
 import { DeleteButton } from "@/components/hr/delete-button"
 import { Button } from "@/components/ui/button"
@@ -46,11 +46,7 @@ export default async function PayrollPage({ searchParams }: Props) {
       </PageHeader>
 
       {payrolls.length === 0 ? (
-        <EmptyState
-          icon={Wallet}
-          title="No payroll records"
-          description={month ? `No payroll for ${month}` : "Generate payroll from attendance data"}
-        />
+        <WorkerPayrollList workers={workers} />
       ) : (
         <div className="space-y-2">
           <div className="hidden grid-cols-[1.5fr_1fr_1fr_1fr_1fr_1fr_120px] gap-4 px-4 text-xs font-medium text-muted-foreground uppercase tracking-wide sm:grid">
