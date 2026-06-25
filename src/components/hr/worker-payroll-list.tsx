@@ -1,12 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
-import { useRouter } from "next/navigation"
-import { toast } from "sonner"
-
-import { setWorkerSalaries } from "@/actions/hr"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { useState } from "react"
 import { Card } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 
@@ -35,36 +29,11 @@ const COLS = "grid-cols-[44px_1.4fr_1fr_64px_64px_1fr]"
 type Filter = "all" | "Operator" | "Helper"
 
 export function WorkerPayrollList({ data }: { data: RegisterData }) {
-  const router = useRouter()
   const { workingDays, rows } = data
   const [filter, setFilter] = useState<Filter>("all")
-  const [values, setValues] = useState<Record<string, string>>(() =>
-    Object.fromEntries(rows.map((r) => [r.id, r.monthly_salary ? String(r.monthly_salary) : ""]))
-  )
-  const [isPending, startTransition] = useTransition()
-
-  const salaryOf = (id: string) => Math.max(0, Number(values[id]) || 0)
-  const payableOf = (r: Row) => (workingDays > 0 ? Math.round((salaryOf(r.id) / workingDays) * r.days_present) : 0)
 
   const visible = rows.filter((r) => filter === "all" || r.role === filter)
-  const changed = rows.filter((r) => salaryOf(r.id) !== r.monthly_salary)
-  const totalPayable = visible.reduce((s, r) => s + payableOf(r), 0)
-
-  function handleSave() {
-    if (changed.length === 0) {
-      toast.info("No changes to save")
-      return
-    }
-    startTransition(async () => {
-      const result = await setWorkerSalaries(changed.map((r) => ({ id: r.id, monthly_salary: salaryOf(r.id) })))
-      if ("error" in result) {
-        toast.error(result.error)
-        return
-      }
-      toast.success(`Saved ${result.updated} salar${result.updated === 1 ? "y" : "ies"}`)
-      router.refresh()
-    })
-  }
+  const totalPayable = visible.reduce((s, r) => s + r.payable, 0)
 
   const FILTERS: { key: Filter; label: string }[] = [
     { key: "all", label: "All" },
@@ -89,14 +58,9 @@ export function WorkerPayrollList({ data }: { data: RegisterData }) {
             </button>
           ))}
         </div>
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-muted-foreground">{workingDays} working days · salary paid for days present</span>
-          {changed.length > 0 && (
-            <Button size="sm" onClick={handleSave} disabled={isPending}>
-              {isPending ? "Saving…" : `Save ${changed.length}`}
-            </Button>
-          )}
-        </div>
+        <span className="text-xs text-muted-foreground">
+          {workingDays} working days · set salaries via “Set Salaries”
+        </span>
       </div>
 
       <Card className="overflow-hidden p-0">
@@ -110,27 +74,18 @@ export function WorkerPayrollList({ data }: { data: RegisterData }) {
         </div>
         <div className="divide-y divide-border">
           {visible.map((r) => (
-            <div key={r.id} className={cn("grid items-center gap-3 px-4 py-2", COLS)}>
+            <div key={r.id} className={cn("grid items-center gap-3 px-4 py-2.5", COLS)}>
               <span className="text-sm tabular-nums text-muted-foreground">{r.roll_no ?? "—"}</span>
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium">{r.full_name}</p>
                 {r.role && <p className="truncate text-xs text-muted-foreground">{r.role}</p>}
               </div>
-              <div className="relative">
-                <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">₹</span>
-                <Input
-                  type="number"
-                  min={0}
-                  inputMode="numeric"
-                  className="h-9 pl-6 text-right"
-                  placeholder="0"
-                  value={values[r.id] ?? ""}
-                  onChange={(e) => setValues((v) => ({ ...v, [r.id]: e.target.value }))}
-                />
-              </div>
+              <span className="text-right text-sm tabular-nums">
+                {r.monthly_salary > 0 ? `₹${fmt(r.monthly_salary)}` : <span className="text-muted-foreground">—</span>}
+              </span>
               <span className="text-right text-sm tabular-nums text-emerald-600">{r.days_present}</span>
               <span className="text-right text-sm tabular-nums text-muted-foreground">{r.days_absent}</span>
-              <span className="text-right text-sm font-semibold tabular-nums">₹{fmt(payableOf(r))}</span>
+              <span className="text-right text-sm font-semibold tabular-nums">₹{fmt(r.payable)}</span>
             </div>
           ))}
         </div>
