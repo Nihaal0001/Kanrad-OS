@@ -72,10 +72,27 @@ export async function getPayrollRegister(month?: string) {
   let workingDays = 0
   for (let d = 1; d <= lastDay; d++) if (new Date(y, month0, d).getDay() !== 0) workingDays++
 
-  const [{ data: workers }, { data: attendance }] = await Promise.all([
-    admin.from("profiles").select("id, full_name, department, monthly_salary").eq("is_active", true).order("full_name"),
-    admin.from("attendance").select("worker_id, status").gte("date", periodStart).lte("date", periodEnd),
-  ])
+  const attendanceP = admin.from("attendance").select("worker_id, status").gte("date", periodStart).lte("date", periodEnd)
+
+  // Order by roll number (sheet order); fall back to name if the roll_no column
+  // hasn't been added yet (migration 00040 not applied).
+  type WRow = { id: string; full_name: string; department: string | null; monthly_salary: number | null; roll_no?: number | null }
+  const primary = await admin
+    .from("profiles")
+    .select("id, full_name, department, monthly_salary, roll_no")
+    .eq("is_active", true)
+    .order("roll_no", { ascending: true, nullsFirst: false })
+    .order("full_name")
+  let workers = (primary.data ?? []) as WRow[]
+  if (primary.error) {
+    const fb = await admin
+      .from("profiles")
+      .select("id, full_name, department, monthly_salary")
+      .eq("is_active", true)
+      .order("full_name")
+    workers = (fb.data ?? []) as WRow[]
+  }
+  const { data: attendance } = await attendanceP
 
   const present: Record<string, number> = {}
   for (const a of attendance ?? []) {
@@ -90,8 +107,9 @@ export async function getPayrollRegister(month?: string) {
     const payable = workingDays > 0 ? Math.round((monthlySalary / workingDays) * daysPresent * 100) / 100 : 0
     return {
       id: w.id,
+      roll_no: (w.roll_no as number | null) ?? null,
       full_name: w.full_name as string,
-      department: (w.department as string | null) ?? null,
+      role: (w.department as string | null) ?? null, // "Operator" | "Helper" | null
       monthly_salary: monthlySalary,
       days_present: daysPresent,
       days_absent: daysAbsent,
