@@ -2,7 +2,6 @@ import { createHash } from "node:crypto"
 import { createAdminClient } from "@/lib/supabase/admin"
 import {
   buildLedgerMaster,
-  buildStockItemMaster,
   buildSalesVoucher,
   buildPurchaseVoucher,
   buildReceiptVoucher,
@@ -49,10 +48,11 @@ export async function buildOutbox(limit = 200): Promise<{ company: string; items
   const admin = createAdminClient()
   const candidates: Candidate[] = []
 
-  const [customers, suppliers, goods, invoices, purchases, receipts, payments] = await Promise.all([
+  // Finance only — Kanrad owns inventory; Tally gets accounting ledgers/vouchers,
+  // never stock items or inventory movements.
+  const [customers, suppliers, invoices, purchases, receipts, payments] = await Promise.all([
     admin.from("customers").select("id, name, gstin, address, state").eq("is_active", true),
     admin.from("suppliers").select("id, name, gstin, address, state").eq("is_active", true),
-    admin.from("finished_goods").select("id, product_name, unit, category"),
     admin
       .from("invoices")
       .select("id, invoice_number, issue_date, customer_name, subtotal, total_amount, is_igst, tax_rate, cgst_amount, sgst_amount, igst_amount")
@@ -77,13 +77,6 @@ export async function buildOutbox(limit = 200): Promise<{ company: string; items
       entity_type: "supplier", entity_id: s.id, kind: "master",
       xml: buildLedgerMaster({ name: s.name, parent: "Sundry Creditors", gstin: s.gstin, address: s.address, state: s.state }),
       hash: hash([s.name, s.gstin, s.address, s.state]),
-    })
-  }
-  for (const g of goods.data ?? []) {
-    candidates.push({
-      entity_type: "finished_good", entity_id: g.id, kind: "master",
-      xml: buildStockItemMaster({ name: g.product_name, unit: g.unit, category: g.category }),
-      hash: hash([g.product_name, g.unit, g.category]),
     })
   }
   for (const inv of invoices.data ?? []) {
