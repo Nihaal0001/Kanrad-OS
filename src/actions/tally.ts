@@ -1,6 +1,12 @@
 "use server"
 
 import { createAdminClient } from "@/lib/supabase/admin"
+import { getOutstanding, type CashflowData } from "@/lib/tally/outstanding"
+
+/** Receivables (incoming) + payables (outgoing) pulled from Tally; sample until first sync. */
+export async function getCashflowOutstanding(): Promise<CashflowData> {
+  return getOutstanding()
+}
 
 export interface TallyLedgerBalance {
   ledger_name: string

@@ -28,6 +28,7 @@ import {
   TrendingUp,
   CalendarRange,
   Newspaper,
+  Scale,
   type LucideIcon,
 } from "lucide-react"
 
@@ -96,6 +97,7 @@ export const flatNavItems: NavItem[] = [
   { title: "Costing",          href: "/finance/costing",           icon: Calculator,      permission: "finance" },
   { title: "Logistics",        href: "/logistics",                 icon: Truck,           permission: "orders" },
   { title: "Finance",          href: "/finance",                   icon: IndianRupee,     permission: "finance" },
+  { title: "Outstanding",      href: "/finance/outstanding",       icon: Scale,           permission: "finance" },
   { title: "Tally Sync",       href: "/finance/tally",             icon: RefreshCcw,      permission: "finance" },
   { title: "Rejections",       href: "/rejections",                icon: XCircle,         permission: "production" },
   { title: "History",          href: "/history",                   icon: History,         permission: "settings" },

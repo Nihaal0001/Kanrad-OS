@@ -108,6 +108,50 @@ function parseLedgers(xml) {
   return out
 }
 
+function billsRequest(company, reportName) {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<ENVELOPE><HEADER><TALLYREQUEST>Export Data</TALLYREQUEST></HEADER><BODY><EXPORTDATA>
+<REQUESTDESC><REPORTNAME>${reportName}</REPORTNAME><STATICVARIABLES><SVCURRENTCOMPANY>${esc(company)}</SVCURRENTCOMPANY><SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT></STATICVARIABLES></REQUESTDESC>
+</EXPORTDATA></BODY></ENVELOPE>`
+}
+
+// Tally dates come as YYYYMMDD or DD-Mon-YYYY → ISO (YYYY-MM-DD); else null
+function isoDate(s) {
+  if (!s) return null
+  const t = s.trim()
+  let m = t.match(/^(\d{4})(\d{2})(\d{2})$/)
+  if (m) return `${m[1]}-${m[2]}-${m[3]}`
+  m = t.match(/^(\d{1,2})[-/]([A-Za-z]{3})[-/](\d{2,4})$/)
+  if (m) {
+    const mon = { jan:"01",feb:"02",mar:"03",apr:"04",may:"05",jun:"06",jul:"07",aug:"08",sep:"09",oct:"10",nov:"11",dec:"12" }[m[2].toLowerCase()]
+    const yr = m[3].length === 2 ? "20" + m[3] : m[3]
+    if (mon) return `${yr}-${mon}-${String(m[1]).padStart(2,"0")}`
+  }
+  return null
+}
+
+// Parse bill-outstanding rows. Tally's shape varies by version, so we read the
+// common tags and skip rows we can't make sense of.
+function parseBills(xml, type) {
+  const out = []
+  const blocks = xml.match(/<BILLOUTSTANDING>[\s\S]*?<\/BILLOUTSTANDING>|<BILLFIXED>[\s\S]*?<\/BILLFIXED>/gi) || []
+  for (const b of blocks) {
+    const tag = (t) => { const x = b.match(new RegExp(`<${t}>([\\s\\S]*?)</${t}>`, "i")); return x ? decode(x[1].trim()) : null }
+    const party = tag("PARTYNAME") || tag("BILLPARTY") || tag("NAME")
+    const amtRaw = tag("CLOSINGBAL") || tag("BILLCL") || tag("AMOUNT") || tag("BILLAMOUNT")
+    if (!party || !amtRaw) continue
+    const amount = Math.abs(parseFloat(amtRaw.replace(/[^0-9.\-]/g, "")) || 0)
+    if (!amount) continue
+    out.push({
+      party, type, amount,
+      bill_ref: tag("BILLREF") || tag("NAME") || null,
+      bill_date: isoDate(tag("BILLDATE")),
+      due_date: isoDate(tag("BILLDUEDATE") || tag("DUEDATE")),
+    })
+  }
+  return out
+}
+
 // ── Cycles ───────────────────────────────────────────────────────────────────
 async function pushCycle() {
   const { items, count } = await kanrad("/api/tally/outbox")
@@ -146,10 +190,22 @@ async function importMastersCycle() {
   log(`import: ${r.customers} customers, ${r.suppliers} suppliers (${r.skipped} non-party skipped)`)
 }
 
+async function pullOutstandingCycle() {
+  const [recv, pay] = await Promise.all([
+    tally(billsRequest(COMPANY, "Bills Receivable")),
+    tally(billsRequest(COMPANY, "Bills Payable")),
+  ])
+  const bills = [...parseBills(recv, "incoming"), ...parseBills(pay, "outgoing")]
+  if (!bills.length) { log(`outstanding: no bills parsed`); return }
+  const { stored } = await kanrad("/api/tally/outstanding", { method: "POST", body: JSON.stringify({ bills }) })
+  log(`outstanding: stored ${stored} bill(s)`)
+}
+
 async function cycle() {
   try { await pushCycle() } catch (e) { log(`push error: ${e}`) }
   try { await importMastersCycle() } catch (e) { log(`import error: ${e}`) }
   try { await pullCycle() } catch (e) { log(`pull error: ${e}`) }
+  try { await pullOutstandingCycle() } catch (e) { log(`outstanding error: ${e}`) }
 }
 
 // ── Main loop ────────────────────────────────────────────────────────────────
