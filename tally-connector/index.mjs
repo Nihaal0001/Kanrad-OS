@@ -79,6 +79,35 @@ function parseTrialBalance(xml) {
 }
 const decode = (s) => s.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#4;/g, "")
 
+function listAccountsRequest(company) {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<ENVELOPE><HEADER><TALLYREQUEST>Export Data</TALLYREQUEST></HEADER><BODY><EXPORTDATA>
+<REQUESTDESC><REPORTNAME>List of Accounts</REPORTNAME><STATICVARIABLES><SVCURRENTCOMPANY>${esc(company)}</SVCURRENTCOMPANY><SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT><ACCOUNTTYPE>All Ledgers</ACCOUNTTYPE></STATICVARIABLES></REQUESTDESC>
+</EXPORTDATA></BODY></ENVELOPE>`
+}
+
+// Parse <LEDGER> master blocks → party ledgers (name, parent group, gstin, state, address)
+function parseLedgers(xml) {
+  const out = []
+  const re = /<LEDGER\s+NAME="([^"]*)"[^>]*>([\s\S]*?)<\/LEDGER>/gi
+  let m
+  while ((m = re.exec(xml)) !== null) {
+    const name = decode(m[1].trim())
+    const body = m[2]
+    const tag = (t) => { const x = body.match(new RegExp(`<${t}>([\\s\\S]*?)</${t}>`, "i")); return x ? decode(x[1].trim()) : null }
+    const parent = tag("PARENT")
+    if (!name || !parent) continue
+    out.push({
+      name,
+      parent,
+      gstin: tag("PARTYGSTIN") || tag("GSTIN") || null,
+      state: tag("LEDSTATENAME") || null,
+      address: tag("ADDRESS") || null,
+    })
+  }
+  return out
+}
+
 // ── Cycles ───────────────────────────────────────────────────────────────────
 async function pushCycle() {
   const { items, count } = await kanrad("/api/tally/outbox")
@@ -109,8 +138,17 @@ async function pullCycle() {
   log(`pull: stored ${stored} ledger balance(s)`)
 }
 
+async function importMastersCycle() {
+  const resp = await tally(listAccountsRequest(COMPANY))
+  const ledgers = parseLedgers(resp)
+  if (!ledgers.length) { log(`import: no ledgers parsed`); return }
+  const r = await kanrad("/api/tally/import", { method: "POST", body: JSON.stringify({ ledgers }) })
+  log(`import: ${r.customers} customers, ${r.suppliers} suppliers (${r.skipped} non-party skipped)`)
+}
+
 async function cycle() {
   try { await pushCycle() } catch (e) { log(`push error: ${e}`) }
+  try { await importMastersCycle() } catch (e) { log(`import error: ${e}`) }
   try { await pullCycle() } catch (e) { log(`pull error: ${e}`) }
 }
 

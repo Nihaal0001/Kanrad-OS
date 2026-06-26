@@ -175,6 +175,57 @@ export async function applyAcks(acks: Ack[]): Promise<number> {
   return n
 }
 
+export interface InboundLedger {
+  name: string
+  parent: string
+  gstin?: string | null
+  address?: string | null
+  state?: string | null
+}
+
+/**
+ * Import party ledgers pulled from Tally into Kanrad: ledgers under a
+ * Sundry Debtors group become customers, Sundry Creditors become suppliers.
+ * Matched by name (idempotent — updates existing, inserts new). Non-party GL
+ * ledgers (Sales, Bank, GST, etc.) are skipped (their balances arrive via the
+ * Trial Balance pull instead).
+ */
+export async function importTallyLedgers(
+  ledgers: InboundLedger[]
+): Promise<{ customers: number; suppliers: number; skipped: number }> {
+  const admin = createAdminClient()
+  let customers = 0
+  let suppliers = 0
+  let skipped = 0
+
+  for (const l of ledgers) {
+    const name = (l.name ?? "").trim()
+    if (!name) { skipped++; continue }
+    const parent = (l.parent ?? "").toLowerCase()
+    const table = parent.includes("debtor") ? "customers" : parent.includes("creditor") ? "suppliers" : null
+    if (!table) { skipped++; continue }
+
+    const fields = {
+      name,
+      gstin: l.gstin?.trim() || null,
+      address: l.address?.trim() || null,
+      state: l.state?.trim() || null,
+      is_active: true,
+    }
+
+    const { data: existing } = await admin.from(table).select("id").eq("name", name).limit(1)
+    if (existing && existing.length > 0) {
+      await admin.from(table).update(fields).eq("id", existing[0].id)
+    } else {
+      await admin.from(table).insert(fields)
+    }
+    if (table === "customers") customers++
+    else suppliers++
+  }
+
+  return { customers, suppliers, skipped }
+}
+
 /** Store balances pulled from Tally and stamp the pull cursor. */
 export async function applyInbound(balances: PulledBalance[]): Promise<number> {
   const admin = createAdminClient()
