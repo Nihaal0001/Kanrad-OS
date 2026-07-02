@@ -2,6 +2,31 @@
 
 import { createClient } from "@/lib/supabase/server"
 
+// ===== PO Pipeline (ERP-side; POs only reach Tally once invoiced) =====
+
+export async function getPOPipeline() {
+  const supabase = await createClient()
+
+  const { data } = await supabase
+    .from("purchase_orders")
+    .select("status, total_amount")
+    .neq("status", "cancelled")
+
+  const counts = { draft: 0, sent: 0, partial: 0, received: 0 }
+  let committedAmount = 0
+  for (const po of data ?? []) {
+    if (po.status in counts) counts[po.status as keyof typeof counts]++
+    if (po.status === "sent" || po.status === "partial") committedAmount += po.total_amount ?? 0
+  }
+
+  return {
+    counts,
+    committedAmount,
+    openCount: counts.draft + counts.sent + counts.partial,
+    total: (data ?? []).length,
+  }
+}
+
 // ===== Finance Dashboard =====
 
 export async function getFinanceDashboard() {

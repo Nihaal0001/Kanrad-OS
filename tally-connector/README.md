@@ -16,7 +16,10 @@ no cloud API and can't be reached from Vercel, so this small agent runs on the
 - Vouchers: sales invoices → Sales, purchase invoices → Purchase, customer payments → Receipt, supplier payments → Payment
 
 **Tally → Kanrad (pull):**
-- Ledger closing balances (Trial Balance) → mirrored read-only into Kanrad (`tally_ledger_balances`)
+- Ledger closing balances (Trial Balance) → mirrored read-only into Kanrad (`tally_ledger_balances`), with parent groups merged from List of Accounts
+- Party ledgers (List of Accounts) → imported as Kanrad customers/suppliers
+- Outstanding bills (Bills Receivable / Payable) → `tally_outstanding` (Finance → Outstanding)
+- Vouchers (Sales / Purchase / Receipt / Payment / …) over a rolling window → `tally_vouchers` (Finance dashboard graphs). Month-chunked windowed replace, so Tally-side edits and deletions self-heal.
 
 Masters are re-pushed when they change; vouchers are pushed once (create-once)
 to avoid duplicates. Each item is acked individually, so a failure on one (e.g.
@@ -25,7 +28,8 @@ a missing tax ledger) doesn't block the rest.
 ## Setup
 
 ### 1. Database (one-time)
-Apply `supabase/migrations/00038_tally_sync.sql` in the Supabase SQL editor.
+Apply `supabase/migrations/00038_tally_sync.sql`, `00041_tally_outstanding.sql`
+and `00043_tally_vouchers.sql` in the Supabase SQL editor.
 
 ### 2. Kanrad env (Vercel)
 Set these environment variables and redeploy:

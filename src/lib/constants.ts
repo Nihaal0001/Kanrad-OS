@@ -152,8 +152,10 @@ export const navigation: NavSection[] = [
     title: "Finance",
     icon: IndianRupee,
     items: [
-      { title: "Finance",  href: "/finance",         icon: IndianRupee, permission: "finance" },
-      { title: "Costing",  href: "/finance/costing", icon: Calculator,  permission: "finance" },
+      { title: "Finance",     href: "/finance",             icon: IndianRupee, permission: "finance" },
+      { title: "Costing",     href: "/finance/costing",     icon: Calculator,  permission: "finance" },
+      { title: "Outstanding", href: "/finance/outstanding", icon: Scale,       permission: "finance" },
+      { title: "Tally Sync",  href: "/finance/tally",       icon: RefreshCcw,  permission: "finance" },
     ],
   },
   {
