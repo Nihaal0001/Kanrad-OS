@@ -512,9 +512,11 @@ export async function getPayrolls(filters?: { status?: string; month?: string })
     .order("period_start", { ascending: false })
 
   if (filters?.status) query = query.eq("status", filters.status)
-  // month is YYYY-MM, filter where period_start starts with that prefix
+  // month is YYYY-MM, filter where period_start falls within that calendar month
   if (filters?.month) {
-    query = query.gte("period_start", `${filters.month}-01`).lte("period_start", `${filters.month}-31`)
+    const [y, m] = filters.month.split("-").map(Number)
+    const lastDay = new Date(y, m, 0).getDate()
+    query = query.gte("period_start", `${filters.month}-01`).lte("period_start", `${filters.month}-${String(lastDay).padStart(2, "0")}`)
   }
 
   const { data, error } = await query
