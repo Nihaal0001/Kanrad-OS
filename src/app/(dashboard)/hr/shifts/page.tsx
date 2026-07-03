@@ -53,7 +53,7 @@ export default async function ShiftsPage() {
                   <DeleteButton
                     title="Delete Shift"
                     description={`Delete the "${shift.name}" shift? This cannot be undone.`}
-                    onDelete={() => deleteShift(shift.id)}
+                    onDelete={deleteShift.bind(null, shift.id)}
                     className="h-8 w-8 text-muted-foreground hover:text-destructive"
                   />
                 </div>

@@ -101,7 +101,7 @@ export default async function PayrollPage({ searchParams }: Props) {
                     <DeleteButton
                       title="Delete Payroll Record"
                       description={`Delete this draft payroll record for ${p.worker?.full_name ?? "this worker"}?`}
-                      onDelete={() => deletePayroll(p.id)}
+                      onDelete={deletePayroll.bind(null, p.id)}
                     />
                   )}
                 </div>
