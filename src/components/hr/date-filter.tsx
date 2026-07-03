@@ -4,10 +4,10 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation"
 import { useCallback } from "react"
 import { ChevronLeft, ChevronRight, X } from "lucide-react"
 import { format, addDays, parseISO } from "date-fns"
-import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { DatePicker } from "@/components/ui/date-picker"
+import { MonthPicker } from "@/components/ui/month-picker"
 
 interface AttendanceDateFilterProps {
   value: string
@@ -72,18 +72,13 @@ export function HRDateFilter({ value, type }: DateFilterProps) {
     <div className="flex items-end gap-2">
       <div className="space-y-1">
         <Label className="text-xs text-muted-foreground">Filter by month</Label>
-        <Input
-          type="month"
-          value={value}
-          onChange={(e) => {
-            // native month inputs fire onChange on every keystroke in some
-            // browsers (e.g. typing a letter to jump to a month) — only
-            // navigate once the value is a complete "YYYY-MM", or empty
-            const v = e.target.value
-            if (v === "" || /^\d{4}-(0[1-9]|1[0-2])$/.test(v)) updateParam("month", v)
-          }}
-          className="h-9 w-44"
-        />
+        <div className="w-44">
+          <MonthPicker
+            value={value || undefined}
+            onChange={(v) => updateParam("month", v)}
+            placeholder="Pick a month"
+          />
+        </div>
       </div>
       {value && (
         <Button variant="ghost" size="icon" className="h-9 w-9" onClick={clear}>
