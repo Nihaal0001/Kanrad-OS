@@ -13,8 +13,6 @@ import {
   Bell,
   Settings,
   Users,
-  QrCode,
-  ScanLine,
   ClipboardCheck,
   ShoppingCart,
   IndianRupee,
@@ -106,11 +104,8 @@ export const flatNavItems: NavItem[] = [
   { title: "Users",            href: "/users",                     icon: Users,           permission: "users" },
   { title: "Notifications",    href: "/notifications",             icon: Bell,            permission: "notifications" },
   { title: "Attendance",       href: "/hr/attendance",             icon: Clock,           permission: "hr" },
-  { title: "QR Kiosk",         href: "/kiosk",                     icon: QrCode,          permission: "hr" },
-  { title: "Scan QR",          href: "/scan",                      icon: ScanLine },
   { title: "Leaves",           href: "/hr/leaves",                 icon: CalendarDays,    permission: "hr" },
   { title: "Payroll",          href: "/hr/payroll",                icon: CheckCircle,     permission: "hr" },
-  { title: "Shifts",           href: "/hr/shifts",                 icon: RefreshCcw,      permission: "hr" },
   { title: "Settings",         href: "/settings",                  icon: Settings,        permission: "settings" },
 ]
 
@@ -164,11 +159,8 @@ export const navigation: NavSection[] = [
     icon: Users,
     items: [
       { title: "Attendance", href: "/hr/attendance", icon: Clock,        permission: "hr" },
-      { title: "QR Kiosk",   href: "/kiosk",         icon: QrCode,       permission: "hr" },
-      { title: "Scan QR",    href: "/scan",           icon: ScanLine },
       { title: "Leaves",     href: "/hr/leaves",      icon: CalendarDays, permission: "hr" },
       { title: "Payroll",    href: "/hr/payroll",     icon: CheckCircle,  permission: "hr" },
-      { title: "Shifts",     href: "/hr/shifts",      icon: RefreshCcw,   permission: "hr" },
     ],
   },
   {
