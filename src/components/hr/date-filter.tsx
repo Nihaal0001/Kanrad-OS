@@ -75,7 +75,13 @@ export function HRDateFilter({ value, type }: DateFilterProps) {
         <Input
           type="month"
           value={value}
-          onChange={(e) => updateParam("month", e.target.value)}
+          onChange={(e) => {
+            // native month inputs fire onChange on every keystroke in some
+            // browsers (e.g. typing a letter to jump to a month) — only
+            // navigate once the value is a complete "YYYY-MM", or empty
+            const v = e.target.value
+            if (v === "" || /^\d{4}-(0[1-9]|1[0-2])$/.test(v)) updateParam("month", v)
+          }}
           className="h-9 w-44"
         />
       </div>

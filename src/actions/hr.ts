@@ -82,11 +82,18 @@ export async function setWorkerGenderAndOT(
  * present/absent from attendance, and salary payable for the days worked.
  * `month` is "YYYY-MM" (defaults to the current month).
  */
+/** "YYYY-MM" only — guards against partial/invalid values from the native
+ *  month <input> (it fires onChange mid-keystroke in some browsers). */
+function isValidMonth(month: string): boolean {
+  return /^\d{4}-(0[1-9]|1[0-2])$/.test(month)
+}
+
 export async function getPayrollRegister(month?: string) {
   const admin = createAdminClient()
   const now = new Date()
-  const [y, m] = month
-    ? month.split("-").map(Number)
+  const useMonth = month && isValidMonth(month) ? month : undefined
+  const [y, m] = useMonth
+    ? useMonth.split("-").map(Number)
     : [now.getFullYear(), now.getMonth() + 1]
   const month0 = m - 1
   const mm = String(m).padStart(2, "0")
@@ -513,7 +520,7 @@ export async function getPayrolls(filters?: { status?: string; month?: string })
 
   if (filters?.status) query = query.eq("status", filters.status)
   // month is YYYY-MM, filter where period_start falls within that calendar month
-  if (filters?.month) {
+  if (filters?.month && isValidMonth(filters.month)) {
     const [y, m] = filters.month.split("-").map(Number)
     const lastDay = new Date(y, m, 0).getDate()
     query = query.gte("period_start", `${filters.month}-01`).lte("period_start", `${filters.month}-${String(lastDay).padStart(2, "0")}`)
