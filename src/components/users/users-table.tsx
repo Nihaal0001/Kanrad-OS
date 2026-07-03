@@ -8,23 +8,8 @@ import { friendlyError } from "@/lib/utils"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
-
-const TABS = [
-  { id: "dashboard",          label: "Dashboard" },
-  { id: "orders",             label: "Orders" },
-  { id: "production",         label: "Production" },
-  { id: "production_targets", label: "Daily Targets" },
-  { id: "bom",                label: "BOM" },
-  { id: "inventory",          label: "Inventory" },
-  { id: "master_inventory",   label: "Master Inventory" },
-  { id: "purchase_orders",    label: "Purchase Orders" },
-  { id: "warehouse",          label: "Warehouse" },
-  { id: "finance",            label: "Finance" },
-  { id: "logistics",          label: "Logistics" },
-  { id: "issues",             label: "Issues" },
-  { id: "rejections",         label: "Rejections" },
-] as const
+import { PermissionPicker } from "@/components/users/permission-picker"
+import { LABEL_BY_KEY } from "@/lib/permission-tree"
 
 interface UsersTableProps {
   users: UserRow[]
@@ -39,10 +24,6 @@ function UserRow({ user, currentUserId }: { user: UserRow; currentUserId: string
 
   const currentDepts = user.department ? user.department.split(",").map((d) => d.trim()).filter(Boolean) : []
   const [selected, setSelected] = useState<string[]>(currentDepts)
-
-  function toggleTab(id: string) {
-    setSelected((prev) => prev.includes(id) ? prev.filter((d) => d !== id) : [...prev, id])
-  }
 
   function handleSave() {
     startTransition(async () => {
@@ -101,9 +82,9 @@ function UserRow({ user, currentUserId }: { user: UserRow; currentUserId: string
         ) : !editing ? (
           <div className="flex flex-wrap gap-1.5 items-center">
             {currentDepts.length > 0 ? currentDepts.map((d) => {
-              const tab = TABS.find((t) => t.id === d)
-              return tab ? (
-                <Badge key={d} variant="secondary" className="text-xs">{tab.label}</Badge>
+              const label = LABEL_BY_KEY.get(d)
+              return label ? (
+                <Badge key={d} variant="secondary" className="text-xs">{label}</Badge>
               ) : null
             }) : (
               <span className="text-xs text-muted-foreground">No access set</span>
@@ -115,25 +96,8 @@ function UserRow({ user, currentUserId }: { user: UserRow; currentUserId: string
             )}
           </div>
         ) : (
-          <div className="space-y-2">
-            <div className="flex flex-wrap gap-1.5">
-              {TABS.map((tab) => {
-                const checked = selected.includes(tab.id)
-                return (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => toggleTab(tab.id)}
-                    className={cn(
-                      "rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors",
-                      checked ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-primary/50"
-                    )}
-                  >
-                    {tab.label}
-                  </button>
-                )
-              })}
-            </div>
+          <div className="space-y-3">
+            <PermissionPicker selected={selected} onChange={setSelected} />
             <div className="flex gap-2">
               <Button size="sm" className="h-7 text-xs" onClick={handleSave} disabled={isPending}>
                 {isPending ? "Saving…" : "Save"}
