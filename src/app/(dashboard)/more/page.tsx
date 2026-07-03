@@ -11,16 +11,23 @@ export default async function MobileMorePage() {
   const { data: { user } } = await supabase.auth.getUser()
 
   let role = "worker"
+  let department: string | null = null
   if (user) {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("role")
+      .select("role, department")
       .eq("auth_id", user.id)
       .maybeSingle()
     role = profile?.role ?? role
+    department = profile?.department ?? null
   }
 
-  const allowedPermissions = await getRolePermissions(role)
+  // Same rule as the dashboard layout: admins use role permissions; other
+  // users use their per-user tab grants (department), falling back to role.
+  const allowedPermissions =
+    role !== "admin" && department
+      ? department.split(",").map((d) => d.trim()).filter(Boolean)
+      : await getRolePermissions(role)
   const items = getFilteredFlatNavItems(allowedPermissions)
 
   return (

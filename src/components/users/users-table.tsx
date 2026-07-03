@@ -5,26 +5,13 @@ import { toast } from "sonner"
 
 import { updateUserDepartments, toggleUserActive, type UserRow } from "@/actions/users"
 import { friendlyError } from "@/lib/utils"
+import { PAGE_TABS } from "@/lib/constants"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
-const TABS = [
-  { id: "dashboard",          label: "Dashboard" },
-  { id: "orders",             label: "Orders" },
-  { id: "production",         label: "Production" },
-  { id: "production_targets", label: "Daily Targets" },
-  { id: "bom",                label: "BOM" },
-  { id: "inventory",          label: "Inventory" },
-  { id: "master_inventory",   label: "Master Inventory" },
-  { id: "purchase_orders",    label: "Purchase Orders" },
-  { id: "warehouse",          label: "Warehouse" },
-  { id: "finance",            label: "Finance" },
-  { id: "logistics",          label: "Logistics" },
-  { id: "issues",             label: "Issues" },
-  { id: "rejections",         label: "Rejections" },
-] as const
+const TAB_LABEL = new Map(PAGE_TABS.map((t) => [t.key, t.label]))
 
 interface UsersTableProps {
   users: UserRow[]
@@ -101,9 +88,9 @@ function UserRow({ user, currentUserId }: { user: UserRow; currentUserId: string
         ) : !editing ? (
           <div className="flex flex-wrap gap-1.5 items-center">
             {currentDepts.length > 0 ? currentDepts.map((d) => {
-              const tab = TABS.find((t) => t.id === d)
-              return tab ? (
-                <Badge key={d} variant="secondary" className="text-xs">{tab.label}</Badge>
+              const label = TAB_LABEL.get(d)
+              return label ? (
+                <Badge key={d} variant="secondary" className="text-xs">{label}</Badge>
               ) : null
             }) : (
               <span className="text-xs text-muted-foreground">No access set</span>
@@ -116,14 +103,25 @@ function UserRow({ user, currentUserId }: { user: UserRow; currentUserId: string
           </div>
         ) : (
           <div className="space-y-2">
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() =>
+                  setSelected(selected.length === PAGE_TABS.length ? [] : PAGE_TABS.map((t) => t.key))
+                }
+                className="text-xs text-primary hover:underline"
+              >
+                {selected.length === PAGE_TABS.length ? "Clear all" : "Select all"}
+              </button>
+            </div>
             <div className="flex flex-wrap gap-1.5">
-              {TABS.map((tab) => {
-                const checked = selected.includes(tab.id)
+              {PAGE_TABS.map((tab) => {
+                const checked = selected.includes(tab.key)
                 return (
                   <button
-                    key={tab.id}
+                    key={tab.key}
                     type="button"
-                    onClick={() => toggleTab(tab.id)}
+                    onClick={() => toggleTab(tab.key)}
                     className={cn(
                       "rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors",
                       checked ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-primary/50"

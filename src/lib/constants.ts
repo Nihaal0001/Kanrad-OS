@@ -68,14 +68,29 @@ export function isNavSectionActive(pathname: string, section: NavSection) {
   return getActiveNavItem(pathname, section.items) !== null
 }
 
+/** Unique per-page permission key derived from a nav item's href — lets a
+ *  single tab (e.g. Outstanding) be granted per user without granting its
+ *  whole module. Root pages ("/finance" → "finance") match their legacy
+ *  module string, so existing role grants keep working unchanged. */
+export function pageKeyFromHref(href: string): string {
+  return href === "/" ? "dashboard" : href.slice(1).replace(/\//g, ":")
+}
+
+/** A nav item is visible when the allowed set contains either its legacy
+ *  module key (role-based grants: "finance" shows all finance tabs) or its
+ *  specific page key (per-user grants: "finance:outstanding" shows just
+ *  that tab). */
+function navItemAllowed(item: NavItem, allowed: Set<string>): boolean {
+  if (!item.permission) return true
+  return allowed.has(item.permission) || allowed.has(pageKeyFromHref(item.href))
+}
+
 export function filterNavigationByPermissions(allowedPermissions?: string[]) {
   const allowed = new Set(allowedPermissions ?? [])
   return navigation
     .map((section) => ({
       ...section,
-      items: section.items.filter(
-        (item) => !item.permission || allowed.has(item.permission)
-      ),
+      items: section.items.filter((item) => navItemAllowed(item, allowed)),
     }))
     .filter((section) => section.items.length > 0)
 }
@@ -110,8 +125,14 @@ export const flatNavItems: NavItem[] = [
 
 export function getFilteredFlatNavItems(allowedPermissions?: string[]) {
   const allowed = new Set(allowedPermissions ?? [])
-  return flatNavItems.filter((item) => !item.permission || allowed.has(item.permission))
+  return flatNavItems.filter((item) => navItemAllowed(item, allowed))
 }
+
+/** Every pickable tab (label + page key), generated from the real nav list so
+ *  the per-user access picker can never drift from the actual sidebar. */
+export const PAGE_TABS: { key: string; label: string }[] = flatNavItems
+  .filter((item) => !!item.permission)
+  .map((item) => ({ key: pageKeyFromHref(item.href), label: item.title }))
 
 // Desktop sidebar — grouped sections
 export const navigation: NavSection[] = [

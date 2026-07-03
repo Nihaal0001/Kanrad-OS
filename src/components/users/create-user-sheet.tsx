@@ -17,22 +17,7 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet"
 import { cn } from "@/lib/utils"
-
-const DEPARTMENTS = [
-  { id: "dashboard",         label: "Dashboard\n(View Only)" },
-  { id: "orders",            label: "Orders" },
-  { id: "production",        label: "Production" },
-  { id: "production_targets",label: "Daily Targets" },
-  { id: "bom",               label: "BOM" },
-  { id: "inventory",         label: "Inventory" },
-  { id: "master_inventory",  label: "Master\nInventory" },
-  { id: "purchase_orders",   label: "Purchase\nOrders" },
-  { id: "warehouse",         label: "Warehouse" },
-  { id: "finance",           label: "Finance" },
-  { id: "logistics",         label: "Logistics" },
-  { id: "issues",            label: "Issues" },
-  { id: "rejections",        label: "Rejections" },
-] as const
+import { PAGE_TABS } from "@/lib/constants"
 
 export function CreateUserSheet() {
   const router = useRouter()
@@ -205,22 +190,33 @@ export function CreateUserSheet() {
               </div>
             </div>
 
-            {/* Departments — only for regular users */}
+            {/* Tab access — only for regular users */}
             {!isAdmin && (
               <div className="space-y-3">
-                <Label className="font-semibold text-sm">
-                  Select Departments <span className="text-muted-foreground font-normal">(What can they access?)</span>
-                </Label>
+                <div className="flex items-center justify-between">
+                  <Label className="font-semibold text-sm">
+                    Select Tabs <span className="text-muted-foreground font-normal">(What can they access?)</span>
+                  </Label>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setDepartments(departments.length === PAGE_TABS.length ? [] : PAGE_TABS.map((t) => t.key))
+                    }
+                    className="text-xs text-primary hover:underline"
+                  >
+                    {departments.length === PAGE_TABS.length ? "Clear all" : "Select all"}
+                  </button>
+                </div>
                 <div className="grid grid-cols-2 gap-2">
-                  {DEPARTMENTS.map((dept) => {
-                    const checked = departments.includes(dept.id)
+                  {PAGE_TABS.map((tab) => {
+                    const checked = departments.includes(tab.key)
                     return (
                       <button
-                        key={dept.id}
+                        key={tab.key}
                         type="button"
-                        onClick={() => toggleDepartment(dept.id)}
+                        onClick={() => toggleDepartment(tab.key)}
                         className={cn(
-                          "flex items-center gap-3 rounded-xl border px-4 py-3 text-left text-sm font-medium transition-colors",
+                          "flex items-center gap-3 rounded-xl border px-4 py-2.5 text-left text-sm font-medium transition-colors",
                           checked
                             ? "border-primary bg-primary/10 text-primary"
                             : "border-border bg-muted/20 text-foreground"
@@ -236,7 +232,7 @@ export function CreateUserSheet() {
                             </svg>
                           )}
                         </div>
-                        <span className="whitespace-pre-line leading-tight">{dept.label}</span>
+                        <span className="leading-tight">{tab.label}</span>
                       </button>
                     )
                   })}
