@@ -71,21 +71,13 @@ export function isNavSectionActive(pathname: string, section: NavSection) {
   return getActiveNavItem(pathname, section.items) !== null
 }
 
-/** Unique, stable page key derived from a nav item's href — the granular
- *  permission unit. Root pages whose module had exactly one nav item (e.g.
- *  "/finance", "/users") derive to the same string as the legacy coarse
- *  module key, so existing server-side checks keep matching unchanged. */
-export function pageKeyFromHref(href: string): string {
-  return href === "/" ? "dashboard" : href.slice(1).replace(/\//g, ":")
-}
-
 export function filterNavigationByPermissions(allowedPermissions?: string[]) {
   const allowed = new Set(allowedPermissions ?? [])
   return navigation
     .map((section) => ({
       ...section,
       items: section.items.filter(
-        (item) => !item.permission || allowed.has(pageKeyFromHref(item.href))
+        (item) => !item.permission || allowed.has(item.permission)
       ),
     }))
     .filter((section) => section.items.length > 0)
@@ -124,7 +116,7 @@ export const flatNavItems: NavItem[] = [
 
 export function getFilteredFlatNavItems(allowedPermissions?: string[]) {
   const allowed = new Set(allowedPermissions ?? [])
-  return flatNavItems.filter((item) => !item.permission || allowed.has(pageKeyFromHref(item.href)))
+  return flatNavItems.filter((item) => !item.permission || allowed.has(item.permission))
 }
 
 // Desktop sidebar — grouped sections

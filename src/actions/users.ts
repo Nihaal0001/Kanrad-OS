@@ -5,15 +5,6 @@ import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { userRoles, type UserRole } from "@/lib/constants"
 import { DEFAULT_ROLE_PERMISSIONS } from "@/lib/permissions"
-import { MODULE_TO_PAGE_KEYS } from "@/lib/permission-tree"
-
-/** Expand coarse module keys into their full page-key set (the module key
- *  itself is kept too, since AI tool gating and a couple of legacy checks
- *  still read it directly). Used only as the DB-error fallback so an outage
- *  doesn't collapse nav down to nothing. */
-function expandModules(modules: string[]): string[] {
-  return [...new Set(modules.flatMap((m) => [m, ...(MODULE_TO_PAGE_KEYS[m] ?? [])]))]
-}
 
 import type { UserRow } from "@/lib/validators/users"
 export type { UserRow } from "@/lib/validators/users"
@@ -141,7 +132,7 @@ export const getAllRolePermissions = unstable_cache(
 
     if (error) {
       return Object.fromEntries(
-        userRoles.map((r) => [r, expandModules([...(DEFAULT_ROLE_PERMISSIONS[r] ?? [])])])
+        userRoles.map((r) => [r, [...(DEFAULT_ROLE_PERMISSIONS[r] ?? [])]])
       )
     }
 
@@ -164,7 +155,7 @@ export const getRolePermissions = unstable_cache(
       .select("permission")
       .eq("role", role)
 
-    if (error) return expandModules([...(DEFAULT_ROLE_PERMISSIONS[role as UserRole] ?? [])])
+    if (error) return [...(DEFAULT_ROLE_PERMISSIONS[role as UserRole] ?? [])]
     return data?.map((r) => r.permission) ?? []
   },
   ["role-permissions"],

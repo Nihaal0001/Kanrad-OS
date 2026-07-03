@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils"
 import {
   getActiveNavItem,
   isNavSectionActive,
-  filterNavigationByPermissions,
+  navigation,
   type NavSection,
 } from "@/lib/constants"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -179,7 +179,15 @@ export function Sidebar({
 }: SidebarProps) {
   const pathname = usePathname()
 
-  const filteredNavigation: NavSection[] = filterNavigationByPermissions(allowedPermissions)
+  const allowed = new Set(allowedPermissions ?? [])
+  const filteredNavigation: NavSection[] = navigation
+    .map((section) => ({
+      ...section,
+      items: section.items.filter(
+        (item) => !item.permission || allowed.has(item.permission)
+      ),
+    }))
+    .filter((section) => section.items.length > 0)
 
   const activeSectionIds = getActiveSectionIds(pathname, filteredNavigation)
   const defaultOpenSectionId = activeSectionIds[0] ?? null

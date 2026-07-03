@@ -17,7 +17,22 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet"
 import { cn } from "@/lib/utils"
-import { PermissionPicker } from "@/components/users/permission-picker"
+
+const DEPARTMENTS = [
+  { id: "dashboard",         label: "Dashboard\n(View Only)" },
+  { id: "orders",            label: "Orders" },
+  { id: "production",        label: "Production" },
+  { id: "production_targets",label: "Daily Targets" },
+  { id: "bom",               label: "BOM" },
+  { id: "inventory",         label: "Inventory" },
+  { id: "master_inventory",  label: "Master\nInventory" },
+  { id: "purchase_orders",   label: "Purchase\nOrders" },
+  { id: "warehouse",         label: "Warehouse" },
+  { id: "finance",           label: "Finance" },
+  { id: "logistics",         label: "Logistics" },
+  { id: "issues",            label: "Issues" },
+  { id: "rejections",        label: "Rejections" },
+] as const
 
 export function CreateUserSheet() {
   const router = useRouter()
@@ -39,6 +54,12 @@ export function CreateUserSheet() {
     setIsAdmin(false)
     setDepartments([])
     setOpen(true)
+  }
+
+  function toggleDepartment(id: string) {
+    setDepartments((prev) =>
+      prev.includes(id) ? prev.filter((d) => d !== id) : [...prev, id]
+    )
   }
 
   function handleSubmit() {
@@ -184,13 +205,42 @@ export function CreateUserSheet() {
               </div>
             </div>
 
-            {/* Access — only for regular users */}
+            {/* Departments — only for regular users */}
             {!isAdmin && (
               <div className="space-y-3">
                 <Label className="font-semibold text-sm">
-                  Select Pages <span className="text-muted-foreground font-normal">(What can they access?)</span>
+                  Select Departments <span className="text-muted-foreground font-normal">(What can they access?)</span>
                 </Label>
-                <PermissionPicker selected={departments} onChange={setDepartments} />
+                <div className="grid grid-cols-2 gap-2">
+                  {DEPARTMENTS.map((dept) => {
+                    const checked = departments.includes(dept.id)
+                    return (
+                      <button
+                        key={dept.id}
+                        type="button"
+                        onClick={() => toggleDepartment(dept.id)}
+                        className={cn(
+                          "flex items-center gap-3 rounded-xl border px-4 py-3 text-left text-sm font-medium transition-colors",
+                          checked
+                            ? "border-primary bg-primary/10 text-primary"
+                            : "border-border bg-muted/20 text-foreground"
+                        )}
+                      >
+                        <div className={cn(
+                          "h-5 w-5 rounded border-2 flex items-center justify-center shrink-0",
+                          checked ? "border-primary bg-primary" : "border-muted-foreground"
+                        )}>
+                          {checked && (
+                            <svg className="h-3 w-3 text-primary-foreground" viewBox="0 0 12 12" fill="none">
+                              <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          )}
+                        </div>
+                        <span className="whitespace-pre-line leading-tight">{dept.label}</span>
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
             )}
           </div>
