@@ -22,7 +22,7 @@ export const getWorkers = unstable_cache(
     const supabase = createAdminClient()
     const { data, error } = await supabase
       .from("profiles")
-      .select("id, full_name, role, department, is_active, monthly_salary")
+      .select("id, full_name, role, department, is_active, monthly_salary, gender, ot_rate")
       .eq("is_active", true)
       .order("full_name")
     if (error) throw new Error(error.message)
@@ -47,6 +47,32 @@ export async function setWorkerSalaries(updates: { id: string; monthly_salary: n
   }
 
   revalidateTag("workers", {})
+  revalidatePath("/hr/payroll")
+  return { updated }
+}
+
+/** Set gender (male/female — determines shift window: 8am-6pm vs 8am-5pm)
+ *  and per-hour OT rate for one or more workers. */
+export async function setWorkerGenderAndOT(
+  updates: { id: string; gender: "male" | "female" | null; ot_rate: number }[]
+) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
+  const admin = createAdminClient()
+  let updated = 0
+  for (const u of updates) {
+    const ot_rate = Number.isFinite(u.ot_rate) && u.ot_rate >= 0 ? u.ot_rate : 0
+    const { error } = await admin
+      .from("profiles")
+      .update({ gender: u.gender, ot_rate })
+      .eq("id", u.id)
+    if (!error) updated++
+  }
+
+  revalidateTag("workers", {})
+  revalidatePath("/hr/attendance")
   revalidatePath("/hr/payroll")
   return { updated }
 }
