@@ -1,33 +1,21 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { Plus, Trash2, ExternalLink, IndianRupee, Newspaper, Sparkles, Loader2, ChevronDown, ChevronUp } from "lucide-react"
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Plus, IndianRupee, Newspaper, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { logCommodityPrice, createMarketNews, deleteMarketNews, predictCommodityPrice, type PriceForecastResult } from "@/actions/analytics"
+import { logCommodityPrice, createMarketNews, deleteMarketNews } from "@/actions/analytics"
 import { fetchMarketNews } from "@/actions/fetch-news"
-import { formatDate } from "@/lib/utils"
 import { cn } from "@/lib/utils"
-
-const NEWS_CATEGORIES = [
-  { value: "cookware", label: "Cookware" },
-  { value: "raw_material", label: "Raw Material" },
-  { value: "industry", label: "Industry" },
-  { value: "regulation", label: "Regulation" },
-  { value: "general", label: "General" },
-]
-
-const CATEGORY_COLORS: Record<string, string> = {
-  cookware: "bg-orange-500/15 text-orange-600 border-orange-500/20",
-  raw_material: "bg-amber-500/15 text-amber-600 border-amber-500/20",
-  industry: "bg-blue-500/15 text-blue-600 border-blue-500/20",
-  regulation: "bg-purple-500/15 text-purple-600 border-purple-500/20",
-  general: "bg-muted text-muted-foreground",
-}
+import type { CommodityHistory, BomCostImpact, TopStory } from "@/actions/market-intel"
+import type { MarketBrief } from "@/lib/market/brief"
+import { AiBriefCard } from "@/components/market-intel/ai-brief-card"
+import { PriceTable } from "@/components/market-intel/price-table"
+import { BomImpactCard } from "@/components/market-intel/bom-impact-card"
+import { ForecastCard } from "@/components/market-intel/forecast-card"
+import { NewsSection, NEWS_CATEGORIES, type News } from "@/components/market-intel/news-section"
 
 const COMMON_UNITS = ["kg", "MT", "tonne", "piece", "litre", "sq ft", "metre", "roll"]
 
@@ -37,18 +25,23 @@ type Commodity = {
   defaultUnit: string
   latest_price: { price: number; unit: string; date: string; supplier: string | null } | null
 }
-type News = { id: string; title: string; summary: string | null; url: string | null; category: string; source: string | null; published_at: string }
 type Supplier = { id: string; name: string }
 
-export function MarketIntelClient({ commodities, news, suppliers }: {
+export function MarketIntelClient({ commodities, history, impact, brief, topStories, news, suppliers, isAdmin }: {
   commodities: Commodity[]
+  history: CommodityHistory[]
+  impact: BomCostImpact
+  brief: MarketBrief | null
+  topStories: TopStory[]
   news: News[]
   suppliers: Supplier[]
+  isAdmin: boolean
 }) {
   const [tab, setTab] = useState<"prices" | "news">("prices")
   const [isPending, startTransition] = useTransition()
   const [fetchingNews, setFetchingNews] = useState(false)
   const [fetchResult, setFetchResult] = useState("")
+
   function handleFetchNews() {
     setFetchingNews(true)
     setFetchResult("")
@@ -56,27 +49,6 @@ export function MarketIntelClient({ commodities, news, suppliers }: {
       const res = await fetchMarketNews()
       setFetchingNews(false)
       setFetchResult(res.error ? `Error: ${res.error}` : `✓ ${res.inserted} new articles added`)
-    })
-  }
-
-  // AI price forecast
-  const [forecastCategoryId, setForecastCategoryId] = useState("")
-  const [forecast, setForecast] = useState<PriceForecastResult | null>(null)
-  const [forecastError, setForecastError] = useState("")
-  const [forecastLoading, setForecastLoading] = useState(false)
-  const [forecastExpanded, setForecastExpanded] = useState(true)
-
-  function handleForecast() {
-    if (!forecastCategoryId) return
-    setForecastLoading(true)
-    setForecastError("")
-    setForecast(null)
-    startTransition(async () => {
-      const res = await predictCommodityPrice(forecastCategoryId)
-      setForecastLoading(false)
-      if ("error" in res) { setForecastError(res.error); return }
-      setForecast(res.data)
-      setForecastExpanded(true)
     })
   }
 
@@ -104,7 +76,6 @@ export function MarketIntelClient({ commodities, news, suppliers }: {
     startTransition(async () => {
       const res = await logCommodityPrice({
         commodity_id: priceForm.commodity_id,
-
         price_per_unit: parseFloat(priceForm.price_per_unit),
         unit: priceForm.unit,
         supplier_id: priceForm.supplier_id || undefined,
@@ -139,7 +110,7 @@ export function MarketIntelClient({ commodities, news, suppliers }: {
     startTransition(async () => { await deleteMarketNews(id) })
   }
 
-  const commoditiesWithPrice = commodities.filter(c => c.latest_price)
+  const forecastable = commodities.filter(c => c.latest_price).map(c => ({ id: c.id, name: c.name }))
 
   return (
     <div className="space-y-6">
@@ -147,7 +118,7 @@ export function MarketIntelClient({ commodities, news, suppliers }: {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Market Intel</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Track commodity prices and industry news</p>
+          <p className="mt-1 text-sm text-muted-foreground">Live commodity prices, cost impact on your products, and curated industry news</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {tab === "news" && (
@@ -177,6 +148,9 @@ export function MarketIntelClient({ commodities, news, suppliers }: {
         </div>
       )}
 
+      {/* AI Daily Brief — always visible above the tabs */}
+      <AiBriefCard brief={brief} isAdmin={isAdmin} />
+
       {/* Tabs */}
       <div className="flex gap-1 rounded-lg bg-muted p-1 w-fit">
         {(["prices", "news"] as const).map(t => (
@@ -189,218 +163,16 @@ export function MarketIntelClient({ commodities, news, suppliers }: {
         ))}
       </div>
 
-      {/* Prices Tab */}
       {tab === "prices" && (
         <div className="space-y-4">
-          {commoditiesWithPrice.length > 0 && (
-            <div className="rounded-xl border border-border bg-card overflow-hidden">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border bg-muted/40">
-                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">Commodity</th>
-                    <th className="px-4 py-3 text-right font-medium text-muted-foreground">Latest Price</th>
-                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">Supplier</th>
-                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">Date</th>
-                    <th className="px-4 py-3" />
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {commoditiesWithPrice.map(c => (
-                    <tr key={c.id} className="hover:bg-muted/20 transition-colors">
-                      <td className="px-4 py-3 font-medium">{c.name}</td>
-                      <td className="px-4 py-3 text-right font-semibold">
-                        ₹{c.latest_price!.price.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                        <span className="text-xs font-normal text-muted-foreground ml-1">/{c.latest_price!.unit}</span>
-                      </td>
-                      <td className="px-4 py-3 text-muted-foreground">{c.latest_price!.supplier ?? "—"}</td>
-                      <td className="px-4 py-3 text-muted-foreground text-xs">{formatDate(c.latest_price!.date)}</td>
-                      <td className="px-4 py-3 text-right">
-                        <Button size="sm" variant="ghost" onClick={() => openLogPrice(c.id)}>
-                          <Plus className="h-3 w-3 mr-1" />Update
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {commodities.length === 0 && (
-            <div className="rounded-xl border border-border bg-card p-12 text-center text-muted-foreground">
-              No material categories found. Add categories in Item Master first.
-            </div>
-          )}
-
-          {commodities.length > 0 && commoditiesWithPrice.length === 0 && (
-            <div className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
-              No prices logged yet. Click <strong>Log Price</strong> to start tracking commodity prices.
-            </div>
-          )}
-
-          {/* AI Price Forecast */}
-          <Card className="border-primary/20 bg-primary/5">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-primary" />
-                  AI 10-Day Price Forecast
-                </CardTitle>
-                {forecast && (
-                  <button onClick={() => setForecastExpanded(e => !e)} className="text-muted-foreground hover:text-foreground">
-                    {forecastExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                  </button>
-                )}
-              </div>
-              <p className="text-xs text-muted-foreground">Uses price history + market news to predict prices for the next 10 days</p>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {commoditiesWithPrice.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Log at least one commodity price to use AI forecasting.</p>
-              ) : (
-                <div className="flex gap-3">
-                  <Select value={forecastCategoryId} onValueChange={(v: string) => { setForecastCategoryId(v); setForecast(null); setForecastError("") }}>
-                    <SelectTrigger className="flex-1"><SelectValue placeholder="Select a commodity to forecast..." /></SelectTrigger>
-                    <SelectContent>
-                      {commoditiesWithPrice.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                  <Button onClick={handleForecast} disabled={!forecastCategoryId || forecastLoading || isPending}>
-                    {forecastLoading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Forecasting…</> : <><Sparkles className="h-4 w-4 mr-2" />Forecast</>}
-                  </Button>
-                </div>
-              )}
-
-              {forecastError && (
-                <div className="rounded-lg bg-destructive/10 border border-destructive/20 px-3 py-2 text-sm text-destructive">{forecastError}</div>
-              )}
-
-              {forecast && forecastExpanded && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between flex-wrap gap-2">
-                    <div>
-                      <p className="font-semibold">{forecast.material_name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        Last known: ₹{forecast.last_known_price}/{forecast.unit} on {formatDate(forecast.last_known_date)}
-                      </p>
-                    </div>
-                    <span className={cn("text-xs font-medium px-2.5 py-1 rounded-full border",
-                      forecast.confidence === "high" ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" :
-                      forecast.confidence === "medium" ? "bg-amber-500/10 text-amber-600 border-amber-500/20" :
-                      "bg-red-500/10 text-red-600 border-red-500/20"
-                    )}>
-                      {forecast.confidence.charAt(0).toUpperCase() + forecast.confidence.slice(1)} confidence
-                    </span>
-                  </div>
-
-                  <ResponsiveContainer width="100%" height={200}>
-                    <AreaChart data={[
-                      { label: "Today", price: forecast.last_known_price, low: forecast.last_known_price, high: forecast.last_known_price },
-                      ...forecast.predictions.map(p => ({
-                        label: new Date(p.date).toLocaleDateString("en-IN", { day: "numeric", month: "short" }),
-                        price: p.predicted_price,
-                        low: p.low,
-                        high: p.high,
-                      }))
-                    ]} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="priceGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.2} />
-                          <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                        </linearGradient>
-                        <linearGradient id="rangeGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.08} />
-                          <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                      <XAxis dataKey="label" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
-                      <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false}
-                        tickFormatter={v => `₹${v}`} domain={["auto", "auto"]} />
-                      <Tooltip
-                        contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 11 }}
-                        formatter={(v, name) => [`₹${Number(v).toFixed(2)}`, name === "price" ? "Predicted" : name === "high" ? "High" : "Low"]}
-                      />
-                      <ReferenceLine x="Today" stroke="hsl(var(--border))" strokeDasharray="3 3" />
-                      <Area type="monotone" dataKey="high" stroke="transparent" fill="url(#rangeGrad)" />
-                      <Area type="monotone" dataKey="low" stroke="transparent" fill="hsl(var(--background))" />
-                      <Area type="monotone" dataKey="price" stroke="hsl(var(--primary))" strokeWidth={2} fill="url(#priceGrad)" dot={{ r: 3, fill: "hsl(var(--primary))" }} />
-                    </AreaChart>
-                  </ResponsiveContainer>
-
-                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-                    {forecast.predictions.map((p, i) => {
-                      const change = p.predicted_price - forecast.last_known_price
-                      const pct = ((change / forecast.last_known_price) * 100).toFixed(1)
-                      return (
-                        <div key={i} className="rounded-lg border border-border bg-background p-2 text-center">
-                          <div className="text-[10px] text-muted-foreground">
-                            {new Date(p.date).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
-                          </div>
-                          <div className="font-semibold text-sm mt-0.5">₹{p.predicted_price.toFixed(2)}</div>
-                          <div className={cn("text-[10px] font-medium", change >= 0 ? "text-red-500" : "text-emerald-500")}>
-                            {change >= 0 ? "+" : ""}{pct}%
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-
-                  <div className="rounded-lg bg-muted/50 p-3 space-y-2">
-                    <p className="text-sm font-medium">AI Reasoning</p>
-                    <p className="text-sm text-muted-foreground">{forecast.reasoning}</p>
-                    {forecast.factors.length > 0 && (
-                      <ul className="text-xs text-muted-foreground space-y-0.5 ml-3">
-                        {forecast.factors.map((f, i) => <li key={i} className="list-disc">{f}</li>)}
-                      </ul>
-                    )}
-                  </div>
-
-                  <p className="text-[10px] text-muted-foreground">
-                    ⚠ AI forecasts are estimates based on historical data and news sentiment. Always verify with market sources before making purchasing decisions.
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <PriceTable history={history} onUpdate={openLogPrice} />
+          <BomImpactCard impact={impact} />
+          <ForecastCard commodities={forecastable} />
         </div>
       )}
 
-      {/* News Tab */}
       {tab === "news" && (
-        <div className="space-y-4">
-          {news.length === 0 && (
-            <div className="rounded-xl border border-border bg-card p-12 text-center text-muted-foreground">
-              No news yet. News auto-fetches daily, or click "Add News" to add manually.
-            </div>
-          )}
-
-          {news.filter(n => n.category === "cookware").length > 0 && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold uppercase tracking-wider text-orange-600">🍳 Cookware Industry</span>
-                <div className="flex-1 h-px bg-orange-500/20" />
-              </div>
-              {news.filter(n => n.category === "cookware").map(item => (
-                <NewsCard key={item.id} item={item} onDelete={handleDeleteNews} isPending={isPending} highlight />
-              ))}
-            </div>
-          )}
-
-          {news.filter(n => n.category !== "cookware").length > 0 && (
-            <div className="space-y-2">
-              {news.filter(n => n.category === "cookware").length > 0 && (
-                <div className="flex items-center gap-2 pt-2">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Other News</span>
-                  <div className="flex-1 h-px bg-border" />
-                </div>
-              )}
-              {news.filter(n => n.category !== "cookware").map(item => (
-                <NewsCard key={item.id} item={item} onDelete={handleDeleteNews} isPending={isPending} />
-              ))}
-            </div>
-          )}
-        </div>
+        <NewsSection news={news} topStories={topStories} onDelete={handleDeleteNews} isPending={isPending} />
       )}
 
       {/* Log Price Modal */}
@@ -520,45 +292,6 @@ export function MarketIntelClient({ commodities, news, suppliers }: {
           </div>
         </div>
       )}
-    </div>
-  )
-}
-
-function NewsCard({ item, onDelete, isPending, highlight }: {
-  item: News
-  onDelete: (id: string) => void
-  isPending: boolean
-  highlight?: boolean
-}) {
-  return (
-    <div className={cn(
-      "rounded-xl border p-4",
-      highlight ? "border-orange-500/30 bg-orange-500/5" : "border-border bg-card"
-    )}>
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap mb-1">
-            <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full border", CATEGORY_COLORS[item.category] ?? CATEGORY_COLORS.general)}>
-              {NEWS_CATEGORIES.find(c => c.value === item.category)?.label ?? item.category}
-            </span>
-            <span className="text-xs text-muted-foreground">{formatDate(item.published_at)}</span>
-            {item.source && <span className="text-xs text-muted-foreground">· {item.source}</span>}
-          </div>
-          <h3 className={cn("font-semibold leading-snug", highlight && "text-orange-900 dark:text-orange-100")}>{item.title}</h3>
-          {item.summary && <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{item.summary}</p>}
-          {item.url && (
-            <a href={item.url} target="_blank" rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-xs text-primary hover:underline mt-1.5">
-              Read more <ExternalLink className="h-3 w-3" />
-            </a>
-          )}
-        </div>
-        <button
-          className="shrink-0 text-muted-foreground hover:text-destructive p-1 rounded transition-colors"
-          onClick={() => onDelete(item.id)} disabled={isPending}>
-          <Trash2 className="h-3.5 w-3.5" />
-        </button>
-      </div>
     </div>
   )
 }

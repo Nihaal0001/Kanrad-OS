@@ -263,6 +263,94 @@ export const getDemandForecast = unstable_cache(
   { tags: ["orders"], revalidate: 3600 }
 )
 
+export type SalesForecast = {
+  isSample: boolean
+  series: { month: string; label: string; revenue: number; ma3: number | null; projected?: boolean }[]
+  kpis: { trailing12mRevenue: number; momGrowthPct: number | null; nextMonthProjection: number }
+  trend: "up" | "down" | "stable"
+}
+
+/** Monthly net sales (Sales − Credit Notes) from Tally vouchers, 12 actual
+ *  months + 3 regression-projected, with a 3-month moving average. Sample
+ *  data (isSample) until the Tally connector's first voucher sync. */
+export const getSalesForecast = unstable_cache(
+  async (): Promise<SalesForecast> => {
+    const { getVouchers } = await import("@/lib/tally/vouchers")
+    const { vouchers, isSample } = await getVouchers(12)
+
+    const now = new Date()
+    const monthOrder: string[] = []
+    const monthLabels = new Map<string, string>()
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
+      monthOrder.push(key)
+      monthLabels.set(key, d.toLocaleString("en-IN", { month: "short", year: "2-digit" }))
+    }
+
+    const revenueByMonth = new Map<string, number>(monthOrder.map((k) => [k, 0]))
+    for (const v of vouchers) {
+      const key = v.voucher_date.slice(0, 7)
+      if (!revenueByMonth.has(key)) continue
+      if (v.voucher_type === "Sales") revenueByMonth.set(key, revenueByMonth.get(key)! + v.amount)
+      else if (v.voucher_type === "Credit Note") revenueByMonth.set(key, revenueByMonth.get(key)! - v.amount)
+    }
+
+    const actuals = monthOrder.map((key) => ({
+      month: key,
+      label: monthLabels.get(key)!,
+      revenue: Math.round(revenueByMonth.get(key)!),
+    }))
+
+    // 3-month trailing moving average over actuals
+    const withMa = actuals.map((a, i) => {
+      if (i < 2) return { ...a, ma3: null as number | null }
+      const ma3 = Math.round((actuals[i].revenue + actuals[i - 1].revenue + actuals[i - 2].revenue) / 3)
+      return { ...a, ma3 }
+    })
+
+    // linear regression on revenue for 3 projected months
+    const n = actuals.length
+    const xMean = (n - 1) / 2
+    const yMean = actuals.reduce((s, a) => s + a.revenue, 0) / n
+    let num = 0
+    let den = 0
+    actuals.forEach((a, i) => {
+      num += (i - xMean) * (a.revenue - yMean)
+      den += (i - xMean) ** 2
+    })
+    const slope = den !== 0 ? num / den : 0
+    const intercept = yMean - slope * xMean
+
+    const projections = Array.from({ length: 3 }, (_, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth() + i + 1, 1)
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
+      return {
+        month: key,
+        label: d.toLocaleString("en-IN", { month: "short", year: "2-digit" }),
+        revenue: Math.max(0, Math.round(intercept + slope * (n + i))),
+        ma3: null as number | null,
+        projected: true,
+      }
+    })
+
+    const trailing12mRevenue = actuals.reduce((s, a) => s + a.revenue, 0)
+    const last = actuals[n - 1]?.revenue ?? 0
+    const prev = actuals[n - 2]?.revenue ?? 0
+    const momGrowthPct = prev > 0 ? Math.round(((last - prev) / prev) * 1000) / 10 : null
+    const slopePct = yMean > 0 ? slope / yMean : 0
+
+    return {
+      isSample,
+      series: [...withMa, ...projections],
+      kpis: { trailing12mRevenue, momGrowthPct, nextMonthProjection: projections[0]?.revenue ?? 0 },
+      trend: slopePct > 0.02 ? "up" : slopePct < -0.02 ? "down" : "stable",
+    }
+  },
+  ["sales-forecast"],
+  { tags: ["tally"], revalidate: 3600 }
+)
+
 export const getInventoryForecast = unstable_cache(
   async () => {
     const supabase = createAdminClient()
@@ -302,6 +390,8 @@ export const getInventoryForecast = unstable_cache(
         weeklyUsage: Math.round(weeklyUsage * 100) / 100,
         weeksLeft: weeksLeft !== null ? Math.round(weeksLeft * 10) / 10 : null,
         stockoutDate,
+        // cover 2wk lead time + 1wk safety from current stock
+        reorderQty: weeklyUsage > 0 ? Math.max(0, Math.ceil(weeklyUsage * 3 - m.current_stock)) : 0,
         status: weeksLeft === null ? "no_data" : weeksLeft <= 2 ? "critical" : weeksLeft <= 4 ? "low" : "ok",
       }
     })

@@ -1,12 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useTransition } from "react"
 import Link from "next/link"
-import { ChevronLeft, ChevronRight, Calendar, Users } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { ChevronLeft, ChevronRight, Calendar, Loader2, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { StatusBadge } from "@/components/shared/status-badge"
-import { PriorityIndicator } from "@/components/shared/priority-indicator"
 import { cn } from "@/lib/utils"
 
 const STATUS_COLORS: Record<string, string> = {
@@ -34,17 +33,22 @@ type Roster = {
   shifts: { id: string; name: string; start_time: string; end_time: string }[]
 }
 
-export function ScheduleClient({ orders, roster, weekStart }: {
+export function ScheduleClient({ orders, roster, weekStart, initialTab = "production" }: {
   orders: Order[]
   roster: Roster
   weekStart: string
+  initialTab?: "production" | "shifts"
 }) {
-  const [tab, setTab] = useState<"production" | "shifts">("production")
+  const router = useRouter()
+  const [isWeekPending, startWeekTransition] = useTransition()
+  const [tab, setTab] = useState<"production" | "shifts">(initialTab)
   const [viewMonth, setViewMonth] = useState(() => {
     const d = new Date()
     return { year: d.getFullYear(), month: d.getMonth() }
   })
-  const [currentWeek, setCurrentWeek] = useState(weekStart)
+  // week comes from the server (?week= param) so the roster data always
+  // matches — client-side paging previously showed blank weeks
+  const currentWeek = weekStart
 
   // Build calendar days for month view
   const firstDay = new Date(viewMonth.year, viewMonth.month, 1)
@@ -87,13 +91,13 @@ export function ScheduleClient({ orders, roster, weekStart }: {
   function nextMonth() {
     setViewMonth(({ year, month }) => month === 11 ? { year: year + 1, month: 0 } : { year, month: month + 1 })
   }
-  function prevWeek() {
-    const d = new Date(currentWeek); d.setDate(d.getDate() - 7)
-    setCurrentWeek(d.toISOString().split("T")[0])
-  }
-  function nextWeek() {
-    const d = new Date(currentWeek); d.setDate(d.getDate() + 7)
-    setCurrentWeek(d.toISOString().split("T")[0])
+  function goToWeek(offsetDays: number) {
+    const d = new Date(currentWeek)
+    d.setDate(d.getDate() + offsetDays)
+    const week = d.toISOString().split("T")[0]
+    startWeekTransition(() => {
+      router.replace(`/schedule?tab=shifts&week=${week}`, { scroll: false })
+    })
   }
 
   const monthLabel = new Date(viewMonth.year, viewMonth.month).toLocaleString("en-IN", { month: "long", year: "numeric" })
@@ -127,7 +131,17 @@ export function ScheduleClient({ orders, roster, weekStart }: {
       </div>
 
       {/* Production Calendar */}
-      {tab === "production" && (
+      {tab === "production" && orders.length === 0 && (
+        <div className="rounded-xl border border-dashed border-border bg-card p-12 text-center space-y-3">
+          <Calendar className="h-8 w-8 text-muted-foreground mx-auto" />
+          <p className="text-sm font-medium">No scheduled orders</p>
+          <p className="text-xs text-muted-foreground">Orders with deadlines appear on this calendar automatically.</p>
+          <Link href="/orders/new" className="inline-flex">
+            <Button size="sm" variant="outline"><Plus className="h-3.5 w-3.5 mr-1" /> Create an order</Button>
+          </Link>
+        </div>
+      )}
+      {tab === "production" && orders.length > 0 && (
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Calendar */}
           <div className="lg:col-span-2 rounded-xl border border-border bg-card overflow-hidden">
@@ -135,6 +149,12 @@ export function ScheduleClient({ orders, roster, weekStart }: {
               <Button variant="ghost" size="icon" onClick={prevMonth}><ChevronLeft className="h-4 w-4" /></Button>
               <h2 className="font-semibold">{monthLabel}</h2>
               <Button variant="ghost" size="icon" onClick={nextMonth}><ChevronRight className="h-4 w-4" /></Button>
+            </div>
+            <div className="flex flex-wrap items-center gap-3 px-4 py-2 border-b border-border/60 text-[11px] text-muted-foreground">
+              <span className="font-medium">Status:</span>
+              <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-muted border border-border" /> Draft</span>
+              <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-blue-500/40 border border-blue-500/40" /> Confirmed</span>
+              <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-amber-500/40 border border-amber-500/40" /> In production</span>
             </div>
             <div className="grid grid-cols-7">
               {DAYS.map(d => (
@@ -229,9 +249,12 @@ export function ScheduleClient({ orders, roster, weekStart }: {
       {tab === "shifts" && (
         <div className="space-y-4">
           <div className="flex items-center gap-3">
-            <Button variant="outline" size="icon" onClick={prevWeek}><ChevronLeft className="h-4 w-4" /></Button>
-            <span className="text-sm font-medium min-w-[200px] text-center">{weekLabel}</span>
-            <Button variant="outline" size="icon" onClick={nextWeek}><ChevronRight className="h-4 w-4" /></Button>
+            <Button variant="outline" size="icon" onClick={() => goToWeek(-7)} disabled={isWeekPending}><ChevronLeft className="h-4 w-4" /></Button>
+            <span className="text-sm font-medium min-w-[200px] text-center inline-flex items-center justify-center gap-2">
+              {isWeekPending && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+              {weekLabel}
+            </span>
+            <Button variant="outline" size="icon" onClick={() => goToWeek(7)} disabled={isWeekPending}><ChevronRight className="h-4 w-4" /></Button>
           </div>
 
           <div className="rounded-xl border border-border bg-card overflow-x-auto">
