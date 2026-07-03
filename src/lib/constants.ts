@@ -6,7 +6,6 @@ import {
   Factory,
   CheckCircle,
   Calculator,
-  CreditCard,
   Clock,
   CalendarDays,
   RefreshCcw,
