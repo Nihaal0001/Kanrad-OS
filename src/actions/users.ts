@@ -76,6 +76,10 @@ export const getUsers = unstable_cache(
     const { data, error } = await supabase
       .from("profiles")
       .select("id, full_name, email, role, department, is_active, created_at")
+      // Only real login accounts (created via Add User) — excludes the plain
+      // payroll/attendance worker rows bulk-added from HR (createWorkers),
+      // which have no auth_id and can never sign in.
+      .not("auth_id", "is", null)
       .order("full_name")
 
     if (error) throw new Error(error.message)
