@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { Sparkles, RefreshCcw, Loader2, TrendingUp, TrendingDown, Minus } from "lucide-react"
+import { Sparkles, RefreshCcw, Loader2, CircleAlert, CalendarClock, Eye } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { formatDate, cn } from "@/lib/utils"
@@ -13,6 +13,12 @@ const SENTIMENT_STYLES: Record<MarketBrief["sentiment"], string> = {
   neutral: "bg-muted text-muted-foreground border-border",
   cautious: "bg-amber-500/10 text-amber-600 border-amber-500/20",
   negative: "bg-red-500/10 text-red-600 border-red-500/20",
+}
+
+const URGENCY: Record<"now" | "this_week" | "monitor", { label: string; cls: string; icon: typeof CircleAlert }> = {
+  now: { label: "Now", cls: "bg-red-500/10 text-red-600 border-red-500/20", icon: CircleAlert },
+  this_week: { label: "This week", cls: "bg-amber-500/10 text-amber-600 border-amber-500/20", icon: CalendarClock },
+  monitor: { label: "Monitor", cls: "bg-muted text-muted-foreground border-border", icon: Eye },
 }
 
 export function AiBriefCard({ brief: initial, isAdmin }: { brief: MarketBrief | null; isAdmin: boolean }) {
@@ -33,6 +39,10 @@ export function AiBriefCard({ brief: initial, isAdmin }: { brief: MarketBrief | 
   }
 
   if (!brief && !isAdmin) return null
+
+  // tolerate briefs stored before the action-oriented shape
+  const whatChanged = brief?.what_changed ?? (brief as unknown as { bullets?: string[] })?.bullets ?? []
+  const actions = brief?.actions ?? []
 
   return (
     <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
@@ -72,37 +82,40 @@ export function AiBriefCard({ brief: initial, isAdmin }: { brief: MarketBrief | 
           <>
             <p className="font-semibold leading-snug">{brief.headline}</p>
 
-            <ul className="space-y-1.5">
-              {brief.bullets.map((b, i) => (
-                <li key={i} className="flex gap-2 text-sm text-muted-foreground">
-                  <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-primary/60" />
-                  {b}
-                </li>
-              ))}
-            </ul>
+            {whatChanged.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">What changed</p>
+                <ul className="space-y-1.5">
+                  {whatChanged.map((b, i) => (
+                    <li key={i} className="flex gap-2 text-sm text-muted-foreground">
+                      <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-primary/60" />
+                      {b}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
-            {brief.impact.length > 0 && (
-              <div className="flex flex-wrap gap-2 pt-1">
-                {brief.impact.map((imp, i) => {
-                  const Icon = imp.direction === "up" ? TrendingUp : imp.direction === "down" ? TrendingDown : Minus
-                  return (
-                    <span
-                      key={i}
-                      title={imp.note}
-                      className={cn(
-                        "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium",
-                        imp.direction === "up"
-                          ? "border-amber-500/30 bg-amber-500/10 text-amber-600"
-                          : imp.direction === "down"
-                            ? "border-cyan-500/30 bg-cyan-500/10 text-cyan-700 dark:text-cyan-400"
-                            : "border-border bg-muted/50 text-muted-foreground"
-                      )}
-                    >
-                      <Icon className="h-3 w-3" />
-                      {imp.subject}
-                    </span>
-                  )
-                })}
+            {actions.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">Recommended actions</p>
+                <div className="space-y-2">
+                  {actions.map((a, i) => {
+                    const u = URGENCY[a.urgency] ?? URGENCY.monitor
+                    const Icon = u.icon
+                    return (
+                      <div key={i} className="flex items-start gap-2.5 rounded-lg border border-border/70 bg-background/60 p-2.5">
+                        <span className={cn("inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium", u.cls)}>
+                          <Icon className="h-3 w-3" /> {u.label}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium leading-snug">{a.action}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{a.reason}</p>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
             )}
 
@@ -111,11 +124,11 @@ export function AiBriefCard({ brief: initial, isAdmin }: { brief: MarketBrief | 
                 {brief.price_snapshot
                   .filter(p => p.latest !== null)
                   .map(p => (
-                    <span key={p.name} className="tabular-nums">
+                    <span key={p.name} className="tabular-nums" title={p.asOf ? `Benchmark monthly avg · as of ${formatDate(p.asOf)}` : undefined}>
                       {p.name}: ₹{p.latest!.toLocaleString("en-IN")}
                       {p.momPct !== null && (
                         <span className={cn("ml-1", p.momPct > 0 ? "text-amber-600" : p.momPct < 0 ? "text-cyan-700 dark:text-cyan-400" : "")}>
-                          ({p.momPct > 0 ? "+" : ""}{p.momPct}%)
+                          ({p.momPct > 0 ? "+" : ""}{p.momPct}% MoM)
                         </span>
                       )}
                     </span>

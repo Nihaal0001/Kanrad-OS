@@ -101,9 +101,12 @@ export function PriceTable({ history, onUpdate }: PriceTableProps) {
                   <>
                     <tr key={c.id} className="hover:bg-muted/20 transition-colors">
                       <td className="px-4 py-3 font-medium">{c.name}</td>
-                      <td className="px-4 py-3 text-right font-semibold tabular-nums">
-                        ₹{c.latest!.toLocaleString("en-IN")}
+                      <td className="px-4 py-3 text-right">
+                        <span className="font-semibold tabular-nums">₹{c.latest!.toLocaleString("en-IN")}</span>
                         <span className="text-xs font-normal text-muted-foreground ml-1">/{c.unit}</span>
+                        <div className="text-[10px] text-muted-foreground">
+                          {AUTO_FED.test(c.name) ? "monthly benchmark avg" : "logged price"}
+                        </div>
                       </td>
                       <td className="px-4 py-3"><Sparkline points={c.points} /></td>
                       <td className="px-4 py-3">
