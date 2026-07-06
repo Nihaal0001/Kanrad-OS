@@ -311,18 +311,30 @@ const toolDeclarations: FunctionDeclaration[] = [
   },
   {
     name: "create_order",
-    description: "Create a new work order.",
+    description: "Create a new work order with one or more products (line items).",
     parameters: {
       type: SchemaType.OBJECT,
       properties: {
-        product_variant: { type: SchemaType.STRING, description: "Primary product variant for the default line item, e.g. 'Aluminium Kadai 24cm', 'SS Pressure Cooker 5L', 'Non-stick Tawa 28cm'" },
+        items: {
+          type: SchemaType.ARRAY,
+          description: "The products for this order. Each product can be identified by its SKU/product code (preferred if the user says a code) or by its name.",
+          items: {
+            type: SchemaType.OBJECT,
+            properties: {
+              product_code: { type: SchemaType.STRING, description: "Product SKU/code, e.g. 'KH-KD-24' — use this when the user gives a code rather than a name" },
+              product_variant: { type: SchemaType.STRING, description: "Product name, e.g. 'Aluminium Kadai 24cm', 'SS Pressure Cooker 5L', 'Non-stick Tawa 28cm' — use when no code is given" },
+              quantity: { type: SchemaType.NUMBER, description: "Quantity of this product in pieces" },
+              unit_price: { type: SchemaType.NUMBER, description: "Unit price in INR (optional)" },
+            },
+            required: ["quantity"],
+          },
+        },
         customer_name: { type: SchemaType.STRING, description: "Customer name (must match an existing customer)" },
-        total_quantity: { type: SchemaType.NUMBER, description: "Total number of pieces to produce" },
         deadline: { type: SchemaType.STRING, description: "Deadline in YYYY-MM-DD format" },
         priority: { type: SchemaType.STRING, description: "low, normal, high, or urgent (optional, defaults to normal)" },
         description: { type: SchemaType.STRING, description: "Brief description or notes (optional)" },
       },
-      required: ["product_variant", "total_quantity", "deadline"],
+      required: ["items", "deadline"],
     },
   },
   {
@@ -404,8 +416,13 @@ function buildDisplayText(name: string, args: Record<string, unknown>): string {
       return `Update task **"${args.task_title}"** → **${args.status}**`
     case "update_production_stage":
       return `Update **${args.stage_name}** stage for order **${args.order_number}** → **${args.status}**`
-    case "create_order":
-      return `Create order: **${args.product_variant}**, ${args.total_quantity} pcs, deadline ${args.deadline}${args.customer_name ? `, customer: ${args.customer_name}` : ""}`
+    case "create_order": {
+      const items = Array.isArray(args.items) ? args.items as Array<{ product_code?: string; product_variant?: string; quantity?: number }> : []
+      const itemsText = items
+        .map((i) => `${i.product_code ?? i.product_variant ?? "item"} × ${i.quantity ?? 0}`)
+        .join(", ")
+      return `Create order: **${itemsText || "no items"}**, deadline ${args.deadline}${args.customer_name ? `, customer: ${args.customer_name}` : ""}`
+    }
     case "update_order_status":
       return `Update order **${args.order_number}** → **${args.status}**`
     case "create_customer":
@@ -952,6 +969,7 @@ Rules:
 - For current material price questions: use get_material_prices tool.
 - For write actions, call the tool directly — do NOT call a read tool first unless you truly need data that is not in the context above.
 - When discussing materials, use cookware manufacturing terminology: aluminium circles/discs, stainless steel blanks, lids, handles, knobs, screws, packing materials (cartons, bubble wrap, stickers).
+- Orders can have multiple products in one order. When the user lists several products (by code or by name) for the same order, pass them all as separate entries in create_order's items array — do not create separate orders unless the user asks for separate orders. Match product codes against the "Product catalogue" list in the factory data above.
 - If the user asks you to do something you don't have tools for, explain politely that they need to use the app for that.`
 
   const model = ai.getGenerativeModel({

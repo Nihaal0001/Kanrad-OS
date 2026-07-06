@@ -280,11 +280,8 @@ export async function executeAgentTool(
 
       // ── Order write tools ──
       case "create_order": {
-        const styleName = String(args.product_variant ?? "").trim()
-        if (!styleName) return { success: false, message: "Product name is required." }
-
-        const totalQuantity = Number(args.total_quantity ?? 0)
-        if (totalQuantity <= 0) return { success: false, message: "Total quantity must be greater than 0." }
+        const rawItems = Array.isArray(args.items) ? args.items as Array<{ product_code?: string; product_variant?: string; quantity?: number; unit_price?: number }> : []
+        if (rawItems.length === 0) return { success: false, message: "At least one product is required." }
 
         const deadline = String(args.deadline ?? "")
         if (!deadline) return { success: false, message: "Deadline is required." }
@@ -301,13 +298,53 @@ export async function executeAgentTool(
           if (!customer) return { success: false, message: `Customer "${customerName}" not found. Create the customer first.` }
           customerId = customer.id
         }
+        if (!customerId) {
+          return { success: false, message: "Customer is required. Create or select a customer first." }
+        }
 
         const priority = ["low", "normal", "high", "urgent"].includes(String(args.priority ?? ""))
           ? String(args.priority)
           : "normal"
 
-        if (!customerId) {
-          return { success: false, message: "Customer is required. Create or select a customer first." }
+        // Resolve each line item — by SKU/product code first, falling back to a name match against the BOM catalogue.
+        const items: Array<{ product_variant: string; size: string; color: string; quantity: number; unit_price: number; hsn_code: string }> = []
+        for (const raw of rawItems) {
+          const code = String(raw.product_code ?? "").trim()
+          const nameHint = String(raw.product_variant ?? "").trim()
+          const quantity = Number(raw.quantity ?? 0)
+          if (quantity <= 0) return { success: false, message: `Quantity must be greater than 0 for "${code || nameHint || "an item"}".` }
+
+          let productName = nameHint
+          if (code) {
+            const { data: bom } = await admin
+              .from("bom_headers")
+              .select("product_name, product_sku")
+              .ilike("product_sku", code)
+              .eq("is_active", true)
+              .limit(1)
+              .maybeSingle()
+            if (!bom) return { success: false, message: `Product code "${code}" not found.` }
+            productName = bom.product_name
+          } else if (nameHint) {
+            const { data: bom } = await admin
+              .from("bom_headers")
+              .select("product_name, product_sku")
+              .ilike("product_name", `%${nameHint}%`)
+              .eq("is_active", true)
+              .limit(1)
+              .maybeSingle()
+            if (bom) productName = bom.product_name
+          }
+          if (!productName) return { success: false, message: "Each product needs a code or name." }
+
+          items.push({
+            product_variant: productName,
+            size: "Mixed",
+            color: "Assorted",
+            quantity,
+            unit_price: Number(raw.unit_price ?? 0),
+            hsn_code: "",
+          })
         }
 
         const result = await createOrder({
@@ -318,24 +355,18 @@ export async function executeAgentTool(
           gst_rate: 18,
           notes: "",
           status: "draft",
-          items: [{
-            product_variant: styleName,
-            size: "Mixed",
-            color: "Assorted",
-            quantity: totalQuantity,
-            unit_price: 0,
-            hsn_code: "",
-          }],
+          items,
         })
 
         if ("error" in result && result.error) {
           return { success: false, message: `Failed to create order: ${result.error}` }
         }
 
+        const summary = items.map((i) => `${i.product_variant} × ${i.quantity}`).join(", ")
         revalidatePath("/orders")
         return {
           success: true,
-          message: `Order ${result.data.order_number} created for ${customerName || "the selected customer"}: ${styleName}, ${totalQuantity} pcs, deadline ${deadline}.`,
+          message: `Order ${result.data.order_number} created for ${customerName || "the selected customer"}: ${summary}, deadline ${deadline}.`,
         }
       }
 

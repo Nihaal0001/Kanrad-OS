@@ -2,13 +2,13 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { useForm, Controller } from "react-hook-form"
+import { useForm, useFieldArray, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
+import { Plus, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 
 import { orderSchema, type OrderFormData } from "@/lib/validators/order"
 import { createOrder, updateOrder } from "@/actions/orders"
-import { formatCurrency } from "@/lib/utils"
 import type { OrderDetail } from "@/lib/supabase/types"
 
 import { Button } from "@/components/ui/button"
@@ -22,13 +22,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+import { ProductSelect } from "@/components/orders/product-select"
 import { Separator } from "@/components/ui/separator"
 
 interface BomProduct {
@@ -55,10 +49,15 @@ export function OrderForm({ order, customers, products = [] }: OrderFormProps) {
 
   const isEditing = !!order
 
-  const existingProduct = order?.order_items?.[0]
-  const existingProductName = existingProduct?.product_variant ?? ""
-  const existingQuantity = order?.order_items?.reduce((s, i) => s + i.quantity, 0) ?? 1
-  const existingUnitPrice = existingProduct?.unit_price ?? 0
+  const existingItems = order?.order_items?.map((i) => ({
+    product_variant: i.product_variant ?? "",
+    size: i.size ?? "",
+    color: i.color ?? "",
+    quantity: i.quantity,
+    unit_price: i.unit_price,
+    hsn_code: "",
+    thickness_mm: null,
+  }))
 
   const form = useForm<OrderFormData>({
     resolver: zodResolver(orderSchema),
@@ -69,28 +68,25 @@ export function OrderForm({ order, customers, products = [] }: OrderFormProps) {
       priority: "normal",
       gst_rate: 18,
       notes: "",
-      items: [{
-        product_variant: existingProductName,
-        size: "",
-        color: "",
-        quantity: existingQuantity,
-        unit_price: existingUnitPrice,
-        hsn_code: "",
-        thickness_mm: null,
-      }],
+      items: existingItems?.length
+        ? existingItems
+        : [{ product_variant: "", size: "", color: "", quantity: 1, unit_price: 0, hsn_code: "", thickness_mm: null }],
     },
   })
 
-  const watchProduct = form.watch("items.0.product_variant")
-  const watchQuantity = form.watch("items.0.quantity") || 0
-  const watchUnitPrice = form.watch("items.0.unit_price") || 0
-  const orderValue = watchQuantity * watchUnitPrice
+  const { fields, append, remove } = useFieldArray({ control: form.control, name: "items" })
 
-  function handleProductChange(productName: string) {
-    form.setValue("items.0.product_variant", productName, { shouldValidate: true })
+  const watchedItems = form.watch("items")
+  const orderValue = watchedItems.reduce(
+    (sum, item) => sum + (Number(item.quantity) || 0) * (Number(item.unit_price) || 0),
+    0
+  )
+
+  function handleProductChange(idx: number, productName: string) {
+    form.setValue(`items.${idx}.product_variant`, productName, { shouldValidate: true })
     const product = products.find((p) => p.name === productName)
     if (product && product.materialCost > 0) {
-      form.setValue("items.0.unit_price", Math.round(product.materialCost * 100) / 100)
+      form.setValue(`items.${idx}.unit_price`, Math.round(product.materialCost * 100) / 100)
     }
   }
 
@@ -121,7 +117,7 @@ export function OrderForm({ order, customers, products = [] }: OrderFormProps) {
   }
 
   return (
-    <form onSubmit={form.handleSubmit((data) => onSubmit(data))} className="space-y-6 max-w-xl">
+    <form onSubmit={form.handleSubmit((data) => onSubmit(data))} className="space-y-6 max-w-2xl">
       {error && (
         <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive">
           {error}
@@ -150,27 +146,6 @@ export function OrderForm({ order, customers, products = [] }: OrderFormProps) {
             )}
           </div>
 
-          {/* Product / BOM */}
-          <div className="space-y-2">
-            <Label>Product</Label>
-            <Select value={watchProduct || ""} onValueChange={handleProductChange}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select product from BOM…" />
-              </SelectTrigger>
-              <SelectContent>
-                {products.map((p) => (
-                  <SelectItem key={p.id} value={p.name}>
-                    <span>{p.name}</span>
-                    <span className="ml-2 text-xs text-muted-foreground font-mono">{p.sku}</span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {form.formState.errors.items?.[0]?.product_variant && (
-              <p className="text-sm text-destructive">{form.formState.errors.items[0]?.product_variant?.message}</p>
-            )}
-          </div>
-
           {/* Deadline */}
           <div className="space-y-2">
             <Label>Deadline</Label>
@@ -186,19 +161,92 @@ export function OrderForm({ order, customers, products = [] }: OrderFormProps) {
             )}
           </div>
 
-          {/* Quantity */}
-          <div className="space-y-2">
-            <Label>Quantity (pcs)</Label>
-            <Input
-              type="number"
-              min={1}
-              placeholder="Enter quantity"
-              {...form.register("items.0.quantity", { valueAsNumber: true })}
-            />
-            {form.formState.errors.items?.[0]?.quantity && (
-              <p className="text-sm text-destructive">{form.formState.errors.items[0]?.quantity?.message}</p>
-            )}
-          </div>
+        </CardContent>
+      </Card>
+
+      {/* Products */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>Products</CardTitle>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => append({ product_variant: "", size: "", color: "", quantity: 1, unit_price: 0, hsn_code: "", thickness_mm: null })}
+          >
+            <Plus className="h-4 w-4" />
+            Add Product
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {form.formState.errors.items && typeof form.formState.errors.items.message === "string" && (
+            <p className="text-sm text-destructive">{form.formState.errors.items.message}</p>
+          )}
+
+          {fields.map((field, idx) => {
+            const itemErrors = form.formState.errors.items?.[idx]
+            return (
+              <div key={field.id} className="rounded-lg border border-border p-4 space-y-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 space-y-1.5">
+                    <Label>Product</Label>
+                    <ProductSelect
+                      value={form.watch(`items.${idx}.product_variant`) || ""}
+                      onChange={(v) => handleProductChange(idx, v)}
+                      products={products}
+                      placeholder="Select product from BOM…"
+                    />
+                    {itemErrors?.product_variant && (
+                      <p className="text-sm text-destructive">{itemErrors.product_variant.message}</p>
+                    )}
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="mt-6 text-muted-foreground hover:text-destructive"
+                    onClick={() => remove(idx)}
+                    disabled={fields.length === 1}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  <div className="space-y-1.5">
+                    <Label>Size</Label>
+                    <Input {...form.register(`items.${idx}.size`)} placeholder="e.g. M" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Color</Label>
+                    <Input {...form.register(`items.${idx}.color`)} placeholder="e.g. Silver" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Quantity (pcs)</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      placeholder="Enter quantity"
+                      {...form.register(`items.${idx}.quantity`, { valueAsNumber: true })}
+                    />
+                    {itemErrors?.quantity && (
+                      <p className="text-sm text-destructive">{itemErrors.quantity.message}</p>
+                    )}
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Unit Price (₹)</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      placeholder="0.00"
+                      {...form.register(`items.${idx}.unit_price`, { valueAsNumber: true })}
+                    />
+                  </div>
+                </div>
+              </div>
+            )
+          })}
 
           <Separator />
 
@@ -209,7 +257,6 @@ export function OrderForm({ order, customers, products = [] }: OrderFormProps) {
               {orderValue > 0 ? `₹${formatCurrencyLocal(orderValue)}` : "—"}
             </span>
           </div>
-
         </CardContent>
       </Card>
 

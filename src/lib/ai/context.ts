@@ -21,6 +21,7 @@ export async function buildERPContext(): Promise<string> {
     workersRes,
     expensesThisMonthRes,
     expensesLastMonthRes,
+    productsRes,
   ] = await Promise.all([
     // Active orders
     supabase
@@ -80,11 +81,20 @@ export async function buildERPContext(): Promise<string> {
       .select("amount, category:expense_categories(name)")
       .gte("expense_date", lastMonthStart)
       .lt("expense_date", thisMonthStart),
+
+    // Product catalogue (SKU + name) — lets the agent resolve product codes the user says
+    supabase
+      .from("bom_headers")
+      .select("product_sku, product_name")
+      .eq("is_active", true)
+      .order("product_name")
+      .limit(300),
   ])
 
   const lowStockItems = (materialsRes.data ?? []).filter(
     (m) => m.current_stock < m.min_stock_level
   )
+  const products = productsRes.data ?? []
 
   const activeOrders = ordersRes.data ?? []
   const dueThisWeek = dueRes.data ?? []
@@ -143,6 +153,14 @@ export async function buildERPContext(): Promise<string> {
       const produced = producedByOrder[o.id] ?? 0
       const pct = o.total_quantity > 0 ? Math.round((produced / o.total_quantity) * 100) : 0
       lines.push(`  - ${o.order_number}: ${o.product_variant}${customer ? ` for ${customer}` : ""}, deadline ${o.deadline}, produced ${produced}/${o.total_quantity} pcs (${pct}%), status: ${o.status}`)
+    }
+    lines.push("")
+  }
+
+  if (products.length > 0) {
+    lines.push(`Product catalogue — code: name (${products.length}):`)
+    for (const p of products) {
+      lines.push(`  - ${p.product_sku}: ${p.product_name}`)
     }
     lines.push("")
   }

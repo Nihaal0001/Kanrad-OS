@@ -2,9 +2,9 @@
 
 import { useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { useForm, Controller } from "react-hook-form"
+import { useForm, useFieldArray, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { Plus } from "lucide-react"
+import { Plus, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 
 import { orderSchema, type OrderFormData } from "@/lib/validators/order"
@@ -22,14 +22,8 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { CustomerSelect } from "@/components/orders/customer-select"
+import { ProductSelect } from "@/components/orders/product-select"
 import { useState } from "react"
 
 interface BomProduct {
@@ -66,16 +60,19 @@ export function CreateOrderSheet({ customers, products = [] }: Props) {
     },
   })
 
-  const watchProduct = form.watch("items.0.product_variant")
-  const watchQty = form.watch("items.0.quantity") || 0
-  const watchPrice = form.watch("items.0.unit_price") || 0
-  const orderValue = watchQty * watchPrice
+  const { fields, append, remove } = useFieldArray({ control: form.control, name: "items" })
 
-  function handleProductChange(name: string) {
-    form.setValue("items.0.product_variant", name, { shouldValidate: true })
+  const watchedItems = form.watch("items")
+  const orderValue = watchedItems.reduce(
+    (sum, item) => sum + (Number(item.quantity) || 0) * (Number(item.unit_price) || 0),
+    0
+  )
+
+  function handleProductChange(idx: number, name: string) {
+    form.setValue(`items.${idx}.product_variant`, name, { shouldValidate: true })
     const p = products.find((p) => p.name === name)
     if (p && p.materialCost > 0) {
-      form.setValue("items.0.unit_price", Math.round(p.materialCost * 100) / 100)
+      form.setValue(`items.${idx}.unit_price`, Math.round(p.materialCost * 100) / 100)
     }
   }
 
@@ -136,27 +133,6 @@ export function CreateOrderSheet({ customers, products = [] }: Props) {
                 )}
               </div>
 
-              {/* Product / BOM */}
-              <div className="space-y-1.5">
-                <Label>Product *</Label>
-                <Select value={watchProduct || ""} onValueChange={handleProductChange}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select product from BOM…" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {products.map((p) => (
-                      <SelectItem key={p.id} value={p.name}>
-                        <span>{p.name}</span>
-                        <span className="ml-2 text-xs text-muted-foreground font-mono">{p.sku}</span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {form.formState.errors.items?.[0]?.product_variant && (
-                  <p className="text-xs text-destructive">{form.formState.errors.items[0]?.product_variant?.message}</p>
-                )}
-              </div>
-
               {/* Deadline */}
               <div className="space-y-1.5">
                 <Label>Deadline *</Label>
@@ -172,18 +148,72 @@ export function CreateOrderSheet({ customers, products = [] }: Props) {
                 )}
               </div>
 
-              {/* Quantity */}
+              {/* Products */}
               <div className="space-y-1.5">
-                <Label>Quantity (pcs) *</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  placeholder="Enter quantity"
-                  {...form.register("items.0.quantity", { valueAsNumber: true })}
-                />
-                {form.formState.errors.items?.[0]?.quantity && (
-                  <p className="text-xs text-destructive">{form.formState.errors.items[0]?.quantity?.message}</p>
+                <div className="flex items-center justify-between">
+                  <Label>Products *</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => append({ product_variant: "", size: "", color: "", quantity: 1, unit_price: 0, hsn_code: "", thickness_mm: null })}
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Add
+                  </Button>
+                </div>
+                {form.formState.errors.items && typeof form.formState.errors.items.message === "string" && (
+                  <p className="text-xs text-destructive">{form.formState.errors.items.message}</p>
                 )}
+
+                {fields.map((field, idx) => {
+                  const itemErrors = form.formState.errors.items?.[idx]
+                  return (
+                    <div key={field.id} className="rounded-lg border border-border p-3 space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 space-y-1">
+                          <ProductSelect
+                            value={form.watch(`items.${idx}.product_variant`) || ""}
+                            onChange={(v) => handleProductChange(idx, v)}
+                            products={products}
+                            placeholder="Select product from BOM…"
+                          />
+                          {itemErrors?.product_variant && (
+                            <p className="text-xs text-destructive">{itemErrors.product_variant.message}</p>
+                          )}
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="text-muted-foreground hover:text-destructive"
+                          onClick={() => remove(idx)}
+                          disabled={fields.length === 1}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Input
+                          type="number"
+                          min={1}
+                          placeholder="Quantity"
+                          {...form.register(`items.${idx}.quantity`, { valueAsNumber: true })}
+                        />
+                        <Input
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          placeholder="Unit price (₹)"
+                          {...form.register(`items.${idx}.unit_price`, { valueAsNumber: true })}
+                        />
+                      </div>
+                      {itemErrors?.quantity && (
+                        <p className="text-xs text-destructive">{itemErrors.quantity.message}</p>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
 
               <Separator />
