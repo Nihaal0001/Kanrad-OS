@@ -10,7 +10,13 @@ import {
 } from "@/lib/tally/xml"
 
 export const TALLY_COMPANY = process.env.TALLY_COMPANY || "KANRAD ERP"
-const BANK_LEDGER = process.env.TALLY_BANK_LEDGER || "Bank"
+
+/** Bank ledger changes most months (new one opened in Tally) — stored in app_settings so it's editable without a redeploy. */
+export async function getBankLedger(admin: ReturnType<typeof createAdminClient>): Promise<string> {
+  const { data } = await admin.from("app_settings").select("value").eq("key", "tally_bank_ledger").maybeSingle()
+  const name = (data?.value as { name?: string } | null)?.name
+  return name?.trim() || process.env.TALLY_BANK_LEDGER || "Bank"
+}
 
 /** Bearer-secret auth for the connector agent. */
 export function authConnector(req: Request): boolean {
@@ -50,7 +56,7 @@ export async function buildOutbox(limit = 200): Promise<{ company: string; items
 
   // Finance only — Kanrad owns inventory; Tally gets accounting ledgers/vouchers,
   // never stock items or inventory movements.
-  const [customers, suppliers, invoices, purchases, receipts, payments] = await Promise.all([
+  const [customers, suppliers, invoices, purchases, receipts, payments, bankLedger] = await Promise.all([
     admin.from("customers").select("id, name, gstin, address, state").eq("is_active", true),
     admin.from("suppliers").select("id, name, gstin, address, state").eq("is_active", true),
     admin
@@ -63,6 +69,7 @@ export async function buildOutbox(limit = 200): Promise<{ company: string; items
       .neq("status", "cancelled"),
     admin.from("payments").select("id, amount, payment_date, reference, invoice:invoices(invoice_number, customer_name)"),
     admin.from("purchase_payments").select("id, amount, payment_date, reference, pi:purchase_invoices(invoice_number, supplier_name)"),
+    getBankLedger(admin),
   ])
 
   for (const c of customers.data ?? []) {
@@ -96,7 +103,7 @@ export async function buildOutbox(limit = 200): Promise<{ company: string; items
     if (!inv) continue
     candidates.push({
       entity_type: "receipt", entity_id: p.id, kind: "voucher",
-      xml: buildReceiptVoucher({ number: p.reference || inv.invoice_number, date: p.payment_date, party: inv.customer_name, amount: p.amount, bankLedger: BANK_LEDGER }),
+      xml: buildReceiptVoucher({ number: p.reference || inv.invoice_number, date: p.payment_date, party: inv.customer_name, amount: p.amount, bankLedger }),
       hash: hash([p.id, p.amount]),
     })
   }
@@ -105,7 +112,7 @@ export async function buildOutbox(limit = 200): Promise<{ company: string; items
     if (!pi) continue
     candidates.push({
       entity_type: "payment", entity_id: p.id, kind: "voucher",
-      xml: buildPaymentVoucher({ number: p.reference || pi.invoice_number, date: p.payment_date, party: pi.supplier_name, amount: p.amount, bankLedger: BANK_LEDGER }),
+      xml: buildPaymentVoucher({ number: p.reference || pi.invoice_number, date: p.payment_date, party: pi.supplier_name, amount: p.amount, bankLedger }),
       hash: hash([p.id, p.amount]),
     })
   }

@@ -35,7 +35,11 @@ and `00043_tally_vouchers.sql` in the Supabase SQL editor.
 Set these environment variables and redeploy:
 - `TALLY_CONNECTOR_SECRET` — a long random string (the agent's password)
 - `TALLY_COMPANY` — exact Tally company name (default `KANRAD ERP`)
-- `TALLY_BANK_LEDGER` — cash/bank ledger receipts & payments post to (default `Bank`)
+
+The bank ledger receipts & payments post to is set separately in-app (Finance →
+Tally Sync → "Bank Ledger"), not as an env var — it changes most months since a
+new ledger gets opened in Tally, and this way it updates without a redeploy.
+(`TALLY_BANK_LEDGER` env var still works as a fallback default if that field is empty.)
 
 ### 3. Tally (on the Windows machine)
 - Gateway of Tally → **F1: Help → Settings → Connectivity → Client/Server config** (or F11/F1 depending on version) → set **TallyPrime acts as Server**, Port **9000**.

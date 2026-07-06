@@ -1,8 +1,35 @@
 "use server"
 
+import { revalidatePath } from "next/cache"
+import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { getOutstanding, type CashflowData } from "@/lib/tally/outstanding"
 import { getVouchers, type TallyVoucher } from "@/lib/tally/vouchers"
+
+/** Current bank ledger name Kanrad posts receipts/payments to — changes most months as Tally opens a new one. */
+export async function getBankLedgerSetting(): Promise<string> {
+  const admin = createAdminClient()
+  const { data } = await admin.from("app_settings").select("value").eq("key", "tally_bank_ledger").maybeSingle()
+  return (data?.value as { name?: string } | null)?.name ?? ""
+}
+
+export async function saveBankLedgerSetting(formData: FormData) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
+  const name = (formData.get("name") as string)?.trim()
+  if (!name) return { error: "Ledger name is required" }
+
+  const { error } = await supabase
+    .from("app_settings")
+    .upsert({ key: "tally_bank_ledger", value: { name } }, { onConflict: "key" })
+
+  if (error) return { error: error.message }
+
+  revalidatePath("/finance/tally")
+  return { success: true }
+}
 
 /** Receivables (incoming) + payables (outgoing) pulled from Tally; sample until first sync. */
 export async function getCashflowOutstanding(): Promise<CashflowData> {

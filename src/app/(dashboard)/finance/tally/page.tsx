@@ -1,7 +1,8 @@
 import { RefreshCw, ArrowDownToLine, ArrowUpFromLine, AlertTriangle } from "lucide-react"
 
-import { getTallySyncStatus } from "@/actions/tally"
+import { getTallySyncStatus, getBankLedgerSetting } from "@/actions/tally"
 import { PageHeader } from "@/components/shared/page-header"
+import { BankLedgerForm } from "@/components/finance/bank-ledger-form"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Table,
@@ -16,7 +17,7 @@ import { formatCurrency, formatDateRelative } from "@/lib/utils"
 export const dynamic = "force-dynamic"
 
 export default async function TallySyncPage() {
-  const status = await getTallySyncStatus()
+  const [status, bankLedger] = await Promise.all([getTallySyncStatus(), getBankLedgerSetting()])
 
   return (
     <>
@@ -25,6 +26,19 @@ export default async function TallySyncPage() {
         description="Two-way sync with TallyPrime via the local connector"
         breadcrumbs={[{ label: "Finance", href: "/finance" }, { label: "Tally Sync" }]}
       />
+
+      {/* Bank ledger — changes most months, so it's editable here instead of a redeploy */}
+      <Card className="mb-6">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Bank Ledger</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <BankLedgerForm defaultName={bankLedger} />
+          <p className="mt-2 text-xs text-muted-foreground">
+            New receipts/payments pushed to Tally post against this ledger. Update it here whenever Tally opens a new one — no redeploy needed.
+          </p>
+        </CardContent>
+      </Card>
 
       {/* Summary */}
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
