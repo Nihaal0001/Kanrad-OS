@@ -35,7 +35,7 @@ export const purchaseOrderSchema = z.object({
   order_date: z.string().min(1, "Order date is required"),
   expected_date: z.string().optional().or(z.literal("")),
   notes: z.string().max(1000).optional().or(z.literal("")),
-  order_ids: z.array(z.string()).optional(),
+  order_ids: z.array(z.string()).min(1, "Select at least one order this purchase order is for"),
   items: z
     .array(
       z.object({

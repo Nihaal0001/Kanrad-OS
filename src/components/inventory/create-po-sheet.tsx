@@ -159,9 +159,9 @@ export function CreatePurchaseOrderSheet({ materials, orders = [] }: Props) {
           <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col flex-1 overflow-hidden">
             <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
 
-              {orders.length > 0 && (
+              {orders.length > 0 ? (
                 <div className="space-y-1.5">
-                  <Label>1. Which order is this for? (optional)</Label>
+                  <Label>1. Which order is this for? *</Label>
                   <Controller
                     control={form.control}
                     name="order_ids"
@@ -169,6 +169,13 @@ export function CreatePurchaseOrderSheet({ materials, orders = [] }: Props) {
                       <OrderMultiSelect orders={orders} value={field.value ?? []} onChange={field.onChange} />
                     )}
                   />
+                  {form.formState.errors.order_ids && (
+                    <p className="text-xs text-destructive">{form.formState.errors.order_ids.message}</p>
+                  )}
+                </div>
+              ) : (
+                <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 text-xs text-amber-700 dark:text-amber-400">
+                  No confirmed or in-production orders to procure for — create or confirm an order first.
                 </div>
               )}
 
@@ -360,7 +367,7 @@ export function CreatePurchaseOrderSheet({ materials, orders = [] }: Props) {
               <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isPending}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={isPending}>
+              <Button type="submit" disabled={isPending || orders.length === 0}>
                 {isPending ? "Creating…" : "Create Purchase Order"}
               </Button>
             </div>

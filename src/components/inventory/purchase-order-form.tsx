@@ -292,12 +292,12 @@ export function PurchaseOrderForm({ materials, orders = [] }: PurchaseOrderFormP
         </div>
       )}
 
-      {/* Linked Customer Orders — asked first so the material picker below can scope to what these orders need */}
-      {orders.length > 0 && (
+      {/* Linked Customer Orders — required first so the material picker below can scope to what these orders need */}
+      {orders.length > 0 ? (
         <Card>
           <CardHeader>
-            <CardTitle>1. Which order is this for?</CardTitle>
-            <CardDescription>Pick the customer order(s) this purchase order procures material for. Optional — leave blank to see the full material catalogue instead.</CardDescription>
+            <CardTitle>1. Which order is this for? *</CardTitle>
+            <CardDescription>Pick the customer order(s) this purchase order procures material for.</CardDescription>
           </CardHeader>
           <CardContent>
             <Controller
@@ -307,8 +307,15 @@ export function PurchaseOrderForm({ materials, orders = [] }: PurchaseOrderFormP
                 <OrderMultiSelect orders={orders} value={field.value ?? []} onChange={field.onChange} />
               )}
             />
+            {form.formState.errors.order_ids && (
+              <p className="mt-1.5 text-sm text-destructive">{form.formState.errors.order_ids.message}</p>
+            )}
           </CardContent>
         </Card>
+      ) : (
+        <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-4 text-sm text-amber-700 dark:text-amber-400">
+          No confirmed or in-production orders to procure for — a purchase order must be linked to at least one active customer order. Create or confirm an order first.
+        </div>
       )}
 
       {/* Supplier Details */}
@@ -393,7 +400,7 @@ export function PurchaseOrderForm({ materials, orders = [] }: PurchaseOrderFormP
                 : scopedMaterials.length > 0
                   ? `Showing ${scopedMaterials.length} material${scopedMaterials.length === 1 ? "" : "s"} short of what the selected order needs`
                   : "Everything the selected order needs is already in stock — nothing to procure."
-              : "Materials to order from this supplier"}
+              : "Select an order above to see what materials it needs"}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -534,7 +541,7 @@ export function PurchaseOrderForm({ materials, orders = [] }: PurchaseOrderFormP
         >
           Cancel
         </Button>
-        <Button type="submit" disabled={isSubmitting}>
+        <Button type="submit" disabled={isSubmitting || orders.length === 0}>
           {isSubmitting ? "Creating..." : "Create Purchase Order"}
         </Button>
       </div>
