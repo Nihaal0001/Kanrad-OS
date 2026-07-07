@@ -35,8 +35,10 @@ CREATE INDEX IF NOT EXISTS idx_po_receipts_order ON purchase_order_receipts(orde
 ALTER TABLE purchase_order_orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE purchase_order_receipts ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Authenticated access to purchase_order_orders" ON purchase_order_orders;
 CREATE POLICY "Authenticated access to purchase_order_orders" ON purchase_order_orders
   FOR ALL USING (auth.uid() IS NOT NULL) WITH CHECK (auth.uid() IS NOT NULL);
 
+DROP POLICY IF EXISTS "Authenticated access to purchase_order_receipts" ON purchase_order_receipts;
 CREATE POLICY "Authenticated access to purchase_order_receipts" ON purchase_order_receipts
   FOR ALL USING (auth.uid() IS NOT NULL) WITH CHECK (auth.uid() IS NOT NULL);

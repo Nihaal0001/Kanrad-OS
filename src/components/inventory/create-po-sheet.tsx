@@ -82,7 +82,9 @@ export function CreatePurchaseOrderSheet({ materials, orders = [] }: Props) {
       .then((data) => {
         if (cancelled) return
         setScopedMaterials(
-          data.map((m) => ({ id: m.id, name: m.name, sku: m.sku, unit: m.unit, cost_per_unit: m.cost_per_unit, requiredQty: m.requiredQty, shortage: m.shortage }))
+          data
+            .filter((m) => (m.shortage ?? 0) > 0)
+            .map((m) => ({ id: m.id, name: m.name, sku: m.sku, unit: m.unit, cost_per_unit: m.cost_per_unit, requiredQty: m.requiredQty, shortage: m.shortage }))
         )
       })
       .finally(() => { if (!cancelled) setLoadingScopedMaterials(false) })
@@ -226,8 +228,10 @@ export function CreatePurchaseOrderSheet({ materials, orders = [] }: Props) {
                 {scopedMaterials && (
                   <p className="text-xs text-muted-foreground">
                     {loadingScopedMaterials
-                      ? "Loading materials from the selected order's BOM…"
-                      : `Showing ${scopedMaterials.length} material${scopedMaterials.length === 1 ? "" : "s"} used in the selected order's BOM`}
+                      ? "Loading shortages from the selected order's BOM…"
+                      : scopedMaterials.length > 0
+                        ? `Showing ${scopedMaterials.length} material${scopedMaterials.length === 1 ? "" : "s"} short of what the selected order needs`
+                        : "Everything the selected order needs is already in stock — nothing to procure."}
                   </p>
                 )}
 
