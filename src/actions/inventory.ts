@@ -77,6 +77,59 @@ export async function getMaterial(id: string) {
   )()
 }
 
+/** Materials pulled from the BOMs of the products on the given orders — used to
+ *  scope the PO material picker to what's actually needed once orders are linked.
+ *  Each material also carries how many units the order(s) require and the
+ *  resulting shortage against current stock, so the picker can suggest a
+ *  purchase quantity instead of just narrowing the list. */
+export async function getMaterialsForOrders(orderIds: string[]) {
+  if (orderIds.length === 0) return []
+
+  const supabase = createAdminClient()
+
+  const { data: items, error: itemsError } = await supabase
+    .from("order_items")
+    .select("product_variant, quantity")
+    .in("order_id", orderIds)
+  if (itemsError) throw new Error(itemsError.message)
+
+  // Total ordered quantity per product across all linked orders/line items.
+  const qtyByProduct = new Map<string, number>()
+  for (const i of items ?? []) {
+    if (!i.product_variant) continue
+    qtyByProduct.set(i.product_variant, (qtyByProduct.get(i.product_variant) ?? 0) + i.quantity)
+  }
+  const productNames = [...qtyByProduct.keys()]
+  if (productNames.length === 0) return []
+
+  const { data: boms, error: bomError } = await supabase
+    .from("bom_headers")
+    .select("product_name, bom_items(qty_required, wastage_pct, material:materials(*, category:material_categories(id, name)))")
+    .in("product_name", productNames)
+    .eq("is_active", true)
+  if (bomError) throw new Error(bomError.message)
+
+  const byId = new Map()
+  for (const bom of boms ?? []) {
+    const orderedQty = qtyByProduct.get(bom.product_name) ?? 0
+    for (const item of bom.bom_items ?? []) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const mat = Array.isArray(item.material) ? item.material[0] : item.material as any
+      if (!mat) continue
+      const perUnit = item.qty_required * (1 + (item.wastage_pct ?? 0) / 100)
+      const required = perUnit * orderedQty
+      const existing = byId.get(mat.id)
+      const requiredQty = (existing?.requiredQty ?? 0) + required
+      const shortage = Math.max(0, requiredQty - (mat.current_stock ?? 0))
+      byId.set(mat.id, { ...mat, requiredQty, shortage })
+    }
+  }
+
+  return [...byId.values()]
+    .map((m) => ({ ...m, requiredQty: Math.round(m.requiredQty * 100) / 100, shortage: Math.round(m.shortage * 100) / 100 }))
+    .sort((a, b) => a.sku.localeCompare(b.sku))
+}
+
 export async function createMaterial(formData: MaterialFormData) {
   const validated = materialSchema.parse(formData)
   const supabase = await createClient()

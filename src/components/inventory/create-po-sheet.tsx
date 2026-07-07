@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useState, useEffect, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { useForm, useFieldArray, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -8,7 +8,7 @@ import { Plus, X, Lock, AlertTriangle } from "lucide-react"
 import { toast } from "sonner"
 
 import { purchaseOrderSchema, type PurchaseOrderFormData } from "@/lib/validators/inventory"
-import { createPurchaseOrder } from "@/actions/inventory"
+import { createPurchaseOrder, getMaterialsForOrders } from "@/actions/inventory"
 import { formatCurrency } from "@/lib/utils"
 import type { Material } from "@/lib/supabase/types"
 import { OrderMultiSelect, type OrderOption } from "@/components/inventory/order-multiselect"
@@ -33,8 +33,15 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 
+type MaterialOption = Pick<Material, "id" | "name" | "sku" | "unit"> & {
+  cost_per_unit: number
+  /** Only set when scoped to a linked order's BOM. */
+  requiredQty?: number
+  shortage?: number
+}
+
 interface Props {
-  materials: Array<Pick<Material, "id" | "name" | "sku" | "unit"> & { cost_per_unit: number }>
+  materials: MaterialOption[]
   orders?: OrderOption[]
 }
 
@@ -58,8 +65,34 @@ export function CreatePurchaseOrderSheet({ materials, orders = [] }: Props) {
 
   const { fields, append, remove } = useFieldArray({ control: form.control, name: "items" })
   const watchItems = form.watch("items")
+  const watchOrderIds = form.watch("order_ids") ?? []
 
-  const materialPriceMap = Object.fromEntries(materials.map((m) => [m.id, m.cost_per_unit]))
+  // Once orders are linked, scope the material list to what those orders' BOMs actually need.
+  const [scopedMaterials, setScopedMaterials] = useState<MaterialOption[] | null>(null)
+  const [loadingScopedMaterials, setLoadingScopedMaterials] = useState(false)
+
+  useEffect(() => {
+    if (watchOrderIds.length === 0) {
+      setScopedMaterials(null)
+      return
+    }
+    let cancelled = false
+    setLoadingScopedMaterials(true)
+    getMaterialsForOrders(watchOrderIds)
+      .then((data) => {
+        if (cancelled) return
+        setScopedMaterials(
+          data.map((m) => ({ id: m.id, name: m.name, sku: m.sku, unit: m.unit, cost_per_unit: m.cost_per_unit, requiredQty: m.requiredQty, shortage: m.shortage }))
+        )
+      })
+      .finally(() => { if (!cancelled) setLoadingScopedMaterials(false) })
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(watchOrderIds)])
+
+  const effectiveMaterials = scopedMaterials ?? materials
+
+  const materialPriceMap = Object.fromEntries(effectiveMaterials.map((m) => [m.id, m.cost_per_unit]))
   function getPriceCeiling(materialId: string): number | null {
     const p = materialPriceMap[materialId]
     return p != null && p > 0 ? p : null
@@ -87,7 +120,7 @@ export function CreatePurchaseOrderSheet({ materials, orders = [] }: Props) {
     for (const item of data.items) {
       const ceiling = getPriceCeiling(item.material_id)
       if (ceiling !== null && item.unit_price > ceiling) {
-        const mat = materials.find((m) => m.id === item.material_id)
+        const mat = effectiveMaterials.find((m) => m.id === item.material_id)
         toast.error(`Price for "${mat?.name}" (₹${item.unit_price}) exceeds max ₹${ceiling}`)
         return
       }
@@ -123,6 +156,19 @@ export function CreatePurchaseOrderSheet({ materials, orders = [] }: Props) {
 
           <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col flex-1 overflow-hidden">
             <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+
+              {orders.length > 0 && (
+                <div className="space-y-1.5">
+                  <Label>1. Which order is this for? (optional)</Label>
+                  <Controller
+                    control={form.control}
+                    name="order_ids"
+                    render={({ field }) => (
+                      <OrderMultiSelect orders={orders} value={field.value ?? []} onChange={field.onChange} />
+                    )}
+                  />
+                </div>
+              )}
 
               {/* Supplier */}
               <div className="grid gap-4 sm:grid-cols-2">
@@ -172,24 +218,18 @@ export function CreatePurchaseOrderSheet({ materials, orders = [] }: Props) {
                 />
               </div>
 
-              {orders.length > 0 && (
-                <div className="space-y-1.5">
-                  <Label>Procuring For (optional)</Label>
-                  <Controller
-                    control={form.control}
-                    name="order_ids"
-                    render={({ field }) => (
-                      <OrderMultiSelect orders={orders} value={field.value ?? []} onChange={field.onChange} />
-                    )}
-                  />
-                </div>
-              )}
-
               <Separator />
 
               {/* Items */}
               <div className="space-y-3">
-                <p className="text-sm font-semibold">Order Items</p>
+                <p className="text-sm font-semibold">{orders.length > 0 ? "2. Order Items" : "Order Items"}</p>
+                {scopedMaterials && (
+                  <p className="text-xs text-muted-foreground">
+                    {loadingScopedMaterials
+                      ? "Loading materials from the selected order's BOM…"
+                      : `Showing ${scopedMaterials.length} material${scopedMaterials.length === 1 ? "" : "s"} used in the selected order's BOM`}
+                  </p>
+                )}
 
                 {fields.map((field, index) => {
                   const selectedId = form.watch(`items.${index}.material_id`)
@@ -217,15 +257,29 @@ export function CreatePurchaseOrderSheet({ materials, orders = [] }: Props) {
                         <Label className="text-xs">Material</Label>
                         <Select
                           value={selectedId}
-                          onValueChange={(v) => form.setValue(`items.${index}.material_id`, v, { shouldValidate: true })}
+                          onValueChange={(v) => {
+                            form.setValue(`items.${index}.material_id`, v, { shouldValidate: true })
+                            const mat = effectiveMaterials.find((m) => m.id === v)
+                            if (mat?.shortage != null && mat.shortage > 0) {
+                              form.setValue(`items.${index}.quantity_ordered`, mat.shortage, { shouldValidate: true })
+                            }
+                          }}
                         >
                           <SelectTrigger>
                             <SelectValue placeholder="Select material" />
                           </SelectTrigger>
                           <SelectContent>
-                            {materials.map((m) => (
+                            {effectiveMaterials.map((m) => (
                               <SelectItem key={m.id} value={m.id}>
                                 {m.name}
+                                {m.requiredQty != null && (
+                                  <span className="ml-2 text-xs text-muted-foreground">
+                                    needs {m.requiredQty} {m.unit}
+                                    {m.shortage != null && m.shortage > 0 && (
+                                      <span className="ml-1 font-medium text-amber-600">short {m.shortage}</span>
+                                    )}
+                                  </span>
+                                )}
                                 {m.cost_per_unit > 0 && (
                                   <span className="ml-2 text-xs text-muted-foreground">max ₹{m.cost_per_unit.toFixed(2)}</span>
                                 )}

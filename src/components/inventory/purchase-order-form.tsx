@@ -11,7 +11,7 @@ import {
   purchaseOrderSchema,
   type PurchaseOrderFormData,
 } from "@/lib/validators/inventory"
-import { createPurchaseOrder } from "@/actions/inventory"
+import { createPurchaseOrder, getMaterialsForOrders } from "@/actions/inventory"
 import { formatCurrency } from "@/lib/utils"
 import type { Material } from "@/lib/supabase/types"
 import { OrderMultiSelect, type OrderOption } from "@/components/inventory/order-multiselect"
@@ -40,6 +40,9 @@ interface MaterialOption extends Pick<Material, "id" | "name" | "sku" | "unit"> 
   cost_per_unit: number
   category_id: string | null
   category_name: string | null
+  /** Only set when scoped to a linked order's BOM. */
+  requiredQty?: number
+  shortage?: number
 }
 
 interface PurchaseOrderFormProps {
@@ -144,6 +147,16 @@ function MaterialCombobox({
                     {m.category_name && (
                       <span className="ml-1.5 text-xs text-muted-foreground">· {m.category_name}</span>
                     )}
+                    {m.requiredQty != null && (
+                      <div className="text-xs text-muted-foreground">
+                        Needs {m.requiredQty} {m.unit}
+                        {m.shortage != null && m.shortage > 0 ? (
+                          <span className="ml-1.5 font-medium text-amber-600">short {m.shortage} {m.unit}</span>
+                        ) : (
+                          <span className="ml-1.5 text-emerald-600">in stock</span>
+                        )}
+                      </div>
+                    )}
                   </div>
                   {m.cost_per_unit > 0 && (
                     <span className="text-xs text-muted-foreground shrink-0">max ₹{m.cost_per_unit.toFixed(2)}</span>
@@ -183,9 +196,45 @@ export function PurchaseOrderForm({ materials, orders = [] }: PurchaseOrderFormP
   })
 
   const watchItems = form.watch("items")
+  const watchOrderIds = form.watch("order_ids") ?? []
+
+  // Once orders are linked, scope the material picker to what those orders' BOMs actually need.
+  const [scopedMaterials, setScopedMaterials] = useState<MaterialOption[] | null>(null)
+  const [loadingScopedMaterials, setLoadingScopedMaterials] = useState(false)
+
+  useEffect(() => {
+    if (watchOrderIds.length === 0) {
+      setScopedMaterials(null)
+      return
+    }
+    let cancelled = false
+    setLoadingScopedMaterials(true)
+    getMaterialsForOrders(watchOrderIds)
+      .then((data) => {
+        if (cancelled) return
+        setScopedMaterials(
+          data.map((m) => ({
+            id: m.id,
+            name: m.name,
+            sku: m.sku,
+            unit: m.unit,
+            cost_per_unit: m.cost_per_unit,
+            category_id: m.category_id ?? null,
+            category_name: (m.category as { id: string; name: string } | null)?.name ?? null,
+            requiredQty: m.requiredQty,
+            shortage: m.shortage,
+          }))
+        )
+      })
+      .finally(() => { if (!cancelled) setLoadingScopedMaterials(false) })
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(watchOrderIds)])
+
+  const effectiveMaterials = scopedMaterials ?? materials
 
   const materialPriceMap = Object.fromEntries(
-    materials.map((m) => [m.id, m.cost_per_unit])
+    effectiveMaterials.map((m) => [m.id, m.cost_per_unit])
   )
 
   function getPriceCeiling(material_id: string): number | null {
@@ -204,7 +253,7 @@ export function PurchaseOrderForm({ materials, orders = [] }: PurchaseOrderFormP
     for (const item of data.items) {
       const ceiling = getPriceCeiling(item.material_id)
       if (ceiling !== null && item.unit_price > ceiling) {
-        const mat = materials.find((m) => m.id === item.material_id)
+        const mat = effectiveMaterials.find((m) => m.id === item.material_id)
         setError(`Unit price for "${mat?.name ?? "item"}" (₹${item.unit_price}) exceeds the master price ceiling of ₹${ceiling}.`)
         return
       }
@@ -239,6 +288,25 @@ export function PurchaseOrderForm({ materials, orders = [] }: PurchaseOrderFormP
         <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive">
           {error}
         </div>
+      )}
+
+      {/* Linked Customer Orders — asked first so the material picker below can scope to what these orders need */}
+      {orders.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>1. Which order is this for?</CardTitle>
+            <CardDescription>Pick the customer order(s) this purchase order procures material for. Optional — leave blank to see the full material catalogue instead.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Controller
+              control={form.control}
+              name="order_ids"
+              render={({ field }) => (
+                <OrderMultiSelect orders={orders} value={field.value ?? []} onChange={field.onChange} />
+              )}
+            />
+          </CardContent>
+        </Card>
       )}
 
       {/* Supplier Details */}
@@ -312,30 +380,17 @@ export function PurchaseOrderForm({ materials, orders = [] }: PurchaseOrderFormP
         </CardContent>
       </Card>
 
-      {/* Linked Customer Orders */}
-      {orders.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Procuring For</CardTitle>
-            <CardDescription>Which customer order(s) is this purchase order for? Optional — leave blank for general stock.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Controller
-              control={form.control}
-              name="order_ids"
-              render={({ field }) => (
-                <OrderMultiSelect orders={orders} value={field.value ?? []} onChange={field.onChange} />
-              )}
-            />
-          </CardContent>
-        </Card>
-      )}
-
       {/* Order Items */}
       <Card>
         <CardHeader>
-          <CardTitle>Order Items</CardTitle>
-          <CardDescription>Materials to order from this supplier</CardDescription>
+          <CardTitle>{orders.length > 0 ? "2. Order Items" : "Order Items"}</CardTitle>
+          <CardDescription>
+            {scopedMaterials
+              ? loadingScopedMaterials
+                ? "Loading materials from the selected order's BOM…"
+                : `Materials to order from this supplier — showing ${scopedMaterials.length} material${scopedMaterials.length === 1 ? "" : "s"} used in the selected order's BOM`
+              : "Materials to order from this supplier"}
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="hidden sm:grid sm:grid-cols-[1fr_100px_160px_40px] sm:gap-3 sm:px-1">
@@ -364,9 +419,15 @@ export function PurchaseOrderForm({ materials, orders = [] }: PurchaseOrderFormP
                       name={`items.${index}.material_id`}
                       render={({ field: f }) => (
                         <MaterialCombobox
-                          materials={materials}
+                          materials={effectiveMaterials}
                           value={f.value}
-                          onChange={(id) => f.onChange(id)}
+                          onChange={(id) => {
+                            f.onChange(id)
+                            const mat = effectiveMaterials.find((m) => m.id === id)
+                            if (mat?.shortage != null && mat.shortage > 0) {
+                              form.setValue(`items.${index}.quantity_ordered`, mat.shortage, { shouldValidate: true })
+                            }
+                          }}
                         />
                       )}
                     />
