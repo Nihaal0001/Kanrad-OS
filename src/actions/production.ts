@@ -405,7 +405,7 @@ export async function logDailyProduction(data: {
   // total produced reaching the order quantity → completed.
   const { data: order } = await supabase
     .from("orders")
-    .select("order_number, total_quantity, status")
+    .select("order_number, total_quantity, status, product_variant")
     .eq("id", data.order_id)
     .single()
 
@@ -421,32 +421,61 @@ export async function logDailyProduction(data: {
     },
   })
 
-  if (order && ["confirmed", "in_production"].includes(order.status)) {
+  if (order) {
     const { data: logs } = await supabase
       .from("production_daily_logs")
       .select("quantity_produced")
       .eq("order_id", data.order_id)
 
     const totalProduced = (logs ?? []).reduce((s, l) => s + (l.quantity_produced ?? 0), 0)
-    const nextStatus =
-      order.total_quantity > 0 && totalProduced >= order.total_quantity
-        ? "completed"
-        : "in_production"
 
-    if (nextStatus !== order.status) {
-      await supabase.from("orders").update({ status: nextStatus }).eq("id", data.order_id)
-      await logAudit({
-        entityType: "order",
-        entityId: data.order_id,
-        entityLabel: order.order_number,
-        action: "status_changed",
-        oldValues: { status: order.status },
-        newValues: { status: nextStatus },
-      })
-      revalidateTag("orders", {})
-      revalidatePath("/orders")
-      revalidatePath(`/orders/${data.order_id}`)
+    // Push produced-to-date into warehouse stock — every log counts, not just
+    // a fully-completed order. Keyed on order_id so this stays in sync as
+    // more logs (or corrections) come in, without touching an item's
+    // dispatch status once it's left.
+    const admin = createAdminClient()
+    const { data: bom } = await admin
+      .from("bom_headers")
+      .select("product_sku")
+      .eq("product_name", order.product_variant)
+      .eq("is_active", true)
+      .maybeSingle()
+
+    await admin.from("warehouse_items").upsert(
+      {
+        order_id: data.order_id,
+        item_name: order.product_variant,
+        sku: bom?.product_sku ?? null,
+        quantity: totalProduced,
+        unit: "pcs",
+      },
+      { onConflict: "order_id" }
+    )
+
+    if (["confirmed", "in_production"].includes(order.status)) {
+      const nextStatus =
+        order.total_quantity > 0 && totalProduced >= order.total_quantity
+          ? "completed"
+          : "in_production"
+
+      if (nextStatus !== order.status) {
+        await supabase.from("orders").update({ status: nextStatus }).eq("id", data.order_id)
+        await logAudit({
+          entityType: "order",
+          entityId: data.order_id,
+          entityLabel: order.order_number,
+          action: "status_changed",
+          oldValues: { status: order.status },
+          newValues: { status: nextStatus },
+        })
+        revalidateTag("orders", {})
+        revalidatePath("/orders")
+        revalidatePath(`/orders/${data.order_id}`)
+      }
     }
+
+    revalidateTag("warehouse_items", {})
+    revalidatePath("/warehouse")
   }
 
   revalidatePath(`/production/${data.order_id}`)
