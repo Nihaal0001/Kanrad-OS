@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin"
+import { lateDeductionAmount } from "@/lib/attendance-ot"
 
 /** Working days in a month = total days minus Sundays. */
 export function workingDaysInMonth(year: number, month0: number): number {
@@ -13,9 +14,13 @@ export function workingDaysInMonth(year: number, month0: number): number {
 /**
  * Generate draft payroll for every salaried, active worker for a full calendar
  * month (1st–last day). daily_wage = monthly_salary ÷ working days; days_present
- * from attendance (present = 1, half day = 0.5, rounded). Overtime defaults to 0
- * (optional, edited per record). Skips workers who already have a payroll record
- * for that period, so it never overwrites manual edits. No auth — callers gate it.
+ * from attendance (present = 1, half day = 0.5, rounded). Overtime hours are
+ * summed from attendance.overtime_hours (full hours worked past shift end —
+ * see calculateOvertime), paid at the worker's profiles.ot_rate. Late-arrival
+ * minutes (attendance.late_minutes) are valued at that same OT rate and land
+ * in `deductions`, coming off base pay rather than reducing OT hours. Skips
+ * workers who already have a payroll record for that period, so it never
+ * overwrites manual edits. No auth — callers gate it.
  */
 export async function runMonthlyPayroll(
   year: number,
@@ -29,15 +34,19 @@ export async function runMonthlyPayroll(
   const workingDays = workingDaysInMonth(year, month0)
 
   const [{ data: workers }, { data: attendance }, { data: existing }] = await Promise.all([
-    admin.from("profiles").select("id, monthly_salary").eq("is_active", true).gt("monthly_salary", 0),
-    admin.from("attendance").select("worker_id, status").gte("date", periodStart).lte("date", periodEnd),
+    admin.from("profiles").select("id, monthly_salary, ot_rate").eq("is_active", true).gt("monthly_salary", 0),
+    admin.from("attendance").select("worker_id, status, overtime_hours, late_minutes").gte("date", periodStart).lte("date", periodEnd),
     admin.from("payroll").select("worker_id").eq("period_start", periodStart).eq("period_end", periodEnd),
   ])
 
   const presentByWorker: Record<string, number> = {}
+  const overtimeByWorker: Record<string, number> = {}
+  const lateMinutesByWorker: Record<string, number> = {}
   for (const a of attendance ?? []) {
     const add = a.status === "present" ? 1 : a.status === "half_day" ? 0.5 : 0
     if (add > 0) presentByWorker[a.worker_id] = (presentByWorker[a.worker_id] ?? 0) + add
+    if (a.overtime_hours) overtimeByWorker[a.worker_id] = (overtimeByWorker[a.worker_id] ?? 0) + Number(a.overtime_hours)
+    if (a.late_minutes) lateMinutesByWorker[a.worker_id] = (lateMinutesByWorker[a.worker_id] ?? 0) + Number(a.late_minutes)
   }
   const alreadyDone = new Set((existing ?? []).map((p) => p.worker_id))
 
@@ -49,10 +58,10 @@ export async function runMonthlyPayroll(
       period_end: periodEnd,
       working_days: workingDays,
       days_present: Math.round(presentByWorker[w.id] ?? 0),
-      overtime_hours: 0,
+      overtime_hours: Math.round((overtimeByWorker[w.id] ?? 0) * 100) / 100,
       daily_wage: workingDays > 0 ? Math.round((w.monthly_salary / workingDays) * 100) / 100 : 0,
-      overtime_rate: 0,
-      deductions: 0,
+      overtime_rate: w.ot_rate ?? 0,
+      deductions: lateDeductionAmount(lateMinutesByWorker[w.id] ?? 0, w.ot_rate ?? 0),
       bonus: 0,
       status: "draft" as const,
     }))

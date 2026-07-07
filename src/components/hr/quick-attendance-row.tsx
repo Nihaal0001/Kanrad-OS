@@ -13,6 +13,8 @@ interface Worker {
   id: string
   full_name: string
   department: string | null
+  gender?: "male" | "female" | null
+  ot_rate?: number | null
 }
 
 interface QuickAttendanceRowProps {

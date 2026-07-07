@@ -4,6 +4,7 @@ import { revalidatePath, revalidateTag, unstable_cache } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { runMonthlyPayroll } from "@/lib/payroll-gen"
+import { calculateOvertime } from "@/lib/attendance-ot"
 import {
   attendanceSchema,
   leaveSchema,
@@ -337,6 +338,27 @@ export async function upsertAttendance(formData: AttendanceFormData) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: "Not authenticated" }
 
+  // Shift is 8am-6pm (male) / 8am-5pm (female); when both punches are present,
+  // OT is computed from them rather than trusting the manual field (which
+  // stays as a fallback when punches are missing). Late minutes are stored
+  // as-is — they're valued at the OT rate and deducted from base pay at
+  // payroll time (see lateDeductionAmount in payroll-gen.ts), not netted
+  // out of these OT hours.
+  let overtimeHours = validated.overtime_hours
+  let lateMinutes = 0
+  if (validated.check_in && validated.check_out) {
+    const { data: worker } = await supabase
+      .from("profiles")
+      .select("gender")
+      .eq("id", validated.worker_id)
+      .maybeSingle()
+    const ot = calculateOvertime(worker?.gender as "male" | "female" | null, validated.check_in, validated.check_out)
+    if (ot) {
+      overtimeHours = ot.overtimeHours
+      lateMinutes = ot.lateMinutes
+    }
+  }
+
   const { data, error } = await supabase
     .from("attendance")
     .upsert(
@@ -346,7 +368,8 @@ export async function upsertAttendance(formData: AttendanceFormData) {
         status: validated.status,
         check_in: validated.check_in || null,
         check_out: validated.check_out || null,
-        overtime_hours: validated.overtime_hours,
+        overtime_hours: overtimeHours,
+        late_minutes: lateMinutes,
         notes: validated.notes || null,
       },
       { onConflict: "worker_id,date" }

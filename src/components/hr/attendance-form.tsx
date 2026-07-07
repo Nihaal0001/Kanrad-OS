@@ -9,6 +9,7 @@ import { toast } from "sonner"
 
 import { attendanceSchema, type AttendanceFormData } from "@/lib/validators/hr"
 import { upsertAttendance } from "@/actions/hr"
+import { calculateOvertime, lateDeductionAmount } from "@/lib/attendance-ot"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
@@ -34,6 +35,8 @@ interface Worker {
   id: string
   full_name: string
   department: string | null
+  gender?: "male" | "female" | null
+  ot_rate?: number | null
 }
 
 interface AttendanceFormProps {
@@ -74,6 +77,11 @@ export function AttendanceForm({ workers, defaultDate, defaultWorkerId, trigger 
 
   const status = watch("status")
   const workerId = watch("worker_id")
+  const checkIn = watch("check_in")
+  const checkOut = watch("check_out")
+
+  const selectedWorker = workers.find((w) => w.id === workerId)
+  const otPreview = calculateOvertime(selectedWorker?.gender, checkIn, checkOut)
 
   async function onSubmit(data: AttendanceFormData) {
     setLoading(true)
@@ -206,15 +214,29 @@ export function AttendanceForm({ workers, defaultDate, defaultWorkerId, trigger 
           {status === "present" && (
             <div className="space-y-1.5">
               <Label htmlFor="overtime_hours">Overtime Hours</Label>
-              <Input
-                id="overtime_hours"
-                type="number"
-                min="0"
-                step="0.5"
-                max="24"
-                {...register("overtime_hours", { valueAsNumber: true })}
-                placeholder="0"
-              />
+              {otPreview ? (
+                <div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm">
+                  <p className="font-medium">{otPreview.overtimeHours} hrs OT</p>
+                  {otPreview.lateMinutes > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      {otPreview.lateMinutes} min late (past 8:00 AM) — ₹{lateDeductionAmount(otPreview.lateMinutes, selectedWorker?.ot_rate ?? 0)} deducted from base pay
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Shift ends {selectedWorker?.gender === "female" ? "5:00 PM" : "6:00 PM"} — computed automatically from check-in/out
+                  </p>
+                </div>
+              ) : (
+                <Input
+                  id="overtime_hours"
+                  type="number"
+                  min="0"
+                  step="0.5"
+                  max="24"
+                  {...register("overtime_hours", { valueAsNumber: true })}
+                  placeholder="0"
+                />
+              )}
             </div>
           )}
 

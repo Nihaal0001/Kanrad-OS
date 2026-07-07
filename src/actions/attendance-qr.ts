@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { validateToken } from "@/lib/qr-token"
 import { haversineDistance } from "@/lib/geo"
+import { calculateOvertime } from "@/lib/attendance-ot"
 
 interface VerifyInput {
   token: string
@@ -35,7 +36,7 @@ export async function verifyAndRecordAttendance(
   // Get employee profile
   const { data: profile, error: profileErr } = await supabase
     .from("profiles")
-    .select("id, full_name")
+    .select("id, full_name, gender")
     .eq("auth_id", user.id)
     .single()
 
@@ -114,16 +115,21 @@ export async function verifyAndRecordAttendance(
     .eq("date", today)
     .maybeSingle()
 
+  const checkIn =
+    type === "IN" && !existing?.check_in ? nowTime : (existing?.check_in ?? nowTime)
+  const checkOut = type === "OUT" ? nowTime : (existing?.check_out ?? null)
+
+  // On the OUT scan (both punches now known), compute OT with late minutes deducted.
+  const ot = type === "OUT" ? calculateOvertime(profile.gender as "male" | "female" | null, checkIn, checkOut) : null
+
   await admin.from("attendance").upsert(
     {
       worker_id: profile.id,
       date: today,
       status: "present",
-      check_in:
-        type === "IN" && !existing?.check_in
-          ? nowTime
-          : (existing?.check_in ?? nowTime),
-      check_out: type === "OUT" ? nowTime : (existing?.check_out ?? null),
+      check_in: checkIn,
+      check_out: checkOut,
+      ...(ot ? { overtime_hours: ot.overtimeHours, late_minutes: ot.lateMinutes } : {}),
     },
     { onConflict: "worker_id,date" }
   )
