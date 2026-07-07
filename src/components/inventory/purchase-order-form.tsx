@@ -14,6 +14,7 @@ import {
 import { createPurchaseOrder } from "@/actions/inventory"
 import { formatCurrency } from "@/lib/utils"
 import type { Material } from "@/lib/supabase/types"
+import { OrderMultiSelect, type OrderOption } from "@/components/inventory/order-multiselect"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -43,6 +44,7 @@ interface MaterialOption extends Pick<Material, "id" | "name" | "sku" | "unit"> 
 
 interface PurchaseOrderFormProps {
   materials: MaterialOption[]
+  orders?: OrderOption[]
 }
 
 // ── Material Combobox ────────────────────────────────────────────────────────
@@ -157,7 +159,7 @@ function MaterialCombobox({
 }
 
 // ── Main Form ────────────────────────────────────────────────────────────────
-export function PurchaseOrderForm({ materials }: PurchaseOrderFormProps) {
+export function PurchaseOrderForm({ materials, orders = [] }: PurchaseOrderFormProps) {
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -170,6 +172,7 @@ export function PurchaseOrderForm({ materials }: PurchaseOrderFormProps) {
       order_date: new Date().toISOString().split("T")[0],
       expected_date: "",
       notes: "",
+      order_ids: [],
       items: [{ material_id: "", quantity_ordered: 1, unit_price: 0 }],
     },
   })
@@ -308,6 +311,25 @@ export function PurchaseOrderForm({ materials }: PurchaseOrderFormProps) {
           </div>
         </CardContent>
       </Card>
+
+      {/* Linked Customer Orders */}
+      {orders.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Procuring For</CardTitle>
+            <CardDescription>Which customer order(s) is this purchase order for? Optional — leave blank for general stock.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Controller
+              control={form.control}
+              name="order_ids"
+              render={({ field }) => (
+                <OrderMultiSelect orders={orders} value={field.value ?? []} onChange={field.onChange} />
+              )}
+            />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Order Items */}
       <Card>

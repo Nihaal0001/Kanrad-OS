@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
 
 import {
@@ -25,10 +25,30 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { POApprovalButtons } from "@/components/inventory/po-approval-buttons"
-import { CheckCircle2, Package, Clock, TruckIcon } from "lucide-react"
+import { CheckCircle2, Package, Clock, TruckIcon, ClipboardList } from "lucide-react"
 import { kgToPieces } from "@/lib/circle-calc"
+
+interface LinkedOrder {
+  id: string
+  order_number: string
+  product_variant: string
+}
+
+interface POReceipt {
+  id: string
+  order_id: string | null
+  quantity: number
+  received_at: string
+}
 
 interface POItem {
   id: string
@@ -45,6 +65,7 @@ interface POItem {
     thickness_mm: number | null
     circle_type: string | null
   } | null
+  receipts?: POReceipt[]
 }
 
 interface PurchaseOrderDetailProps {
@@ -61,7 +82,9 @@ interface PurchaseOrderDetailProps {
     total_amount: number
     notes: string | null
     items: POItem[]
+    linked_orders?: LinkedOrder[]
   }
+  isAdmin: boolean
 }
 
 function ReceiptProgressBar({ received, ordered }: { received: number; ordered: number }) {
@@ -87,13 +110,17 @@ function ReceiptProgressBar({ received, ordered }: { received: number; ordered: 
   )
 }
 
-export function PurchaseOrderDetail({ po: initialPo }: PurchaseOrderDetailProps) {
+export function PurchaseOrderDetail({ po: initialPo, isAdmin }: PurchaseOrderDetailProps) {
   const router = useRouter()
   const [po, setPo] = useState(initialPo)
   const [receivingItemId, setReceivingItemId] = useState<string | null>(null)
   const [closeDialogOpen, setCloseDialogOpen] = useState(false)
   const [receiveQuantities, setReceiveQuantities] = useState<Record<string, string>>(
     () => Object.fromEntries((initialPo.items ?? []).map((item) => [item.id, ""]))
+  )
+  const linkedOrders = useMemo(() => po.linked_orders ?? [], [po.linked_orders])
+  const [receiveForOrder, setReceiveForOrder] = useState<Record<string, string>>(
+    () => Object.fromEntries((initialPo.items ?? []).map((item) => [item.id, linkedOrders.length === 1 ? linkedOrders[0].id : ""]))
   )
 
   const canReceive = po.status === "sent" || po.status === "partial"
@@ -131,8 +158,10 @@ export function PurchaseOrderDetail({ po: initialPo }: PurchaseOrderDetailProps)
         return
       }
 
+      const orderId = receiveForOrder[itemId] || null
+
       setReceivingItemId(itemId)
-      const result = await receivePurchaseOrderItem(itemId, item.quantity_received + qty, po.id)
+      const result = await receivePurchaseOrderItem(itemId, item.quantity_received + qty, po.id, qty, orderId)
       if ("error" in result && result.error) {
         toast.error(friendlyError(result.error))
         setReceivingItemId(null)
@@ -143,16 +172,21 @@ export function PurchaseOrderDetail({ po: initialPo }: PurchaseOrderDetailProps)
         ...prev,
         items: prev.items.map((i) =>
           i.id === itemId
-            ? { ...i, quantity_received: i.quantity_received + qty }
+            ? {
+                ...i,
+                quantity_received: i.quantity_received + qty,
+                receipts: [...(i.receipts ?? []), { id: crypto.randomUUID(), order_id: orderId, quantity: qty, received_at: new Date().toISOString() }],
+              }
             : i
         ),
       }))
       setReceiveQuantities((prev) => ({ ...prev, [itemId]: "" }))
-      toast.success(`Received ${qty} ${item.material?.unit ?? "units"}`)
+      const orderLabel = linkedOrders.find((o) => o.id === orderId)?.order_number
+      toast.success(`Received ${qty} ${item.material?.unit ?? "units"}${orderLabel ? ` for ${orderLabel}` : ""}`)
       setReceivingItemId(null)
       router.refresh()
     },
-    [po.id, receiveQuantities, router]
+    [po.id, receiveQuantities, receiveForOrder, linkedOrders, router]
   )
 
   return (
@@ -273,6 +307,21 @@ export function PurchaseOrderDetail({ po: initialPo }: PurchaseOrderDetailProps)
                     })()
                   }
 
+                  {/* Per-order receipt breakdown */}
+                  {(item.receipts?.length ?? 0) > 0 && (
+                    <div className="flex flex-wrap gap-1.5 text-xs text-muted-foreground">
+                      <span className="font-medium">Received for:</span>
+                      {item.receipts!.map((r) => {
+                        const orderLabel = linkedOrders.find((o) => o.id === r.order_id)?.order_number
+                        return (
+                          <span key={r.id} className="rounded-full bg-muted px-2 py-0.5">
+                            {orderLabel ?? "unattributed"}: {r.quantity}
+                          </span>
+                        )
+                      })}
+                    </div>
+                  )}
+
                   {canReceive && !fullyReceived && (() => {
                     const mat = item.material
                     const isNonIbCircle =
@@ -286,37 +335,62 @@ export function PurchaseOrderDetail({ po: initialPo }: PurchaseOrderDetailProps)
                         : null
 
                     return (
-                      <div className="flex items-end gap-2 pt-1">
-                        <div className="flex-1 space-y-1">
-                          <Label className="text-xs text-muted-foreground">
-                            Receiving today ({item.material?.unit ?? "units"})
-                          </Label>
-                          <Input
-                            type="number"
-                            min={0.01}
-                            max={pending}
-                            step="0.01"
-                            placeholder={`Max ${pending}`}
-                            value={receiveQuantities[item.id] ?? ""}
-                            onChange={(e) =>
-                              setReceiveQuantities((prev) => ({ ...prev, [item.id]: e.target.value }))
-                            }
+                      <div className="space-y-2 pt-1">
+                        {linkedOrders.length > 0 && (
+                          <div className="space-y-1">
+                            <Label className="text-xs text-muted-foreground">For order</Label>
+                            <Select
+                              value={receiveForOrder[item.id] || "none"}
+                              onValueChange={(v) =>
+                                setReceiveForOrder((prev) => ({ ...prev, [item.id]: v === "none" ? "" : v }))
+                              }
+                            >
+                              <SelectTrigger className="h-9">
+                                <SelectValue placeholder="Not order-specific" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="none">Not order-specific</SelectItem>
+                                {linkedOrders.map((o) => (
+                                  <SelectItem key={o.id} value={o.id}>
+                                    {o.order_number} — {o.product_variant}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        )}
+                        <div className="flex items-end gap-2">
+                          <div className="flex-1 space-y-1">
+                            <Label className="text-xs text-muted-foreground">
+                              Receiving today ({item.material?.unit ?? "units"})
+                            </Label>
+                            <Input
+                              type="number"
+                              min={0.01}
+                              max={pending}
+                              step="0.01"
+                              placeholder={`Max ${pending}`}
+                              value={receiveQuantities[item.id] ?? ""}
+                              onChange={(e) =>
+                                setReceiveQuantities((prev) => ({ ...prev, [item.id]: e.target.value }))
+                              }
+                              className="h-9"
+                            />
+                            {pcsPreview != null && (
+                              <p className="text-xs font-semibold text-primary">
+                                ≈ {pcsPreview.toLocaleString("en-IN")} pcs
+                              </p>
+                            )}
+                          </div>
+                          <Button
+                            size="sm"
                             className="h-9"
-                          />
-                          {pcsPreview != null && (
-                            <p className="text-xs font-semibold text-primary">
-                              ≈ {pcsPreview.toLocaleString("en-IN")} pcs
-                            </p>
-                          )}
+                            disabled={receivingItemId === item.id || !receiveQuantities[item.id]}
+                            onClick={() => handleReceiveItem(item.id, item)}
+                          >
+                            {receivingItemId === item.id ? "Saving…" : "Receive"}
+                          </Button>
                         </div>
-                        <Button
-                          size="sm"
-                          className="h-9"
-                          disabled={receivingItemId === item.id || !receiveQuantities[item.id]}
-                          onClick={() => handleReceiveItem(item.id, item)}
-                        >
-                          {receivingItemId === item.id ? "Saving…" : "Receive"}
-                        </Button>
                       </div>
                     )
                   })()}
@@ -329,6 +403,25 @@ export function PurchaseOrderDetail({ po: initialPo }: PurchaseOrderDetailProps)
 
       {/* Sidebar */}
       <div className="space-y-4 sm:space-y-6">
+        {linkedOrders.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <ClipboardList className="h-4 w-4" />
+                Procuring For
+              </CardTitle>
+              <CardDescription>Customer orders this PO is raised for</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {linkedOrders.map((o) => (
+                <div key={o.id} className="rounded-lg border px-3 py-2 text-sm">
+                  <p className="font-medium">{o.order_number}</p>
+                  <p className="text-xs text-muted-foreground">{o.product_variant}</p>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
         <Card>
           <CardHeader>
             <CardTitle>Order Summary</CardTitle>
@@ -340,7 +433,7 @@ export function PurchaseOrderDetail({ po: initialPo }: PurchaseOrderDetailProps)
             </div>
             <div>
               <p className="text-sm text-muted-foreground mb-2">Approval</p>
-              <POApprovalButtons poId={po.id} approvalStatus={po.approval_status ?? "pending_approval"} />
+              <POApprovalButtons poId={po.id} approvalStatus={po.approval_status ?? "pending_approval"} isAdmin={isAdmin} />
               {po.approval_status === "approved" && (
                 <span className="text-xs text-emerald-600 font-medium">✓ Approved</span>
               )}

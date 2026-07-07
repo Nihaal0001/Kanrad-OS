@@ -361,12 +361,27 @@ export async function getPurchaseOrder(id: string) {
       const supabase = createAdminClient()
       const { data, error } = await supabase
         .from("purchase_orders")
-        .select("*, items:purchase_order_items(*, material:materials(id, name, sku, unit, diameter_mm, thickness_mm, circle_type))")
+        .select(`
+          *,
+          items:purchase_order_items(
+            *,
+            material:materials(id, name, sku, unit, diameter_mm, thickness_mm, circle_type),
+            receipts:purchase_order_receipts(id, order_id, quantity, received_at)
+          ),
+          linked_orders:purchase_order_orders(order:orders(id, order_number, product_variant))
+        `)
         .eq("id", id)
         .single()
 
       if (error) throw new Error(error.message)
-      return data
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const linkedOrders = ((data as any).linked_orders ?? [])
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .map((l: any) => (Array.isArray(l.order) ? l.order[0] : l.order))
+        .filter(Boolean)
+
+      return { ...data, linked_orders: linkedOrders }
     },
     [`purchase-order-${id}`],
     { tags: ["purchase_orders"], revalidate: 60 }
@@ -398,7 +413,7 @@ export async function createPurchaseOrder(formData: PurchaseOrderFormData) {
     }
   }
 
-  const { items, ...poData } = validated
+  const { items, order_ids, ...poData } = validated
   const cleaned = Object.fromEntries(
     Object.entries(poData).map(([k, v]) => [k, v === "" ? null : v])
   ) as Record<string, unknown>
@@ -428,6 +443,12 @@ export async function createPurchaseOrder(formData: PurchaseOrderFormData) {
   if (itemsError) {
     await supabase.from("purchase_orders").delete().eq("id", po.id)
     return { error: itemsError.message }
+  }
+
+  if (order_ids && order_ids.length > 0) {
+    const links = order_ids.map((orderId) => ({ purchase_order_id: po.id, order_id: orderId }))
+    const { error: linkError } = await supabase.from("purchase_order_orders").insert(links)
+    if (linkError) return { error: linkError.message }
   }
 
   revalidateTag("dashboard", {})
@@ -464,7 +485,9 @@ export async function updatePurchaseOrderStatus(id: string, status: string) {
 export async function receivePurchaseOrderItem(
   itemId: string,
   quantityReceived: number,
-  poId: string
+  poId: string,
+  receivedNow: number,
+  orderId?: string | null
 ) {
   const supabase = await createClient()
   const admin = createAdminClient()
@@ -482,17 +505,27 @@ export async function receivePurchaseOrderItem(
 
   if (itemError) return { error: itemError.message }
 
-  if (quantityReceived > 0) {
+  // Attribute this receipt to a linked customer order, if the caller specified one.
+  if (receivedNow > 0) {
+    const { error: receiptError } = await supabase.from("purchase_order_receipts").insert({
+      purchase_order_item_id: itemId,
+      order_id: orderId || null,
+      quantity: receivedNow,
+    })
+    if (receiptError) return { error: receiptError.message }
+  }
+
+  if (receivedNow > 0) {
     const unitPrice: number = item.unit_price ?? 0
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const mat = Array.isArray(item.material) ? item.material[0] : item.material as any
     const existingStock: number = mat?.current_stock ?? 0
     const existingCost: number = mat?.cost_per_unit ?? 0
 
-    // Weighted average cost
-    const totalQty = existingStock + quantityReceived
+    // Weighted average cost — uses only what arrived in this receipt, not the cumulative total.
+    const totalQty = existingStock + receivedNow
     const newAvgCost = totalQty > 0
-      ? (existingStock * existingCost + quantityReceived * unitPrice) / totalQty
+      ? (existingStock * existingCost + receivedNow * unitPrice) / totalQty
       : unitPrice
 
     // 1. Stock transaction
@@ -501,7 +534,7 @@ export async function receivePurchaseOrderItem(
       .insert({
         material_id: item.material_id,
         type: "purchase_in",
-        quantity: quantityReceived,
+        quantity: receivedNow,
         reference_type: "purchase_order",
         reference_id: poId,
         notes: `Received from PO`,
@@ -511,7 +544,7 @@ export async function receivePurchaseOrderItem(
     // 2. FIFO batch record
     await admin.from("stock_batches").insert({
       material_id: item.material_id,
-      quantity_remaining: quantityReceived,
+      quantity_remaining: receivedNow,
       unit_cost: unitPrice,
       purchase_order_id: poId,
     })

@@ -1,7 +1,9 @@
 import Link from "next/link"
+import { notFound } from "next/navigation"
 import { ArrowLeft, Clock, CheckCircle2, XCircle, ShoppingCart } from "lucide-react"
 
 import { getPurchaseOrders } from "@/actions/inventory"
+import { createClient } from "@/lib/supabase/server"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import { PageHeader } from "@/components/shared/page-header"
 import { Button } from "@/components/ui/button"
@@ -18,6 +20,18 @@ import {
 } from "@/components/ui/table"
 
 export default async function POApprovalsPage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("auth_id", user?.id ?? "")
+    .maybeSingle()
+
+  if (profile?.role !== "admin") {
+    notFound()
+  }
+
   const [pending, approved, rejected] = await Promise.all([
     getPurchaseOrders({ approval_status: "pending_approval" }),
     getPurchaseOrders({ approval_status: "approved" }),
@@ -120,7 +134,7 @@ export default async function POApprovalsPage() {
                         <StatusBadge status={po.status} />
                       </TableCell>
                       <TableCell>
-                        <POApprovalButtons poId={po.id} approvalStatus={po.approval_status ?? "pending_approval"} />
+                        <POApprovalButtons poId={po.id} approvalStatus={po.approval_status ?? "pending_approval"} isAdmin />
                       </TableCell>
                     </TableRow>
                   ))}

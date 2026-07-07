@@ -9,6 +9,7 @@ import { approvePurchaseOrder, rejectPurchaseOrder } from "@/actions/inventory"
 interface POApprovalButtonsProps {
   poId: string
   approvalStatus: string
+  isAdmin: boolean
 }
 
 interface SwipeConfirmProps {
@@ -143,11 +144,11 @@ function SwipeConfirm({ label, sublabel, color, direction, loading, onConfirm }:
   )
 }
 
-export function POApprovalButtons({ poId, approvalStatus }: POApprovalButtonsProps) {
+export function POApprovalButtons({ poId, approvalStatus, isAdmin }: POApprovalButtonsProps) {
   const router = useRouter()
   const [loading, setLoading] = useState<"approve" | "reject" | null>(null)
 
-  if (approvalStatus !== "pending_approval") return null
+  if (approvalStatus !== "pending_approval" || !isAdmin) return null
 
   async function handleApprove() {
     setLoading("approve")

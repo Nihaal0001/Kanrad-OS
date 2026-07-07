@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation"
 
 import { getPurchaseOrder } from "@/actions/inventory"
+import { createClient } from "@/lib/supabase/server"
 import { PageHeader } from "@/components/shared/page-header"
 import { PurchaseOrderDetail } from "@/components/inventory/purchase-order-detail"
 import { Button } from "@/components/ui/button"
@@ -23,6 +24,15 @@ export default async function PurchaseOrderDetailPage({
     notFound()
   }
 
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("auth_id", user?.id ?? "")
+    .maybeSingle()
+  const isAdmin = profile?.role === "admin"
+
   return (
     <>
       <PageHeader
@@ -41,7 +51,7 @@ export default async function PurchaseOrderDetailPage({
           </Link>
         </Button>
       </PageHeader>
-      <PurchaseOrderDetail po={po} />
+      <PurchaseOrderDetail po={po} isAdmin={isAdmin} />
     </>
   )
 }

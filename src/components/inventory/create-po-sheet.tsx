@@ -11,6 +11,7 @@ import { purchaseOrderSchema, type PurchaseOrderFormData } from "@/lib/validator
 import { createPurchaseOrder } from "@/actions/inventory"
 import { formatCurrency } from "@/lib/utils"
 import type { Material } from "@/lib/supabase/types"
+import { OrderMultiSelect, type OrderOption } from "@/components/inventory/order-multiselect"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -34,9 +35,10 @@ import {
 
 interface Props {
   materials: Array<Pick<Material, "id" | "name" | "sku" | "unit"> & { cost_per_unit: number }>
+  orders?: OrderOption[]
 }
 
-export function CreatePurchaseOrderSheet({ materials }: Props) {
+export function CreatePurchaseOrderSheet({ materials, orders = [] }: Props) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
@@ -49,6 +51,7 @@ export function CreatePurchaseOrderSheet({ materials }: Props) {
       order_date: new Date().toISOString().split("T")[0],
       expected_date: "",
       notes: "",
+      order_ids: [],
       items: [{ material_id: "", quantity_ordered: 1, unit_price: 0 }],
     },
   })
@@ -74,6 +77,7 @@ export function CreatePurchaseOrderSheet({ materials }: Props) {
       order_date: new Date().toISOString().split("T")[0],
       expected_date: "",
       notes: "",
+      order_ids: [],
       items: [{ material_id: "", quantity_ordered: 1, unit_price: 0 }],
     })
     setOpen(true)
@@ -167,6 +171,19 @@ export function CreatePurchaseOrderSheet({ materials }: Props) {
                   {...form.register("notes")}
                 />
               </div>
+
+              {orders.length > 0 && (
+                <div className="space-y-1.5">
+                  <Label>Procuring For (optional)</Label>
+                  <Controller
+                    control={form.control}
+                    name="order_ids"
+                    render={({ field }) => (
+                      <OrderMultiSelect orders={orders} value={field.value ?? []} onChange={field.onChange} />
+                    )}
+                  />
+                </div>
+              )}
 
               <Separator />
 
