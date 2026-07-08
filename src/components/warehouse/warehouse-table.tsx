@@ -1,9 +1,15 @@
 "use client"
 
 import { useState, useMemo } from "react"
+import { useRouter } from "next/navigation"
+import { toast } from "sonner"
+import { Send, CheckCircle2 } from "lucide-react"
 
-import { formatDate } from "@/lib/utils"
+import { pushToLogistics } from "@/actions/warehouse"
+import { formatDate, friendlyError } from "@/lib/utils"
+import { formatCartons } from "@/lib/master-cartons"
 import { StatusBadge } from "@/components/shared/status-badge"
+import { Button } from "@/components/ui/button"
 import {
   Select,
   SelectContent,
@@ -33,6 +39,8 @@ interface WarehouseItem {
   exit_date: string | null
   remarks: string | null
   created_at: string
+  master_cartons: number | null
+  pushed_to_logistics?: boolean
 }
 
 interface WarehouseTableProps {
@@ -41,8 +49,10 @@ interface WarehouseTableProps {
 }
 
 export function WarehouseTable({ items, locations }: WarehouseTableProps) {
+  const router = useRouter()
   const [statusFilter, setStatusFilter] = useState("all")
   const [locationFilter, setLocationFilter] = useState("all")
+  const [pushingId, setPushingId] = useState<string | null>(null)
 
   const filtered = useMemo(() => {
     let result = items
@@ -50,6 +60,18 @@ export function WarehouseTable({ items, locations }: WarehouseTableProps) {
     if (locationFilter !== "all") result = result.filter((i) => i.location === locationFilter)
     return result
   }, [items, statusFilter, locationFilter])
+
+  async function handlePush(id: string) {
+    setPushingId(id)
+    const result = await pushToLogistics(id)
+    setPushingId(null)
+    if ("error" in result && result.error) {
+      toast.error(friendlyError(result.error))
+      return
+    }
+    toast.success("Pushed to Logistics")
+    router.refresh()
+  }
 
   return (
     <div className="space-y-4">
@@ -99,12 +121,16 @@ export function WarehouseTable({ items, locations }: WarehouseTableProps) {
                 <TableHead>SKU</TableHead>
                 <TableHead>Category</TableHead>
                 <TableHead className="text-right">Quantity</TableHead>
+                <TableHead className="text-right">Master Cartons</TableHead>
                 <TableHead>Unit</TableHead>
                 <TableHead>Location</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Entry Date</TableHead>
                 <TableHead>Exit Date</TableHead>
                 <TableHead>Remarks</TableHead>
+                <TableHead className="w-[140px]">
+                  <span className="sr-only">Logistics</span>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -116,6 +142,9 @@ export function WarehouseTable({ items, locations }: WarehouseTableProps) {
                   </TableCell>
                   <TableCell>{item.category ?? "--"}</TableCell>
                   <TableCell className="text-right tabular-nums">{item.quantity}</TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {item.master_cartons != null ? formatCartons(item.master_cartons) : "--"}
+                  </TableCell>
                   <TableCell className="text-muted-foreground">{item.unit}</TableCell>
                   <TableCell>{item.location ?? "--"}</TableCell>
                   <TableCell>
@@ -127,6 +156,27 @@ export function WarehouseTable({ items, locations }: WarehouseTableProps) {
                   </TableCell>
                   <TableCell className="max-w-[160px] truncate text-sm text-muted-foreground">
                     {item.remarks ?? "--"}
+                  </TableCell>
+                  <TableCell>
+                    {item.status === "in_warehouse" && (
+                      item.pushed_to_logistics ? (
+                        <span className="flex items-center gap-1 text-xs font-medium text-emerald-600">
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          Queued
+                        </span>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 gap-1 text-xs"
+                          disabled={pushingId === item.id}
+                          onClick={() => handlePush(item.id)}
+                        >
+                          <Send className="h-3 w-3" />
+                          {pushingId === item.id ? "Pushing…" : "Push to Logistics"}
+                        </Button>
+                      )
+                    )}
                   </TableCell>
                 </TableRow>
               ))}

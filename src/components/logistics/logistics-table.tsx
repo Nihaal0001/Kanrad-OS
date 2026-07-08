@@ -7,6 +7,7 @@ import { AlertCircle } from "lucide-react"
 
 import { updateShipmentStatus, markShipmentDelayed } from "@/actions/logistics"
 import { friendlyError, formatDate, formatCurrency } from "@/lib/utils"
+import { formatCartons } from "@/lib/master-cartons"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -36,6 +37,7 @@ interface Shipment {
   shipment_number: string | null
   order: { id: string; order_number: string; product_variant: string | null } | null
   customer_name: string | null
+  customer_contact: string | null
   courier_name: string | null
   tracking_number: string | null
   status: string
@@ -43,6 +45,7 @@ interface Shipment {
   created_at: string
   bill_no: string | null
   quantity: number | null
+  master_cartons: number | null
   value: number | null
 }
 
@@ -137,7 +140,9 @@ export function LogisticsTable({ shipments }: LogisticsTableProps) {
                 <TableHead>Order Ref</TableHead>
                 <TableHead>Customer</TableHead>
                 <TableHead>Bill No.</TableHead>
+                <TableHead>Contact</TableHead>
                 <TableHead className="text-right">Qty</TableHead>
+                <TableHead className="text-right">MC</TableHead>
                 <TableHead className="text-right">Value</TableHead>
                 <TableHead>Courier</TableHead>
                 <TableHead>Tracking #</TableHead>
@@ -175,7 +180,11 @@ export function LogisticsTable({ shipments }: LogisticsTableProps) {
                     </TableCell>
                     <TableCell>{shipment.customer_name ?? "--"}</TableCell>
                     <TableCell className="font-mono text-xs">{shipment.bill_no ?? "--"}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{shipment.customer_contact ?? "--"}</TableCell>
                     <TableCell className="text-right tabular-nums">{shipment.quantity ?? "--"}</TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {shipment.master_cartons != null ? formatCartons(shipment.master_cartons) : "--"}
+                    </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {shipment.value != null ? formatCurrency(shipment.value) : "--"}
                     </TableCell>

@@ -6,6 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { logAudit } from "@/actions/audit"
 import { warehouseDispatchSchema } from "@/lib/validators/logistics"
 import type { WarehouseDispatchFormData } from "@/lib/validators/logistics"
+import { getMasterCartonRatios } from "@/lib/master-cartons"
 
 const VALID_STATUSES = ["pending", "dispatched", "in_transit", "delivered", "delayed"] as const
 
@@ -36,7 +37,8 @@ export async function getShipments(filters?: { status?: string }) {
   )()
 }
 
-/** Orders that currently have dispatchable warehouse stock (quantity > 0).
+/** Warehouse stock that's been pushed from Warehouse and is waiting to be
+ *  shipped from Logistics (quantity > 0, not yet fully dispatched).
  *  unit_price is the order's weighted-average per-piece value, purely so the
  *  ship form can preview the invoice value live — the server recomputes it
  *  authoritatively at submit time. */
@@ -45,8 +47,9 @@ export const getWarehouseStockForOrders = unstable_cache(
     const supabase = createAdminClient()
     const { data, error } = await supabase
       .from("warehouse_items")
-      .select("id, item_name, sku, quantity, unit, order:orders(id, order_number, customer:customers(name))")
+      .select("id, item_name, sku, quantity, unit, order:orders(id, order_number, customer:customers(name, phone))")
       .eq("status", "in_warehouse")
+      .eq("pushed_to_logistics", true)
       .gt("quantity", 0)
       .not("order_id", "is", null)
       .order("item_name")
@@ -66,6 +69,7 @@ export const getWarehouseStockForOrders = unstable_cache(
         order_id: order?.id as string | null,
         order_number: order?.order_number ?? null,
         customer_name: customer?.name ?? null,
+        customer_phone: customer?.phone ?? null,
       }
     }).filter((w) => w.order_id)
 
@@ -84,7 +88,13 @@ export const getWarehouseStockForOrders = unstable_cache(
       priceByOrder.set(orderId, totalQty > 0 ? totalValue / totalQty : 0)
     }
 
-    return rows.map((r) => ({ ...r, unit_price: priceByOrder.get(r.order_id!) ?? 0 }))
+    const mcRatios = await getMasterCartonRatios(supabase, [...new Set(rows.map((r) => r.item_name))])
+
+    return rows.map((r) => ({
+      ...r,
+      unit_price: priceByOrder.get(r.order_id!) ?? 0,
+      master_cartons: mcRatios.has(r.item_name) ? Math.round(r.quantity * mcRatios.get(r.item_name)! * 1000) / 1000 : null,
+    }))
   },
   ["warehouse-stock-for-orders"],
   { tags: ["warehouse_items"], revalidate: 30 }
@@ -199,6 +209,10 @@ export async function shipWarehouseStock(formData: WarehouseDispatchFormData) {
   const avgUnitPrice = totalQty > 0 ? totalValue / totalQty : 0
   const shippedValue = Math.round(avgUnitPrice * validated.quantity * 100) / 100
 
+  const mcRatios = await getMasterCartonRatios(admin, [item.item_name])
+  const mcRatio = mcRatios.get(item.item_name)
+  const masterCartons = mcRatio != null ? Math.round(validated.quantity * mcRatio * 1000) / 1000 : null
+
   const remaining = Math.round((item.quantity - validated.quantity) * 1000) / 1000
   const today = new Date().toISOString().split("T")[0]
 
@@ -252,7 +266,8 @@ export async function shipWarehouseStock(formData: WarehouseDispatchFormData) {
     .from("shipments")
     .insert({
       order_id: order.id,
-      customer_name: customer.name,
+      customer_name: validated.customer_name || customer.name,
+      customer_contact: validated.customer_contact || null,
       courier_name: validated.courier_name || null,
       tracking_number: validated.tracking_number || null,
       expected_delivery_date: validated.expected_delivery_date || null,
@@ -260,6 +275,7 @@ export async function shipWarehouseStock(formData: WarehouseDispatchFormData) {
       status: "dispatched",
       warehouse_item_id: item.id,
       quantity: validated.quantity,
+      master_cartons: masterCartons,
       bill_no: validated.bill_no,
       value: shippedValue,
       invoice_id: invoice.id,

@@ -11,6 +11,7 @@ import { warehouseDispatchSchema } from "@/lib/validators/logistics"
 import type { WarehouseDispatchFormData } from "@/lib/validators/logistics"
 import { shipWarehouseStock } from "@/actions/logistics"
 import { friendlyError, formatCurrency } from "@/lib/utils"
+import { formatCartons } from "@/lib/master-cartons"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -40,6 +41,8 @@ interface WarehouseStock {
   order_id: string | null
   order_number: string | null
   customer_name: string | null
+  customer_phone: string | null
+  master_cartons: number | null
 }
 
 interface WarehouseDispatchFormProps {
@@ -50,6 +53,8 @@ const emptyDefaults: WarehouseDispatchFormData = {
   order_id: "",
   quantity: 0,
   bill_no: "",
+  customer_name: "",
+  customer_contact: "",
   courier_name: "",
   tracking_number: "",
   expected_delivery_date: "",
@@ -69,10 +74,21 @@ export function WarehouseDispatchForm({ stock }: WarehouseDispatchFormProps) {
   const quantity = form.watch("quantity") || 0
   const selected = stock.find((s) => s.order_id === selectedOrderId)
   const value = selected ? Math.round(selected.unit_price * quantity * 100) / 100 : 0
+  const cartons = selected && selected.master_cartons != null && selected.quantity > 0
+    ? Math.round((selected.master_cartons / selected.quantity) * quantity * 1000) / 1000
+    : null
 
   function handleOpenChange(v: boolean) {
     if (v) form.reset(emptyDefaults)
     setOpen(v)
+  }
+
+  function handleOrderChange(orderId: string) {
+    const s = stock.find((s) => s.order_id === orderId)
+    form.setValue("order_id", orderId, { shouldValidate: true })
+    form.setValue("quantity", 0)
+    form.setValue("customer_name", s?.customer_name ?? "")
+    form.setValue("customer_contact", s?.customer_phone ?? "")
   }
 
   async function onSubmit(data: WarehouseDispatchFormData) {
@@ -101,13 +117,7 @@ export function WarehouseDispatchForm({ stock }: WarehouseDispatchFormProps) {
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-2">
           <div className="space-y-2">
             <Label>Order *</Label>
-            <Select
-              value={selectedOrderId || ""}
-              onValueChange={(v) => {
-                form.setValue("order_id", v, { shouldValidate: true })
-                form.setValue("quantity", 0)
-              }}
-            >
+            <Select value={selectedOrderId || ""} onValueChange={handleOrderChange}>
               <SelectTrigger>
                 <SelectValue placeholder="Select an order with finished stock ready to ship" />
               </SelectTrigger>
@@ -115,7 +125,8 @@ export function WarehouseDispatchForm({ stock }: WarehouseDispatchFormProps) {
                 {stock.map((s) => (
                   <SelectItem key={s.order_id} value={s.order_id!}>
                     {s.order_number} — {s.item_name}
-                    {s.customer_name ? ` (${s.customer_name})` : ""} · {s.quantity} {s.unit} available
+                    {s.customer_name ? ` (${s.customer_name})` : ""} · {s.quantity} {s.unit}
+                    {s.master_cartons != null ? ` (${formatCartons(s.master_cartons)} MC)` : ""} available
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -139,6 +150,9 @@ export function WarehouseDispatchForm({ stock }: WarehouseDispatchFormProps) {
                 disabled={!selected}
                 {...form.register("quantity", { valueAsNumber: true })}
               />
+              {cartons != null && (
+                <p className="text-xs text-muted-foreground">≈ {formatCartons(cartons)} master cartons</p>
+              )}
               {form.formState.errors.quantity && (
                 <p className="text-xs text-destructive">{form.formState.errors.quantity.message}</p>
               )}
@@ -162,7 +176,18 @@ export function WarehouseDispatchForm({ stock }: WarehouseDispatchFormProps) {
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label htmlFor="courier_name">Courier Name</Label>
+              <Label htmlFor="customer_name">Customer Name</Label>
+              <Input id="customer_name" {...form.register("customer_name")} placeholder="Consignee name" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="customer_contact">Customer Contact</Label>
+              <Input id="customer_contact" {...form.register("customer_contact")} placeholder="Phone number" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="courier_name">Transporter</Label>
               <Input id="courier_name" {...form.register("courier_name")} placeholder="e.g., Blue Dart" />
             </div>
             <div className="space-y-2">
