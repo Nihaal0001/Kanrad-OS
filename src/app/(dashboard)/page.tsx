@@ -65,14 +65,21 @@ export default async function DashboardPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   const { data: profile } = user
-    ? await supabase.from("profiles").select("full_name, role").eq("auth_id", user.id).maybeSingle()
+    ? await supabase.from("profiles").select("full_name, role, department").eq("auth_id", user.id).maybeSingle()
     : { data: null }
 
-  // Redirect non-dashboard users to their first permitted page
+  // Redirect non-dashboard users to their first permitted page. Mirrors the
+  // layout's permission resolution: a per-user `department` override (set via
+  // the user's individual page-access grants) takes precedence over the
+  // role's default permissions — using the role defaults here regardless
+  // sent everyone to the same page (e.g. floor_supervisor → Attendance) even
+  // when their actual granted pages were completely different.
   if (profile?.role && profile.role !== "admin") {
-    const permissions = await getRolePermissions(profile.role)
+    const permissions: string[] = profile.department
+      ? profile.department.split(",").map((d: string) => d.trim()).filter(Boolean)
+      : await getRolePermissions(profile.role)
     if (!permissions.includes("dashboard")) {
-      const firstPage = permissions.map((p) => PERMISSION_FIRST_PAGE[p]).find(Boolean)
+      const firstPage = permissions.map((p: string) => PERMISSION_FIRST_PAGE[p]).find(Boolean)
       if (firstPage) redirect(firstPage)
     }
   }
