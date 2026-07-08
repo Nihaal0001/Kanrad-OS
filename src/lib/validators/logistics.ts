@@ -10,3 +10,11 @@ export const shipmentSchema = z.object({
 })
 
 export type ShipmentFormData = z.infer<typeof shipmentSchema>
+
+export const warehouseDispatchSchema = z.object({
+  order_id: z.string().min(1, "Order is required"),
+  quantity: z.number().min(0.01, "Quantity must be greater than 0"),
+  notes: z.string().max(1000).optional().or(z.literal("")),
+})
+
+export type WarehouseDispatchFormData = z.infer<typeof warehouseDispatchSchema>

@@ -1,11 +1,7 @@
 "use server"
 
-import { revalidatePath, revalidateTag, unstable_cache } from "next/cache"
-import { createClient } from "@/lib/supabase/server"
+import { unstable_cache } from "next/cache"
 import { createAdminClient } from "@/lib/supabase/admin"
-import { logAudit } from "@/actions/audit"
-import { exitItemSchema } from "@/lib/validators/warehouse"
-import type { ExitItemFormData } from "@/lib/validators/warehouse"
 
 // ── Queries ──────────────────────────────────────────────────
 
@@ -49,40 +45,3 @@ export const getWarehouseLocations = unstable_cache(
   ["warehouse-locations"],
   { tags: ["warehouse_items"], revalidate: 60 }
 )
-
-// ── Mutations ────────────────────────────────────────────────
-
-export async function exitWarehouseItem(id: string, formData: ExitItemFormData) {
-  const validated = exitItemSchema.parse(formData)
-  const supabase = await createClient()
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return { error: "Not authenticated" }
-
-  const { data, error } = await supabase
-    .from("warehouse_items")
-    .update({
-      status: "dispatched",
-      exit_date: validated.exit_date,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", id)
-    .select()
-    .single()
-
-  if (error) return { error: error.message }
-
-  void logAudit({
-    entityType: "warehouse_item",
-    entityId: id,
-    entityLabel: data.item_name,
-    action: "status_changed",
-    newValues: { status: "dispatched", exit_date: validated.exit_date },
-  })
-
-  revalidateTag("warehouse_items", {})
-  revalidatePath("/warehouse")
-  return { data }
-}
