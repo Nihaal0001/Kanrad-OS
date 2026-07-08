@@ -107,7 +107,7 @@ export function WarehouseDispatchForm({ stock }: WarehouseDispatchFormProps) {
       <DialogTrigger asChild>
         <Button disabled={stock.length === 0}>
           <PackageCheck className="h-4 w-4" />
-          Ship to Order
+          Ship the Order
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-lg">
