@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { Send, CheckCircle2 } from "lucide-react"
+import { Send } from "lucide-react"
 
 import { pushToLogistics } from "@/actions/warehouse"
 import { formatDate, friendlyError } from "@/lib/utils"
@@ -40,7 +40,7 @@ interface WarehouseItem {
   remarks: string | null
   created_at: string
   master_cartons: number | null
-  pushed_to_logistics?: boolean
+  order_id: string | null
 }
 
 interface WarehouseTableProps {
@@ -159,12 +159,7 @@ export function WarehouseTable({ items, locations }: WarehouseTableProps) {
                   </TableCell>
                   <TableCell>
                     {item.status === "in_warehouse" && (
-                      item.pushed_to_logistics ? (
-                        <span className="flex items-center gap-1 text-xs font-medium text-emerald-600">
-                          <CheckCircle2 className="h-3.5 w-3.5" />
-                          Queued
-                        </span>
-                      ) : (
+                      item.order_id ? (
                         <Button
                           variant="outline"
                           size="sm"
@@ -175,6 +170,8 @@ export function WarehouseTable({ items, locations }: WarehouseTableProps) {
                           <Send className="h-3 w-3" />
                           {pushingId === item.id ? "Pushing…" : "Push to Logistics"}
                         </Button>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">No linked order</span>
                       )
                     )}
                   </TableCell>

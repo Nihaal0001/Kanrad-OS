@@ -14,6 +14,8 @@ export async function getWarehouseItems(filters?: { status?: string; location?: 
       let query = supabase
         .from("warehouse_items")
         .select("*")
+        // Pushed items move to Logistics' ship queue and drop out of the warehouse view.
+        .eq("pushed_to_logistics", false)
         .order("created_at", { ascending: false })
 
       if (filters?.status) query = query.eq("status", filters.status)
@@ -67,7 +69,7 @@ export async function pushToLogistics(warehouseItemId: string) {
   const admin = createAdminClient()
   const { data: item, error: itemError } = await admin
     .from("warehouse_items")
-    .select("id, status, quantity")
+    .select("id, status, quantity, order_id")
     .eq("id", warehouseItemId)
     .maybeSingle()
 
@@ -75,6 +77,9 @@ export async function pushToLogistics(warehouseItemId: string) {
   if (!item) return { error: "Warehouse item not found." }
   if (item.status !== "in_warehouse" || item.quantity <= 0) {
     return { error: "This item has no stock left to ship." }
+  }
+  if (!item.order_id) {
+    return { error: "This item has no linked order — it can't be shipped through Logistics." }
   }
 
   const { error } = await admin
