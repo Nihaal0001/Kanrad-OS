@@ -6,7 +6,7 @@ import { toast } from "sonner"
 import { AlertCircle } from "lucide-react"
 
 import { updateShipmentStatus, markShipmentDelayed } from "@/actions/logistics"
-import { friendlyError, formatDate } from "@/lib/utils"
+import { friendlyError, formatDate, formatCurrency } from "@/lib/utils"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -41,6 +41,9 @@ interface Shipment {
   status: string
   expected_delivery_date: string | null
   created_at: string
+  bill_no: string | null
+  quantity: number | null
+  value: number | null
 }
 
 interface LogisticsTableProps {
@@ -133,6 +136,9 @@ export function LogisticsTable({ shipments }: LogisticsTableProps) {
                 <TableHead>Shipment ID</TableHead>
                 <TableHead>Order Ref</TableHead>
                 <TableHead>Customer</TableHead>
+                <TableHead>Bill No.</TableHead>
+                <TableHead className="text-right">Qty</TableHead>
+                <TableHead className="text-right">Value</TableHead>
                 <TableHead>Courier</TableHead>
                 <TableHead>Tracking #</TableHead>
                 <TableHead>Status</TableHead>
@@ -168,6 +174,11 @@ export function LogisticsTable({ shipments }: LogisticsTableProps) {
                       )}
                     </TableCell>
                     <TableCell>{shipment.customer_name ?? "--"}</TableCell>
+                    <TableCell className="font-mono text-xs">{shipment.bill_no ?? "--"}</TableCell>
+                    <TableCell className="text-right tabular-nums">{shipment.quantity ?? "--"}</TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {shipment.value != null ? formatCurrency(shipment.value) : "--"}
+                    </TableCell>
                     <TableCell>{shipment.courier_name ?? "--"}</TableCell>
                     <TableCell className="font-mono text-xs">
                       {shipment.tracking_number ?? "--"}

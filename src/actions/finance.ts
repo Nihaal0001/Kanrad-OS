@@ -35,6 +35,38 @@ export async function getInvoices(filters?: { status?: string }) {
   )()
 }
 
+/** Outstanding customer invoices — money owed to Kanrad, with any shipment bill it came from. */
+export const getReceivables = unstable_cache(
+  async () => {
+    const supabase = createAdminClient()
+    const { data: invoices, error } = await supabase
+      .from("invoices")
+      .select("*")
+      .in("status", ["sent", "partially_paid"])
+      .order("due_date", { ascending: true, nullsFirst: false })
+
+    if (error) throw new Error(error.message)
+
+    const outstanding = (invoices ?? []).filter((inv) => inv.total_amount - inv.amount_paid > 0.01)
+    if (outstanding.length === 0) return []
+
+    const { data: shipments } = await supabase
+      .from("shipments")
+      .select("invoice_id, bill_no")
+      .in("invoice_id", outstanding.map((i) => i.id))
+
+    const billByInvoice = new Map((shipments ?? []).map((s) => [s.invoice_id, s.bill_no]))
+
+    return outstanding.map((inv) => ({
+      ...inv,
+      amount_due: Math.round((inv.total_amount - inv.amount_paid) * 100) / 100,
+      bill_no: billByInvoice.get(inv.id) ?? null,
+    }))
+  },
+  ["receivables"],
+  { tags: ["invoices", "shipments"], revalidate: 60 }
+)
+
 export async function getInvoice(id: string) {
   return unstable_cache(
     async () => {

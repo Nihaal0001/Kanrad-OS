@@ -9,8 +9,8 @@ import { PackageCheck } from "lucide-react"
 
 import { warehouseDispatchSchema } from "@/lib/validators/logistics"
 import type { WarehouseDispatchFormData } from "@/lib/validators/logistics"
-import { dispatchToOrder } from "@/actions/logistics"
-import { friendlyError } from "@/lib/utils"
+import { shipWarehouseStock } from "@/actions/logistics"
+import { friendlyError, formatCurrency } from "@/lib/utils"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -36,6 +36,7 @@ interface WarehouseStock {
   sku: string | null
   quantity: number
   unit: string
+  unit_price: number
   order_id: string | null
   order_number: string | null
   customer_name: string | null
@@ -45,30 +46,42 @@ interface WarehouseDispatchFormProps {
   stock: WarehouseStock[]
 }
 
+const emptyDefaults: WarehouseDispatchFormData = {
+  order_id: "",
+  quantity: 0,
+  bill_no: "",
+  courier_name: "",
+  tracking_number: "",
+  expected_delivery_date: "",
+  notes: "",
+}
+
 export function WarehouseDispatchForm({ stock }: WarehouseDispatchFormProps) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
 
   const form = useForm<WarehouseDispatchFormData>({
     resolver: zodResolver(warehouseDispatchSchema),
-    defaultValues: { order_id: "", quantity: 0, notes: "" },
+    defaultValues: emptyDefaults,
   })
 
   const selectedOrderId = form.watch("order_id")
+  const quantity = form.watch("quantity") || 0
   const selected = stock.find((s) => s.order_id === selectedOrderId)
+  const value = selected ? Math.round(selected.unit_price * quantity * 100) / 100 : 0
 
   function handleOpenChange(v: boolean) {
-    if (v) form.reset({ order_id: "", quantity: 0, notes: "" })
+    if (v) form.reset(emptyDefaults)
     setOpen(v)
   }
 
   async function onSubmit(data: WarehouseDispatchFormData) {
-    const result = await dispatchToOrder(data)
+    const result = await shipWarehouseStock(data)
     if ("error" in result && result.error) {
       toast.error(friendlyError(result.error))
       return
     }
-    toast.success("Dispatched to order")
+    toast.success("Shipped — invoice raised in Receivables")
     setOpen(false)
     router.refresh()
   }
@@ -76,14 +89,14 @@ export function WarehouseDispatchForm({ stock }: WarehouseDispatchFormProps) {
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button variant="outline" disabled={stock.length === 0}>
+        <Button disabled={stock.length === 0}>
           <PackageCheck className="h-4 w-4" />
-          Dispatch to Order
+          Ship to Order
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Dispatch Warehouse Stock to an Order</DialogTitle>
+          <DialogTitle>Ship Finished Goods to an Order</DialogTitle>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-2">
           <div className="space-y-2">
@@ -96,7 +109,7 @@ export function WarehouseDispatchForm({ stock }: WarehouseDispatchFormProps) {
               }}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select an order with warehouse stock" />
+                <SelectValue placeholder="Select an order with finished stock ready to ship" />
               </SelectTrigger>
               <SelectContent>
                 {stock.map((s) => (
@@ -112,22 +125,55 @@ export function WarehouseDispatchForm({ stock }: WarehouseDispatchFormProps) {
             )}
           </div>
 
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="quantity">
+                Quantity {selected ? `(max ${selected.quantity} ${selected.unit})` : ""}
+              </Label>
+              <Input
+                id="quantity"
+                type="number"
+                min={0.01}
+                step="0.01"
+                max={selected?.quantity}
+                disabled={!selected}
+                {...form.register("quantity", { valueAsNumber: true })}
+              />
+              {form.formState.errors.quantity && (
+                <p className="text-xs text-destructive">{form.formState.errors.quantity.message}</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label>Value</Label>
+              <div className="flex h-10 items-center rounded-md border border-input bg-muted/40 px-3 text-sm font-medium">
+                {formatCurrency(value)}
+              </div>
+              <p className="text-xs text-muted-foreground">Auto-calculated from the order&apos;s price</p>
+            </div>
+          </div>
+
           <div className="space-y-2">
-            <Label htmlFor="quantity">
-              Quantity to dispatch {selected ? `(max ${selected.quantity} ${selected.unit})` : ""}
-            </Label>
-            <Input
-              id="quantity"
-              type="number"
-              min={0.01}
-              step="0.01"
-              max={selected?.quantity}
-              disabled={!selected}
-              {...form.register("quantity", { valueAsNumber: true })}
-            />
-            {form.formState.errors.quantity && (
-              <p className="text-xs text-destructive">{form.formState.errors.quantity.message}</p>
+            <Label htmlFor="bill_no">Bill No. *</Label>
+            <Input id="bill_no" placeholder="Invoice / bill number" {...form.register("bill_no")} />
+            {form.formState.errors.bill_no && (
+              <p className="text-xs text-destructive">{form.formState.errors.bill_no.message}</p>
             )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="courier_name">Courier Name</Label>
+              <Input id="courier_name" {...form.register("courier_name")} placeholder="e.g., Blue Dart" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="tracking_number">Tracking Number</Label>
+              <Input id="tracking_number" {...form.register("tracking_number")} placeholder="AWB / tracking ID" />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="expected_delivery_date">Expected Delivery</Label>
+            <Input id="expected_delivery_date" type="date" {...form.register("expected_delivery_date")} />
           </div>
 
           <div className="space-y-2">
@@ -145,7 +191,7 @@ export function WarehouseDispatchForm({ stock }: WarehouseDispatchFormProps) {
               Cancel
             </Button>
             <Button type="submit" disabled={form.formState.isSubmitting || !selected}>
-              {form.formState.isSubmitting ? "Dispatching..." : "Dispatch"}
+              {form.formState.isSubmitting ? "Shipping..." : "Ship"}
             </Button>
           </div>
         </form>

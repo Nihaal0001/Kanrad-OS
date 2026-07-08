@@ -14,13 +14,22 @@ const VALID_PURCHASE_INVOICE_STATUSES = [
   "draft", "received", "paid", "partially_paid", "overdue", "cancelled",
 ] as const
 
+// Standard payment terms when the supplier record doesn't specify its own (net days).
+const DEFAULT_PAYABLE_DAYS = 50
+
+function addDays(dateStr: string, days: number): string {
+  const d = new Date(dateStr)
+  d.setDate(d.getDate() + days)
+  return d.toISOString().split("T")[0]
+}
+
 async function validateLinkedPurchaseOrder(
   supabase: Awaited<ReturnType<typeof createClient>>,
   purchaseOrderId: string
 ) {
   const { data: purchaseOrder, error } = await supabase
     .from("purchase_orders")
-    .select("id, approval_status")
+    .select("id, approval_status, supplier_id")
     .eq("id", purchaseOrderId)
     .maybeSingle()
 
@@ -55,6 +64,31 @@ export async function getPurchaseInvoices(filters?: { status?: string }) {
   const { data, error } = await query
   if (error) throw new Error(error.message)
   return data ?? []
+}
+
+/** Outstanding purchase invoices — money Kanrad owes suppliers, with the PO reference. */
+export async function getPayables() {
+  const supabase = await createClient()
+  const { data: invoices, error } = await supabase
+    .from("purchase_invoices")
+    .select("*, purchase_order:purchase_orders(po_number)")
+    .in("status", ["received", "partially_paid"])
+    .order("due_date", { ascending: true, nullsFirst: false })
+
+  if (error) throw new Error(error.message)
+
+  const outstanding = (invoices ?? [])
+    .filter((inv) => inv.total_amount - inv.amount_paid > 0.01)
+    .map((inv) => {
+      const po = Array.isArray(inv.purchase_order) ? inv.purchase_order[0] ?? null : inv.purchase_order
+      return {
+        ...inv,
+        amount_due: Math.round((inv.total_amount - inv.amount_paid) * 100) / 100,
+        po_number: po?.po_number ?? null,
+      }
+    })
+
+  return outstanding
 }
 
 export async function getPurchaseInvoice(id: string) {
@@ -109,9 +143,26 @@ export async function createPurchaseInvoice(formData: PurchaseInvoiceFormData) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: "Not authenticated" }
 
+  let supplierId: string | null = null
   if (validated.purchase_order_id) {
     const poCheck = await validateLinkedPurchaseOrder(supabase, validated.purchase_order_id)
     if ("error" in poCheck && poCheck.error) return { error: poCheck.error }
+    if ("data" in poCheck && poCheck.data) supplierId = poCheck.data.supplier_id
+  }
+
+  // Payment due date — supplier's own payment terms if set, else the standard 50 days.
+  let dueDate = validated.due_date || null
+  if (!dueDate) {
+    let payableDays = DEFAULT_PAYABLE_DAYS
+    if (supplierId) {
+      const { data: supplier } = await supabase
+        .from("suppliers")
+        .select("payment_terms")
+        .eq("id", supplierId)
+        .maybeSingle()
+      if (supplier?.payment_terms) payableDays = supplier.payment_terms
+    }
+    dueDate = addDays(validated.invoice_date, payableDays)
   }
 
   const { data: invoice, error: invErr } = await supabase
@@ -125,7 +176,7 @@ export async function createPurchaseInvoice(formData: PurchaseInvoiceFormData) {
       place_of_supply: validated.place_of_supply || null,
       is_igst: validated.is_igst ?? false,
       invoice_date: validated.invoice_date,
-      due_date: validated.due_date || null,
+      due_date: dueDate,
       notes: validated.notes || null,
     })
     .select()
