@@ -522,6 +522,8 @@ export async function updatePurchaseOrderStatus(id: string, status: string) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: "Not authenticated" }
 
+  const { data: before } = await supabase.from("purchase_orders").select("status").eq("id", id).single()
+
   const { error } = await supabase
     .from("purchase_orders")
     .update({ status })
@@ -532,6 +534,13 @@ export async function updatePurchaseOrderStatus(id: string, status: string) {
   revalidateTag("purchase_orders", {})
   revalidatePath("/inventory/purchase-orders")
   revalidatePath(`/inventory/purchase-orders/${id}`)
+
+  if (status === "sent" && before?.status !== "sent") {
+    import("@/lib/purchase-order-email")
+      .then(({ emailPurchaseOrderCopy }) => emailPurchaseOrderCopy(id))
+      .catch((err) => console.error("[po-email] failed:", err))
+  }
+
   return { success: true }
 }
 

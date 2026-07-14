@@ -28,6 +28,7 @@ async function sendEmail(opts: {
   to: string | string[]
   subject: string
   html: string
+  attachments?: { filename: string; content: Buffer }[]
 }): Promise<EmailResult> {
   if (!process.env.RESEND_API_KEY) {
     console.warn("[email] RESEND_API_KEY not set — skipping email")
@@ -42,6 +43,7 @@ async function sendEmail(opts: {
       to: opts.to,
       subject: opts.subject,
       html: opts.html,
+      attachments: opts.attachments,
     })
     if (error) return { success: false, error: error.message }
     return { success: true }
@@ -178,4 +180,39 @@ export async function sendLeaveRequestNotification(opts: {
   `
 
   return sendEmail({ to: OWNER_EMAIL, subject: `[KANRAD ERP] Leave Request — ${opts.workerName}`, html })
+}
+
+export async function sendPurchaseOrderCopy(opts: {
+  to: string[]
+  poNumber: string
+  supplierName: string
+  totalAmount: number
+  expectedDate: string | null
+  pdfBuffer: Buffer
+}) {
+  if (opts.to.length === 0) return { success: false, error: "No recipients" }
+
+  const html = `
+    <div style="font-family:Inter,sans-serif;max-width:600px;margin:0 auto">
+      <div style="background:#c2622a;padding:24px 32px;border-radius:8px 8px 0 0">
+        <h1 style="color:#fff;margin:0;font-size:20px">📦 Purchase Order ${esc(opts.poNumber)}</h1>
+        <p style="color:#fde4d3;margin:4px 0 0;font-size:14px">KANRAD ERP — Inventory</p>
+      </div>
+      <div style="background:#fff;padding:24px 32px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 8px 8px">
+        <table style="width:100%;font-size:14px;border-collapse:collapse">
+          <tr><td style="padding:8px 0;color:#6b7280;width:140px">Vendor</td><td style="padding:8px 0;font-weight:600">${esc(opts.supplierName)}</td></tr>
+          <tr><td style="padding:8px 0;color:#6b7280">Total</td><td style="padding:8px 0;font-weight:600">₹${esc(opts.totalAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 }))}</td></tr>
+          ${opts.expectedDate ? `<tr><td style="padding:8px 0;color:#6b7280">Due On</td><td style="padding:8px 0">${esc(opts.expectedDate)}</td></tr>` : ""}
+        </table>
+        <p style="margin-top:16px;font-size:13px;color:#9ca3af">The full order is attached as a PDF.</p>
+      </div>
+    </div>
+  `
+
+  return sendEmail({
+    to: opts.to,
+    subject: `Purchase Order ${opts.poNumber} — ${opts.supplierName}`,
+    html,
+    attachments: [{ filename: `${opts.poNumber}.pdf`, content: opts.pdfBuffer }],
+  })
 }

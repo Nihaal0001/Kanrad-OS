@@ -5,20 +5,7 @@ import { getProducts } from "@/actions/bom"
 import { PageHeader } from "@/components/shared/page-header"
 import { EmptyState } from "@/components/shared/empty-state"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-
-function formatCurrency(n: number) {
-  return n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-}
+import { ProductsTable } from "@/components/products/products-table"
 
 export default async function ProductsPage() {
   const products = await getProducts()
@@ -52,61 +39,7 @@ export default async function ProductsPage() {
           action={{ label: "Create Product", href: "/products/new" }}
         />
       ) : (
-        <Card>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/40">
-                  <TableHead>SKU</TableHead>
-                  <TableHead>Product Name</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead className="text-center">Materials</TableHead>
-                  <TableHead className="text-right">BOM Cost / Unit</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {products.map((p) => (
-                  <TableRow key={p.id} className="hover:bg-muted/40">
-                    <TableCell>
-                      <Link href={`/products/${p.id}`} className="font-mono text-xs hover:underline">
-                        {p.product_sku}
-                      </Link>
-                    </TableCell>
-                    <TableCell>
-                      <Link href={`/products/${p.id}`} className="font-medium hover:underline">
-                        {p.product_name}
-                      </Link>
-                    </TableCell>
-                    <TableCell>
-                      {p.category ? (
-                        <Badge variant="outline">{p.category}</Badge>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge variant="secondary">{p.bom_items.length}</Badge>
-                    </TableCell>
-                    <TableCell className="text-right font-semibold tabular-nums">
-                      {p.materialCost > 0
-                        ? `₹${formatCurrency(p.materialCost)}`
-                        : <span className="text-amber-500 text-sm">No prices</span>}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button asChild size="sm" variant="outline" className="gap-1.5">
-                        <Link href={`/products/costing?product=${p.id}`}>
-                          <Calculator className="h-3.5 w-3.5" />
-                          Costing
-                        </Link>
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        <ProductsTable products={products} />
       )}
     </>
   )

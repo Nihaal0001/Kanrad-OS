@@ -2,8 +2,10 @@ import { createHash } from "node:crypto"
 import { createAdminClient } from "@/lib/supabase/admin"
 import {
   buildLedgerMaster,
+  buildStockItemMaster,
   buildSalesVoucher,
   buildPurchaseVoucher,
+  buildPurchaseOrderVoucher,
   buildReceiptVoucher,
   buildPaymentVoucher,
   type PulledBalance,
@@ -56,7 +58,7 @@ export async function buildOutbox(limit = 200): Promise<{ company: string; items
 
   // Finance only — Kanrad owns inventory; Tally gets accounting ledgers/vouchers,
   // never stock items or inventory movements.
-  const [customers, suppliers, invoices, purchases, receipts, payments, bankLedger] = await Promise.all([
+  const [customers, suppliers, invoices, purchases, purchaseOrders, receipts, payments, bankLedger] = await Promise.all([
     admin.from("customers").select("id, name, gstin, address, state").eq("is_active", true),
     admin.from("suppliers").select("id, name, gstin, address, state").eq("is_active", true),
     admin
@@ -67,6 +69,10 @@ export async function buildOutbox(limit = 200): Promise<{ company: string; items
       .from("purchase_invoices")
       .select("id, invoice_number, invoice_date, supplier_name, subtotal, total_amount, is_igst, tax_rate, cgst_amount, sgst_amount, igst_amount")
       .neq("status", "cancelled"),
+    admin
+      .from("purchase_orders")
+      .select("id, po_number, order_date, expected_date, supplier_name, status, items:purchase_order_items(quantity_ordered, unit_price, material:materials(id, name, unit))")
+      .not("status", "in", "(draft,cancelled)"),
     admin.from("payments").select("id, amount, payment_date, reference, invoice:invoices(invoice_number, customer_name)"),
     admin.from("purchase_payments").select("id, amount, payment_date, reference, pi:purchase_invoices(invoice_number, supplier_name)"),
     getBankLedger(admin),
@@ -98,6 +104,40 @@ export async function buildOutbox(limit = 200): Promise<{ company: string; items
       xml: buildPurchaseVoucher(pi), hash: hash([pi.invoice_number, pi.total_amount]),
     })
   }
+  // Purchase Orders need item lines to reference Tally Stock Items, so push
+  // each distinct material (name + unit only — no stock/cost data) as a
+  // lightweight master before the PO vouchers that reference it.
+  type POItem = { quantity_ordered: number; unit_price: number; material: { id: string; name: string; unit: string } | { id: string; name: string; unit: string }[] | null }
+  const seenStockItems = new Set<string>()
+  for (const po of (purchaseOrders.data ?? []) as Array<{ id: string; po_number: string; order_date: string; expected_date: string | null; supplier_name: string; items: POItem[] }>) {
+    const items = po.items
+      .map((i) => ({ ...i, material: Array.isArray(i.material) ? i.material[0] ?? null : i.material }))
+      .filter((i): i is POItem & { material: { id: string; name: string; unit: string } } => !!i.material)
+
+    for (const i of items) {
+      if (seenStockItems.has(i.material.id)) continue
+      seenStockItems.add(i.material.id)
+      candidates.push({
+        entity_type: "material", entity_id: i.material.id, kind: "master",
+        xml: buildStockItemMaster({ name: i.material.name, unit: i.material.unit }),
+        hash: hash([i.material.name, i.material.unit]),
+      })
+    }
+
+    if (items.length === 0) continue
+    candidates.push({
+      entity_type: "purchase_order", entity_id: po.id, kind: "voucher",
+      xml: buildPurchaseOrderVoucher({
+        po_number: po.po_number,
+        order_date: po.order_date,
+        expected_date: po.expected_date,
+        supplier_name: po.supplier_name,
+        items: items.map((i) => ({ material_name: i.material.name, unit: i.material.unit, quantity: i.quantity_ordered, rate: i.unit_price })),
+      }),
+      hash: hash([po.po_number, items.map((i) => [i.material.name, i.quantity_ordered, i.unit_price])]),
+    })
+  }
+
   for (const p of (receipts.data ?? []) as Array<{ id: string; amount: number; payment_date: string; reference: string | null; invoice: { invoice_number: string; customer_name: string } | { invoice_number: string; customer_name: string }[] | null }>) {
     const inv = Array.isArray(p.invoice) ? p.invoice[0] : p.invoice
     if (!inv) continue

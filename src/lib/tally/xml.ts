@@ -123,6 +123,69 @@ export function buildPurchaseVoucher(inv: PurchaseVoucher): string {
   return voucher("Purchase", inv.invoice_date, inv.invoice_number ?? "PI", inv.supplier_name, entries)
 }
 
+export interface PurchaseOrderItem {
+  material_name: string
+  unit: string
+  quantity: number
+  rate: number
+}
+
+export interface PurchaseOrderVoucher {
+  po_number: string
+  order_date: string
+  expected_date: string | null
+  supplier_name: string
+  items: PurchaseOrderItem[]
+}
+
+function poInventoryEntry(item: PurchaseOrderItem): string {
+  const amount = Math.round(item.quantity * item.rate * 100) / 100
+  return `
+        <ALLINVENTORYENTRIES.LIST>
+          <STOCKITEMNAME>${esc(item.material_name)}</STOCKITEMNAME>
+          <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>
+          <RATE>${item.rate.toFixed(2)}/${esc(item.unit)}</RATE>
+          <AMOUNT>-${amount.toFixed(2)}</AMOUNT>
+          <ACTUALQTY>${item.quantity} ${esc(item.unit)}</ACTUALQTY>
+          <BILLEDQTY>${item.quantity} ${esc(item.unit)}</BILLEDQTY>
+          <ACCOUNTINGALLOCATIONS.LIST>
+            <LEDGERNAME>Purchases</LEDGERNAME>
+            <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>
+            <AMOUNT>-${amount.toFixed(2)}</AMOUNT>
+          </ACCOUNTINGALLOCATIONS.LIST>
+        </ALLINVENTORYENTRIES.LIST>`
+}
+
+/**
+ * Purchase Order voucher (Tally's "Order" class — a commitment, not an
+ * accounting entry until billed). Item lines reference Tally Stock Items by
+ * name, so each material must be pushed as a stock item master first.
+ */
+export function buildPurchaseOrderVoucher(po: PurchaseOrderVoucher): string {
+  const total = Math.round(po.items.reduce((sum, i) => sum + i.quantity * i.rate, 0) * 100) / 100
+  const entries = po.items.map(poInventoryEntry).join("")
+  return `
+      <TALLYMESSAGE xmlns:UDF="TallyUDF">
+        <VOUCHER VCHTYPE="Purchase Order" ACTION="Create" OBJVIEW="Invoice Voucher View">
+          <DATE>${tallyDate(po.order_date)}</DATE>
+          <VOUCHERNUMBER>${esc(po.po_number)}</VOUCHERNUMBER>
+          <VOUCHERTYPENAME>Purchase Order</VOUCHERTYPENAME>
+          <REFERENCE>${esc(po.po_number)}</REFERENCE>
+          ${po.expected_date ? `<DUEDATE>${tallyDate(po.expected_date)}</DUEDATE>` : ""}
+          <PARTYLEDGERNAME>${esc(po.supplier_name)}</PARTYLEDGERNAME>
+          <PARTYNAME>${esc(po.supplier_name)}</PARTYNAME>
+          <ISINVOICE>Yes</ISINVOICE>
+          <ISORDERVOUCHER>Yes</ISORDERVOUCHER>
+          ${entries}
+          <ALLLEDGERENTRIES.LIST>
+            <LEDGERNAME>${esc(po.supplier_name)}</LEDGERNAME>
+            <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>
+            <AMOUNT>${total.toFixed(2)}</AMOUNT>
+          </ALLLEDGERENTRIES.LIST>
+        </VOUCHER>
+      </TALLYMESSAGE>`
+}
+
 export interface MoneyVoucher {
   /** voucher number — invoice/payment reference */
   number: string

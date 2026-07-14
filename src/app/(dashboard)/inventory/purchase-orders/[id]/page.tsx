@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/shared/page-header"
 import { PurchaseOrderDetail } from "@/components/inventory/purchase-order-detail"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, Download } from "lucide-react"
 
 interface PurchaseOrderDetailPageProps {
   params: Promise<{ id: string }>
@@ -44,6 +44,12 @@ export default async function PurchaseOrderDetailPage({
           { label: po.po_number },
         ]}
       >
+        <Button variant="outline" asChild>
+          <Link href={`/api/purchase-order/${po.id}/pdf`}>
+            <Download className="h-4 w-4" />
+            Download PDF
+          </Link>
+        </Button>
         <Button variant="outline" asChild>
           <Link href="/inventory/purchase-orders">
             <ArrowLeft className="h-4 w-4" />

@@ -23,8 +23,9 @@ export const getWorkers = unstable_cache(
     const supabase = createAdminClient()
     const { data, error } = await supabase
       .from("profiles")
-      .select("id, full_name, role, department, is_active, monthly_salary, gender, ot_rate")
+      .select("id, full_name, role, department, is_active, monthly_salary, gender, ot_rate, roll_no")
       .eq("is_active", true)
+      .order("roll_no", { ascending: true, nullsFirst: false })
       .order("full_name")
     if (error) throw new Error(error.message)
     return data ?? []
@@ -289,6 +290,7 @@ export async function getAttendanceForDate(date: string) {
       .from("profiles")
       .select("id, full_name, department")
       .eq("is_active", true)
+      .order("roll_no", { ascending: true, nullsFirst: false })
       .order("full_name"),
     supabase.from("attendance").select("*").eq("date", date),
   ])
@@ -653,6 +655,7 @@ export async function getHROverview() {
       .from("profiles")
       .select("id, full_name, department, role")
       .eq("is_active", true)
+      .order("roll_no", { ascending: true, nullsFirst: false })
       .order("full_name"),
     supabase
       .from("attendance")
