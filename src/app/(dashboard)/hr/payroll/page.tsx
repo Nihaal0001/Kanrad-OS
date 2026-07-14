@@ -51,13 +51,14 @@ export default async function PayrollPage({ searchParams }: Props) {
       ) : (
         <Card className="overflow-hidden p-0">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[860px] border-collapse text-sm">
+            <table className="w-full min-w-[960px] border-collapse text-sm">
               <thead className="sticky top-0 z-10 bg-card shadow-[0_1px_0_0] shadow-border">
                 <tr className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   <th className="px-4 py-2.5 text-left">No.</th>
                   <th className="px-4 py-2.5 text-left">Worker</th>
                   <th className="px-4 py-2.5 text-left">Period</th>
                   <th className="px-4 py-2.5 text-right">Days</th>
+                  <th className="px-4 py-2.5 text-right">Base Pay</th>
                   <th className="px-4 py-2.5 text-right">OT Hrs</th>
                   <th className="px-4 py-2.5 text-right">Deductions</th>
                   <th className="px-4 py-2.5 text-right">Total</th>
@@ -79,6 +80,7 @@ export default async function PayrollPage({ searchParams }: Props) {
                       <p className="text-xs text-muted-foreground">{p.period_end}</p>
                     </td>
                     <td className="px-4 py-2.5 text-right text-muted-foreground">{p.days_present}/{p.working_days}</td>
+                    <td className="px-4 py-2.5 text-right text-muted-foreground" title="Days present × daily wage — no OT or deductions">₹{formatCurrency(p.base_wage)}</td>
                     <td className="px-4 py-2.5 text-right text-muted-foreground">{p.overtime_hours}h</td>
                     <td className="px-4 py-2.5 text-right text-muted-foreground">₹{formatCurrency(p.deductions)}</td>
                     <td className="px-4 py-2.5 text-right font-semibold">₹{formatCurrency(p.total_wage)}</td>
