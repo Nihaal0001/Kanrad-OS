@@ -10,7 +10,12 @@ CREATE TABLE IF NOT EXISTS commodities (
 );
 
 ALTER TABLE commodities ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "service role bypass" ON commodities USING (true) WITH CHECK (true);
+CREATE POLICY "commodities_read_authenticated" ON commodities
+  FOR SELECT USING (auth.uid() IS NOT NULL);
+CREATE POLICY "commodities_write_admin" ON commodities
+  FOR ALL
+  USING (EXISTS (SELECT 1 FROM profiles WHERE auth_id = auth.uid() AND role = 'admin'))
+  WITH CHECK (EXISTS (SELECT 1 FROM profiles WHERE auth_id = auth.uid() AND role = 'admin'));
 
 INSERT INTO commodities (name, unit) VALUES
   ('LME Aluminium', 'MT'),
@@ -39,4 +44,9 @@ CREATE TABLE commodity_price_history (
 CREATE INDEX ON commodity_price_history(commodity_id);
 CREATE INDEX ON commodity_price_history(recorded_at DESC);
 ALTER TABLE commodity_price_history ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "service role bypass" ON commodity_price_history USING (true) WITH CHECK (true);
+CREATE POLICY "commodity_price_history_read_authenticated" ON commodity_price_history
+  FOR SELECT USING (auth.uid() IS NOT NULL);
+CREATE POLICY "commodity_price_history_write_admin" ON commodity_price_history
+  FOR ALL
+  USING (EXISTS (SELECT 1 FROM profiles WHERE auth_id = auth.uid() AND role = 'admin'))
+  WITH CHECK (EXISTS (SELECT 1 FROM profiles WHERE auth_id = auth.uid() AND role = 'admin'));

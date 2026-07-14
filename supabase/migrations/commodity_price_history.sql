@@ -17,4 +17,9 @@ CREATE INDEX IF NOT EXISTS commodity_price_history_recorded_at_idx ON commodity_
 
 -- Allow read/write for authenticated users (adjust to your existing RLS pattern)
 ALTER TABLE commodity_price_history ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "service role bypass" ON commodity_price_history USING (true) WITH CHECK (true);
+CREATE POLICY "commodity_price_history_read_authenticated" ON commodity_price_history
+  FOR SELECT USING (auth.uid() IS NOT NULL);
+CREATE POLICY "commodity_price_history_write_admin" ON commodity_price_history
+  FOR ALL
+  USING (EXISTS (SELECT 1 FROM profiles WHERE auth_id = auth.uid() AND role = 'admin'))
+  WITH CHECK (EXISTS (SELECT 1 FROM profiles WHERE auth_id = auth.uid() AND role = 'admin'));
