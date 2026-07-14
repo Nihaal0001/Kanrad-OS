@@ -222,8 +222,13 @@ export function AttendanceForm({ workers, defaultDate, defaultWorkerId, trigger 
                       {otPreview.lateMinutes} min late (past 8:00 AM) — ₹{lateDeductionAmount(otPreview.lateMinutes, selectedWorker?.ot_rate ?? 0)} deducted from base pay
                     </p>
                   )}
+                  {otPreview.earlyMinutes > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      {otPreview.earlyMinutes} min left early — ₹{lateDeductionAmount(otPreview.earlyMinutes, selectedWorker?.ot_rate ?? 0)} deducted from base pay
+                    </p>
+                  )}
                   <p className="text-xs text-muted-foreground">
-                    Shift ends {selectedWorker?.gender === "female" ? "5:00 PM" : "6:00 PM"} — computed automatically from check-in/out
+                    Shift is 8:00 AM – {selectedWorker?.gender === "female" ? "5:00 PM" : "6:00 PM"} — time outside that window (either end) is OT, time missed inside it is deducted
                   </p>
                 </div>
               ) : (

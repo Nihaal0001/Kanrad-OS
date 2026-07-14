@@ -342,12 +342,13 @@ export async function upsertAttendance(formData: AttendanceFormData) {
 
   // Shift is 8am-6pm (male) / 8am-5pm (female); when both punches are present,
   // OT is computed from them rather than trusting the manual field (which
-  // stays as a fallback when punches are missing). Late minutes are stored
-  // as-is — they're valued at the OT rate and deducted from base pay at
-  // payroll time (see lateDeductionAmount in payroll-gen.ts), not netted
-  // out of these OT hours.
+  // stays as a fallback when punches are missing). Late-arrival and
+  // early-departure minutes are stored as-is — they're valued at the OT rate
+  // and deducted from base pay at payroll time (see lateDeductionAmount in
+  // payroll-gen.ts), not netted out of these OT hours.
   let overtimeHours = validated.overtime_hours
   let lateMinutes = 0
+  let earlyMinutes = 0
   if (validated.check_in && validated.check_out) {
     const { data: worker } = await supabase
       .from("profiles")
@@ -358,6 +359,7 @@ export async function upsertAttendance(formData: AttendanceFormData) {
     if (ot) {
       overtimeHours = ot.overtimeHours
       lateMinutes = ot.lateMinutes
+      earlyMinutes = ot.earlyMinutes
     }
   }
 
@@ -372,6 +374,7 @@ export async function upsertAttendance(formData: AttendanceFormData) {
         check_out: validated.check_out || null,
         overtime_hours: overtimeHours,
         late_minutes: lateMinutes,
+        early_minutes: earlyMinutes,
         notes: validated.notes || null,
       },
       { onConflict: "worker_id,date" }
