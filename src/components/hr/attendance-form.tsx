@@ -39,20 +39,40 @@ interface Worker {
   ot_rate?: number | null
 }
 
+interface ExistingAttendance {
+  status: "present" | "absent" | "half_day" | "leave"
+  check_in: string | null
+  check_out: string | null
+  overtime_hours: number | null
+  notes?: string | null
+}
+
 interface AttendanceFormProps {
   workers: Worker[]
   defaultDate?: string
   defaultWorkerId?: string
   trigger?: React.ReactNode
+  /** Prefills the form when editing a day that already has an attendance record — without this, the dialog always opens blank even for an existing entry. */
+  existingAttendance?: ExistingAttendance | null
 }
 
-export function AttendanceForm({ workers, defaultDate, defaultWorkerId, trigger }: AttendanceFormProps) {
+export function AttendanceForm({ workers, defaultDate, defaultWorkerId, trigger, existingAttendance }: AttendanceFormProps) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const today = new Date().toISOString().split("T")[0]
+
+  const defaultValues: AttendanceFormData = {
+    worker_id: defaultWorkerId ?? "",
+    date: defaultDate ?? today,
+    status: existingAttendance?.status ?? "present",
+    check_in: existingAttendance?.check_in ?? "",
+    check_out: existingAttendance?.check_out ?? "",
+    overtime_hours: existingAttendance?.overtime_hours ?? 0,
+    notes: existingAttendance?.notes ?? "",
+  }
 
   const {
     register,
@@ -64,15 +84,7 @@ export function AttendanceForm({ workers, defaultDate, defaultWorkerId, trigger 
     formState: { errors },
   } = useForm<AttendanceFormData>({
     resolver: zodResolver(attendanceSchema),
-    defaultValues: {
-      worker_id: defaultWorkerId ?? "",
-      date: defaultDate ?? today,
-      status: "present",
-      check_in: "",
-      check_out: "",
-      overtime_hours: 0,
-      notes: "",
-    },
+    defaultValues,
   })
 
   const status = watch("status")
@@ -96,13 +108,21 @@ export function AttendanceForm({ workers, defaultDate, defaultWorkerId, trigger 
     }
 
     toast.success("Attendance saved")
-    reset()
     setOpen(false)
     router.refresh()
   }
 
+  function handleOpenChange(next: boolean) {
+    // Re-sync to the latest existingAttendance/defaults every time the dialog
+    // opens — useForm's defaultValues only apply on first mount, so without
+    // this an edit dialog for an already-marked day would keep showing
+    // whatever was there the first time it opened, not the current record.
+    if (next) reset(defaultValues)
+    setOpen(next)
+  }
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         {trigger ?? (
           <Button size="sm">

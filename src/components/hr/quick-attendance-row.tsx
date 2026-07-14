@@ -24,6 +24,18 @@ interface QuickAttendanceRowProps {
   currentStatus: Status | null
   date: string
   workers: Worker[]
+  checkIn?: string | null
+  checkOut?: string | null
+  overtimeHours?: number | null
+}
+
+function formatTime(t: string | null | undefined): string | null {
+  if (!t) return null
+  const [h, m] = t.split(":")
+  const hour = parseInt(h, 10)
+  const period = hour >= 12 ? "PM" : "AM"
+  const hour12 = hour % 12 === 0 ? 12 : hour % 12
+  return `${hour12}:${m} ${period}`
 }
 
 const OPTIONS: { status: Status; label: string; active: string }[] = [
@@ -40,6 +52,9 @@ export function QuickAttendanceRow({
   currentStatus,
   date,
   workers,
+  checkIn,
+  checkOut,
+  overtimeHours,
 }: QuickAttendanceRowProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -69,6 +84,11 @@ export function QuickAttendanceRow({
         workers={workers}
         defaultWorkerId={workerId}
         defaultDate={date}
+        existingAttendance={
+          currentStatus
+            ? { status: currentStatus, check_in: checkIn ?? null, check_out: checkOut ?? null, overtime_hours: overtimeHours ?? null }
+            : null
+        }
         trigger={
           <button className="flex min-w-0 flex-1 items-center gap-3 text-left">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent">
@@ -76,7 +96,18 @@ export function QuickAttendanceRow({
             </div>
             <div className="min-w-0">
               <p className="truncate text-sm font-medium">{workerName}</p>
-              {department && <p className="truncate text-xs text-muted-foreground">{department}</p>}
+              <p className="truncate text-xs text-muted-foreground">
+                {department}
+                {department && (checkIn || checkOut) && " · "}
+                {(checkIn || checkOut) && (
+                  <span className="font-mono">
+                    {formatTime(checkIn) ?? "—"} – {formatTime(checkOut) ?? "—"}
+                  </span>
+                )}
+                {!!overtimeHours && (
+                  <span className="ml-1.5 text-amber-600">+{overtimeHours} OT</span>
+                )}
+              </p>
             </div>
           </button>
         }

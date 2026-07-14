@@ -92,6 +92,9 @@ export function AttendanceStatusSection({
               currentStatus={(row.attendance?.status as "present" | "absent" | "half_day" | "leave" | undefined) ?? null}
               date={date}
               workers={workers}
+              checkIn={row.attendance?.check_in}
+              checkOut={row.attendance?.check_out}
+              overtimeHours={row.attendance?.overtime_hours}
             />
           ))}
         </div>

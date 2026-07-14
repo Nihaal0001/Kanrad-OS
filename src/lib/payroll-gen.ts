@@ -34,17 +34,39 @@ export async function runMonthlyPayroll(
   const periodEnd = `${year}-${mm}-${String(lastDay).padStart(2, "0")}`
   const workingDays = workingDaysInMonth(year, month0)
 
-  const [{ data: workers }, { data: attendance }, { data: existing }] = await Promise.all([
+  const [{ data: workers }, { data: existing }] = await Promise.all([
     admin.from("profiles").select("id, monthly_salary, ot_rate").eq("is_active", true).gt("monthly_salary", 0),
-    admin.from("attendance").select("worker_id, status, overtime_hours, late_minutes, early_minutes").gte("date", periodStart).lte("date", periodEnd),
     admin.from("payroll").select("worker_id").eq("period_start", periodStart).eq("period_end", periodEnd),
   ])
+
+  // PostgREST enforces a hard per-request row cap (1000 on this project) that
+  // a client-side .limit() can't override — a plant this size produces
+  // ~1300+ attendance rows/month, so an unpaginated fetch silently drops the
+  // back half of the month. Page through with .range() instead.
+  const attendance: { worker_id: string; date: string; status: string; overtime_hours: number | null; late_minutes: number | null; early_minutes: number | null }[] = []
+  const PAGE_SIZE = 1000
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data: page, error } = await admin
+      .from("attendance")
+      .select("worker_id, date, status, overtime_hours, late_minutes, early_minutes")
+      .gte("date", periodStart)
+      .lte("date", periodEnd)
+      .range(from, from + PAGE_SIZE - 1)
+    if (error) return { error: error.message }
+    attendance.push(...(page ?? []))
+    if (!page || page.length < PAGE_SIZE) break
+  }
 
   const presentByWorker: Record<string, number> = {}
   const overtimeByWorker: Record<string, number> = {}
   const deductibleMinutesByWorker: Record<string, number> = {}
-  for (const a of attendance ?? []) {
-    const add = a.status === "present" ? 1 : a.status === "half_day" ? 0.5 : 0
+  for (const a of attendance) {
+    // Sundays aren't working days (excluded from workingDaysInMonth, the
+    // divisor for daily_wage), so attendance on a Sunday is pure overtime —
+    // it must not also inflate days_present, or base pay ends up covering
+    // days beyond the month's actual working-day count.
+    const isSunday = new Date(a.date + "T00:00:00").getDay() === 0
+    const add = isSunday ? 0 : a.status === "present" ? 1 : a.status === "half_day" ? 0.5 : 0
     if (add > 0) presentByWorker[a.worker_id] = (presentByWorker[a.worker_id] ?? 0) + add
     if (a.overtime_hours) overtimeByWorker[a.worker_id] = (overtimeByWorker[a.worker_id] ?? 0) + Number(a.overtime_hours)
     const minutes = Number(a.late_minutes ?? 0) + Number(a.early_minutes ?? 0)
