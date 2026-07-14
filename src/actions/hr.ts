@@ -542,7 +542,7 @@ export async function getPayrolls(filters?: { status?: string; month?: string })
     .from("payroll")
     .select(`
       *,
-      worker:profiles(id, full_name, department)
+      worker:profiles(id, full_name, department, roll_no)
     `)
     .order("period_start", { ascending: false })
 
@@ -558,10 +558,22 @@ export async function getPayrolls(filters?: { status?: string; month?: string })
   if (error) throw new Error(error.message)
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (data ?? []).map((p: any) => ({
+  const rows = (data ?? []).map((p: any) => ({
     ...p,
     worker: Array.isArray(p.worker) ? p.worker[0] ?? null : p.worker,
   }))
+
+  // Sort by roll number (Sl. No) within each period, falling back to name;
+  // workers without a roll_no sort to the end.
+  rows.sort((a, b) => {
+    if (a.period_start !== b.period_start) return a.period_start < b.period_start ? 1 : -1
+    const rollA = a.worker?.roll_no ?? Infinity
+    const rollB = b.worker?.roll_no ?? Infinity
+    if (rollA !== rollB) return rollA - rollB
+    return (a.worker?.full_name ?? "").localeCompare(b.worker?.full_name ?? "")
+  })
+
+  return rows
 }
 
 export async function getPayroll(id: string) {

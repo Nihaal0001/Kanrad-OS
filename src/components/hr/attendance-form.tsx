@@ -9,7 +9,7 @@ import { toast } from "sonner"
 
 import { attendanceSchema, type AttendanceFormData } from "@/lib/validators/hr"
 import { upsertAttendance } from "@/actions/hr"
-import { calculateOvertime, lateDeductionAmount } from "@/lib/attendance-ot"
+import { calculateOvertime, lateDeductionAmount, baseHourlyRate, workingDaysInMonth } from "@/lib/attendance-ot"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
@@ -37,6 +37,7 @@ interface Worker {
   department: string | null
   gender?: "male" | "female" | null
   ot_rate?: number | null
+  monthly_salary?: number | null
 }
 
 interface ExistingAttendance {
@@ -91,9 +92,17 @@ export function AttendanceForm({ workers, defaultDate, defaultWorkerId, trigger,
   const workerId = watch("worker_id")
   const checkIn = watch("check_in")
   const checkOut = watch("check_out")
+  const formDate = watch("date")
 
   const selectedWorker = workers.find((w) => w.id === workerId)
   const otPreview = calculateOvertime(selectedWorker?.gender, checkIn, checkOut)
+
+  // Deductions are valued at the worker's base salary rate, not the OT rate —
+  // lost time costs what that time was worth to pay for; only extra time
+  // earns the OT premium.
+  const [dYear, dMonth] = (formDate || today).split("-").map(Number)
+  const workingDaysThisMonth = workingDaysInMonth(dYear, dMonth - 1)
+  const hourlyBaseRate = baseHourlyRate(selectedWorker?.monthly_salary ?? 0, workingDaysThisMonth, selectedWorker?.gender)
 
   async function onSubmit(data: AttendanceFormData) {
     setLoading(true)
@@ -239,12 +248,12 @@ export function AttendanceForm({ workers, defaultDate, defaultWorkerId, trigger,
                   <p className="font-medium">{otPreview.overtimeHours} hrs OT</p>
                   {otPreview.lateMinutes > 0 && (
                     <p className="text-xs text-muted-foreground">
-                      {otPreview.lateMinutes} min late (past 8:00 AM) — ₹{lateDeductionAmount(otPreview.lateMinutes, selectedWorker?.ot_rate ?? 0)} deducted from base pay
+                      {otPreview.lateMinutes} min late (past 8:00 AM) — ₹{lateDeductionAmount(otPreview.lateMinutes, hourlyBaseRate)} deducted from base pay
                     </p>
                   )}
                   {otPreview.earlyMinutes > 0 && (
                     <p className="text-xs text-muted-foreground">
-                      {otPreview.earlyMinutes} min left early — ₹{lateDeductionAmount(otPreview.earlyMinutes, selectedWorker?.ot_rate ?? 0)} deducted from base pay
+                      {otPreview.earlyMinutes} min left early — ₹{lateDeductionAmount(otPreview.earlyMinutes, hourlyBaseRate)} deducted from base pay
                     </p>
                   )}
                   <p className="text-xs text-muted-foreground">

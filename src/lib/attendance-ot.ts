@@ -1,18 +1,24 @@
 /**
  * Shift policy: everyone starts at 8:00 AM. Shift ends at 6:00 PM for male
- * workers, 5:00 PM for female workers. Time worked *outside* that window —
- * arriving early or leaving late — is overtime, paid at the worker's OT rate,
- * down to the minute (not rounded to whole hours). Time *missed inside* the
- * window — arriving late or leaving early — is valued at that same OT rate
- * and deducted from BASE pay as a payroll deduction, not netted out of the
- * OT hours themselves. The two are symmetric: every minute outside the shift
- * either earns OT or costs a deduction, never both.
+ * workers (10hr shift), 5:00 PM for female workers (9hr shift). Time worked
+ * *outside* that window — arriving early or leaving late — is overtime, paid
+ * at the worker's OT rate, down to the minute (not rounded to whole hours).
+ * Time *missed inside* the window — arriving late or leaving early — is
+ * valued at the worker's BASE hourly rate (monthly salary ÷ working days ÷
+ * shift hours, not the OT rate) and deducted from base pay as a payroll
+ * deduction, not netted out of the OT hours themselves. Lost time costs what
+ * that time was actually worth to pay for; only extra time earns the OT
+ * premium.
  */
 
 const SHIFT_START = "08:00"
 const SHIFT_END: Record<"male" | "female", string> = {
   male: "18:00",
   female: "17:00",
+}
+export const SHIFT_HOURS: Record<"male" | "female", number> = {
+  male: 10,
+  female: 9,
 }
 
 export interface OvertimeResult {
@@ -56,7 +62,29 @@ export function calculateOvertime(
   }
 }
 
-/** ₹ value of late-arrival + early-departure minutes, valued at the worker's OT rate — subtracted from base pay. */
-export function lateDeductionAmount(lateMinutes: number, otRate: number): number {
-  return Math.round((lateMinutes / 60) * otRate * 100) / 100
+/** Working days in a month = total days minus Sundays. */
+export function workingDaysInMonth(year: number, month0: number): number {
+  const daysInMonth = new Date(year, month0 + 1, 0).getDate()
+  let count = 0
+  for (let d = 1; d <= daysInMonth; d++) {
+    if (new Date(year, month0, d).getDay() !== 0) count++ // 0 = Sunday
+  }
+  return count
+}
+
+/** ₹/hour value of a worker's base salary: monthly salary ÷ working days ÷ shift hours. */
+export function baseHourlyRate(
+  monthlySalary: number,
+  workingDays: number,
+  gender: "male" | "female" | null | undefined
+): number {
+  if (workingDays <= 0) return 0
+  const dailyWage = monthlySalary / workingDays
+  const shiftHours = SHIFT_HOURS[gender === "female" ? "female" : "male"]
+  return dailyWage / shiftHours
+}
+
+/** ₹ value of late-arrival + early-departure minutes, valued at the worker's BASE hourly rate — subtracted from base pay. */
+export function lateDeductionAmount(lateMinutes: number, hourlyRate: number): number {
+  return Math.round((lateMinutes / 60) * hourlyRate * 100) / 100
 }

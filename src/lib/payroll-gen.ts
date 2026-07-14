@@ -1,27 +1,21 @@
 import { createAdminClient } from "@/lib/supabase/admin"
-import { lateDeductionAmount } from "@/lib/attendance-ot"
+import { lateDeductionAmount, baseHourlyRate, workingDaysInMonth } from "@/lib/attendance-ot"
 
-/** Working days in a month = total days minus Sundays. */
-export function workingDaysInMonth(year: number, month0: number): number {
-  const daysInMonth = new Date(year, month0 + 1, 0).getDate()
-  let count = 0
-  for (let d = 1; d <= daysInMonth; d++) {
-    if (new Date(year, month0, d).getDay() !== 0) count++ // 0 = Sunday
-  }
-  return count
-}
+export { workingDaysInMonth }
 
 /**
  * Generate draft payroll for every salaried, active worker for a full calendar
  * month (1st–last day). daily_wage = monthly_salary ÷ working days; days_present
- * from attendance (present = 1, half day = 0.5, rounded). Overtime hours are
- * summed from attendance.overtime_hours (full hours worked past shift end —
- * see calculateOvertime), paid at the worker's profiles.ot_rate. Late-arrival
- * and early-departure minutes (attendance.late_minutes / early_minutes) are
- * valued at that same OT rate and land in `deductions`, coming off base pay
- * rather than reducing OT hours. Skips workers who already have a payroll
- * record for that period, so it never overwrites manual edits. No auth —
- * callers gate it.
+ * from attendance (present = 1, half day = 0.5, rounded; Sundays excluded even
+ * if marked present, since they're outside the working-day divisor). Overtime
+ * hours are summed from attendance.overtime_hours (time worked outside the
+ * shift window, including all Sunday hours — see calculateOvertime), paid at
+ * the worker's profiles.ot_rate. Late-arrival and early-departure minutes
+ * (attendance.late_minutes / early_minutes) are valued at the worker's BASE
+ * hourly rate (monthly salary ÷ working days ÷ shift hours — not the OT rate)
+ * and land in `deductions`, coming off base pay rather than reducing OT hours.
+ * Skips workers who already have a payroll record for that period, so it
+ * never overwrites manual edits. No auth — callers gate it.
  */
 export async function runMonthlyPayroll(
   year: number,
@@ -35,7 +29,7 @@ export async function runMonthlyPayroll(
   const workingDays = workingDaysInMonth(year, month0)
 
   const [{ data: workers }, { data: existing }] = await Promise.all([
-    admin.from("profiles").select("id, monthly_salary, ot_rate").eq("is_active", true).gt("monthly_salary", 0),
+    admin.from("profiles").select("id, monthly_salary, ot_rate, gender").eq("is_active", true).gt("monthly_salary", 0),
     admin.from("payroll").select("worker_id").eq("period_start", periodStart).eq("period_end", periodEnd),
   ])
 
@@ -76,19 +70,22 @@ export async function runMonthlyPayroll(
 
   const rows = (workers ?? [])
     .filter((w) => !alreadyDone.has(w.id))
-    .map((w) => ({
-      worker_id: w.id,
-      period_start: periodStart,
-      period_end: periodEnd,
-      working_days: workingDays,
-      days_present: Math.round(presentByWorker[w.id] ?? 0),
-      overtime_hours: Math.round((overtimeByWorker[w.id] ?? 0) * 100) / 100,
-      daily_wage: workingDays > 0 ? Math.round((w.monthly_salary / workingDays) * 100) / 100 : 0,
-      overtime_rate: w.ot_rate ?? 0,
-      deductions: lateDeductionAmount(deductibleMinutesByWorker[w.id] ?? 0, w.ot_rate ?? 0),
-      bonus: 0,
-      status: "draft" as const,
-    }))
+    .map((w) => {
+      const hourlyRate = baseHourlyRate(w.monthly_salary, workingDays, w.gender as "male" | "female" | null)
+      return {
+        worker_id: w.id,
+        period_start: periodStart,
+        period_end: periodEnd,
+        working_days: workingDays,
+        days_present: Math.round(presentByWorker[w.id] ?? 0),
+        overtime_hours: Math.round((overtimeByWorker[w.id] ?? 0) * 100) / 100,
+        daily_wage: workingDays > 0 ? Math.round((w.monthly_salary / workingDays) * 100) / 100 : 0,
+        overtime_rate: w.ot_rate ?? 0,
+        deductions: lateDeductionAmount(deductibleMinutesByWorker[w.id] ?? 0, hourlyRate),
+        bonus: 0,
+        status: "draft" as const,
+      }
+    })
 
   const period = `${periodStart} → ${periodEnd}`
   if (rows.length === 0) return { count: 0, period }

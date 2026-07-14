@@ -15,6 +15,7 @@ interface Worker {
   department: string | null
   gender?: "male" | "female" | null
   ot_rate?: number | null
+  monthly_salary?: number | null
 }
 
 interface QuickAttendanceRowProps {
