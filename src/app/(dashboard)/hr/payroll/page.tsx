@@ -50,7 +50,11 @@ export default async function PayrollPage({ searchParams }: Props) {
         <WorkerPayrollList data={register} />
       ) : (
         <Card className="overflow-hidden p-0">
-          <div className="overflow-x-auto">
+          {/* Bounded height + its own scroll (both axes) so the sticky header
+              works consistently across browsers — nesting `sticky` inside a
+              plain overflow-x-auto div (no vertical scroll of its own) is a
+              known cross-browser gotcha that silently breaks the freeze. */}
+          <div className="max-h-[calc(100vh-260px)] overflow-auto">
             <table className="w-full min-w-[960px] border-collapse text-sm">
               <thead className="sticky top-0 z-10 bg-card shadow-[0_1px_0_0] shadow-border">
                 <tr className="text-xs font-medium uppercase tracking-wide text-muted-foreground">

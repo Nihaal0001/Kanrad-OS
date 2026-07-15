@@ -4,13 +4,16 @@ import { lateDeductionAmount, baseHourlyRate, workingDaysInMonth } from "@/lib/a
 export { workingDaysInMonth }
 
 /**
- * Generate draft payroll for every salaried, active worker for a full calendar
- * month (1st–last day). daily_wage = monthly_salary ÷ working days; days_present
- * from attendance (present = 1, half day = 0.5, rounded; Sundays excluded even
- * if marked present, since they're outside the working-day divisor). Overtime
- * hours are summed from attendance.overtime_hours (time worked outside the
- * shift window, including all Sunday hours — see calculateOvertime), paid at
- * the worker's profiles.ot_rate. Late-arrival and early-departure minutes
+ * Generate draft payroll for every active worker for a full calendar month
+ * (1st–last day) — including anyone with no salary on file yet, so they still
+ * show up in the payroll list with real attendance/OT/deductions rather than
+ * being silently skipped; their base_wage just reads 0 until a salary is set.
+ * daily_wage = monthly_salary ÷ working days; days_present from attendance
+ * (present = 1, half day = 0.5, rounded; Sundays excluded even if marked
+ * present, since they're outside the working-day divisor). Overtime hours are
+ * summed from attendance.overtime_hours (time worked outside the shift
+ * window, including all Sunday hours — see calculateOvertime), paid at the
+ * worker's profiles.ot_rate. Late-arrival and early-departure minutes
  * (attendance.late_minutes / early_minutes) are valued at the worker's BASE
  * hourly rate (monthly salary ÷ working days ÷ shift hours — not the OT rate)
  * and land in `deductions`, coming off base pay rather than reducing OT hours.
@@ -29,7 +32,7 @@ export async function runMonthlyPayroll(
   const workingDays = workingDaysInMonth(year, month0)
 
   const [{ data: workers }, { data: existing }] = await Promise.all([
-    admin.from("profiles").select("id, monthly_salary, ot_rate, gender").eq("is_active", true).gt("monthly_salary", 0),
+    admin.from("profiles").select("id, monthly_salary, ot_rate, gender").eq("is_active", true),
     admin.from("payroll").select("worker_id").eq("period_start", periodStart).eq("period_end", periodEnd),
   ])
 
@@ -71,7 +74,8 @@ export async function runMonthlyPayroll(
   const rows = (workers ?? [])
     .filter((w) => !alreadyDone.has(w.id))
     .map((w) => {
-      const hourlyRate = baseHourlyRate(w.monthly_salary, workingDays, w.gender as "male" | "female" | null)
+      const salary = w.monthly_salary ?? 0
+      const hourlyRate = baseHourlyRate(salary, workingDays, w.gender as "male" | "female" | null)
       return {
         worker_id: w.id,
         period_start: periodStart,
@@ -79,7 +83,7 @@ export async function runMonthlyPayroll(
         working_days: workingDays,
         days_present: Math.round(presentByWorker[w.id] ?? 0),
         overtime_hours: Math.round((overtimeByWorker[w.id] ?? 0) * 100) / 100,
-        daily_wage: workingDays > 0 ? Math.round((w.monthly_salary / workingDays) * 100) / 100 : 0,
+        daily_wage: workingDays > 0 ? Math.round((salary / workingDays) * 100) / 100 : 0,
         overtime_rate: w.ot_rate ?? 0,
         deductions: lateDeductionAmount(deductibleMinutesByWorker[w.id] ?? 0, hourlyRate),
         bonus: 0,

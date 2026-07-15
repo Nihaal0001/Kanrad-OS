@@ -64,30 +64,34 @@ export function WorkerPayrollList({ data }: { data: RegisterData }) {
       </div>
 
       <Card className="overflow-hidden p-0">
-        <div className={cn("sticky top-0 z-10 grid gap-3 border-b bg-card px-4 py-2.5 text-xs font-medium uppercase tracking-wide text-muted-foreground shadow-[0_1px_0_0] shadow-border", COLS)}>
-          <span>No.</span>
-          <span>Worker</span>
-          <span className="text-right">Monthly Salary</span>
-          <span className="text-right">Present</span>
-          <span className="text-right">Absent</span>
-          <span className="text-right">Payable</span>
-        </div>
-        <div className="divide-y divide-border">
-          {visible.map((r) => (
-            <div key={r.id} className={cn("grid items-center gap-3 px-4 py-2.5", COLS)}>
-              <span className="text-sm tabular-nums text-muted-foreground">{r.roll_no ?? "—"}</span>
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium">{r.full_name}</p>
-                {r.role && <p className="truncate text-xs text-muted-foreground">{r.role}</p>}
+        {/* Bounded height + its own scroll so the sticky header freezes
+            reliably across browsers, instead of depending on page scroll. */}
+        <div className="max-h-[calc(100vh-260px)] overflow-auto">
+          <div className={cn("sticky top-0 z-10 grid gap-3 border-b bg-card px-4 py-2.5 text-xs font-medium uppercase tracking-wide text-muted-foreground shadow-[0_1px_0_0] shadow-border", COLS)}>
+            <span>No.</span>
+            <span>Worker</span>
+            <span className="text-right">Monthly Salary</span>
+            <span className="text-right">Present</span>
+            <span className="text-right">Absent</span>
+            <span className="text-right">Payable</span>
+          </div>
+          <div className="divide-y divide-border">
+            {visible.map((r) => (
+              <div key={r.id} className={cn("grid items-center gap-3 px-4 py-2.5", COLS)}>
+                <span className="text-sm tabular-nums text-muted-foreground">{r.roll_no ?? "—"}</span>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium">{r.full_name}</p>
+                  {r.role && <p className="truncate text-xs text-muted-foreground">{r.role}</p>}
+                </div>
+                <span className="text-right text-sm tabular-nums">
+                  {r.monthly_salary > 0 ? `₹${fmt(r.monthly_salary)}` : <span className="text-muted-foreground">—</span>}
+                </span>
+                <span className="text-right text-sm tabular-nums text-emerald-600">{r.days_present}</span>
+                <span className="text-right text-sm tabular-nums text-muted-foreground">{r.days_absent}</span>
+                <span className="text-right text-sm font-semibold tabular-nums">₹{fmt(r.payable)}</span>
               </div>
-              <span className="text-right text-sm tabular-nums">
-                {r.monthly_salary > 0 ? `₹${fmt(r.monthly_salary)}` : <span className="text-muted-foreground">—</span>}
-              </span>
-              <span className="text-right text-sm tabular-nums text-emerald-600">{r.days_present}</span>
-              <span className="text-right text-sm tabular-nums text-muted-foreground">{r.days_absent}</span>
-              <span className="text-right text-sm font-semibold tabular-nums">₹{fmt(r.payable)}</span>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
         <div className={cn("grid items-center gap-3 border-t bg-muted/40 px-4 py-2.5 text-sm font-semibold", COLS)}>
           <span />
