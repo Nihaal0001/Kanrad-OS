@@ -6,7 +6,11 @@ const Table = React.forwardRef<
   HTMLTableElement,
   React.HTMLAttributes<HTMLTableElement>
 >(({ className, ...props }, ref) => (
-  <div className="relative w-full overflow-auto">
+  // Bounded height + its own scroll (both axes) so a sticky <thead> freezes
+  // reliably across browsers — nesting `sticky` inside a div that only
+  // scrolls horizontally (no vertical scroll of its own) is a known
+  // cross-browser gotcha that silently breaks header freezing.
+  <div className="relative max-h-[calc(100vh-280px)] w-full overflow-auto">
     <table
       ref={ref}
       className={cn("w-full caption-bottom text-sm", className)}
@@ -20,7 +24,11 @@ const TableHeader = React.forwardRef<
   HTMLTableSectionElement,
   React.HTMLAttributes<HTMLTableSectionElement>
 >(({ className, ...props }, ref) => (
-  <thead ref={ref} className={cn("[&_tr]:border-b", className)} {...props} />
+  <thead
+    ref={ref}
+    className={cn("sticky top-0 z-10 bg-card [&_tr]:border-b", className)}
+    {...props}
+  />
 ))
 TableHeader.displayName = "TableHeader"
 
