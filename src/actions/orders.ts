@@ -192,6 +192,19 @@ export async function updateOrderStatus(id: string, status: string) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: "Not authenticated" }
 
+  // Costing must be done before an order leaves draft — enforced server-side
+  // so this can't be bypassed by calling the action directly.
+  if (status === "confirmed") {
+    const { data: costing } = await supabase
+      .from("order_costings")
+      .select("id")
+      .eq("order_id", id)
+      .maybeSingle()
+    if (!costing) {
+      return { error: "Complete costing for this order before confirming it." }
+    }
+  }
+
   const { error } = await supabase
     .from("orders")
     .update({ status })

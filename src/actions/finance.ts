@@ -396,6 +396,17 @@ export const getOrderCostings = unstable_cache(
   { tags: ["order_costings"], revalidate: 60 }
 )
 
+/** Lightweight check used to gate the draft → confirmed transition (costing must be done first). */
+export async function hasOrderCosting(orderId: string): Promise<boolean> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from("order_costings")
+    .select("id")
+    .eq("order_id", orderId)
+    .maybeSingle()
+  return !!data
+}
+
 export async function getOrderCosting(orderId: string) {
   const supabase = await createClient()
 
@@ -601,5 +612,6 @@ export async function upsertOrderCosting(orderId: string, formData: CostingFormD
   revalidateTag("order_costings", {})
   revalidatePath("/finance/costing")
   revalidatePath(`/finance/costing/${orderId}`)
+  revalidatePath(`/orders/${orderId}`)
   return { data }
 }

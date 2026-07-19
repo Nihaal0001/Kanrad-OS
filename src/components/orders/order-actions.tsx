@@ -24,7 +24,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { Copy, FileDown, Printer, Trash2 } from "lucide-react"
+import { Copy, FileDown, Printer, Trash2, Calculator } from "lucide-react"
+import Link from "next/link"
 
 const statusTransitions: Record<string, { label: string; status: string }[]> = {
   draft: [{ label: "Confirm Order", status: "confirmed" }],
@@ -37,9 +38,11 @@ const statusTransitions: Record<string, { label: string; status: string }[]> = {
 
 interface OrderActionsProps {
   order: OrderDetail
+  /** Whether costing (order_costings row) has been done for this order — required before it can leave draft. */
+  hasCosting: boolean
 }
 
-export function OrderActions({ order }: OrderActionsProps) {
+export function OrderActions({ order, hasCosting }: OrderActionsProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
@@ -96,16 +99,25 @@ export function OrderActions({ order }: OrderActionsProps) {
           <p className="text-sm text-destructive">{error}</p>
         )}
 
-        {transitions.map((t) => (
-          <Button
-            key={t.status}
-            className="w-full"
-            disabled={isPending}
-            onClick={() => handleStatusChange(t.status)}
-          >
-            {t.label}
-          </Button>
-        ))}
+        {transitions.map((t) =>
+          t.status === "confirmed" && !hasCosting ? (
+            <Button key={t.status} className="w-full" variant="outline" asChild>
+              <Link href={`/finance/costing/${order.id}`}>
+                <Calculator className="mr-2 h-4 w-4" />
+                Do Costing First
+              </Link>
+            </Button>
+          ) : (
+            <Button
+              key={t.status}
+              className="w-full"
+              disabled={isPending}
+              onClick={() => handleStatusChange(t.status)}
+            >
+              {t.label}
+            </Button>
+          )
+        )}
 
         {order.status !== "cancelled" && order.status !== "dispatched" && (
           <Button

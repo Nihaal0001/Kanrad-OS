@@ -3,6 +3,7 @@ import Link from "next/link"
 import { Pencil } from "lucide-react"
 
 import { getOrder } from "@/actions/orders"
+import { hasOrderCosting } from "@/actions/finance"
 import { formatDate, formatCurrency } from "@/lib/utils"
 import { generatePortalToken } from "@/lib/portal"
 import type { OrderDetail } from "@/lib/supabase/types"
@@ -48,6 +49,8 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
   } catch {
     notFound()
   }
+
+  const hasCosting = await hasOrderCosting(id)
 
   const totalQuantity = order.order_items?.reduce(
     (sum, item) => sum + item.quantity,
@@ -336,7 +339,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
           <OrderAISummary orderId={order.id} />
 
           {/* Quick Actions Card */}
-          <OrderActions order={order} />
+          <OrderActions order={order} hasCosting={hasCosting} />
         </div>
       </div>
     </>
