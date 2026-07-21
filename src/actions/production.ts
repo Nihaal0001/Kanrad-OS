@@ -411,6 +411,53 @@ export async function logDailyProduction(data: {
     .maybeSingle()
   const deltaProduced = data.quantity_produced - (existingLog?.quantity_produced ?? 0)
 
+  // Order + BOM fetched up front — needed both for the shortage check below
+  // (must reject before writing anything) and for the consumption/status
+  // logic further down.
+  const { data: order } = await supabase
+    .from("orders")
+    .select("order_number, total_quantity, status, product_variant")
+    .eq("id", data.order_id)
+    .single()
+
+  const admin = createAdminClient()
+  const { data: bom } = order
+    ? await admin
+        .from("bom_headers")
+        .select("id, product_sku")
+        .eq("product_name", order.product_variant)
+        .eq("is_active", true)
+        .maybeSingle()
+    : { data: null }
+
+  const { data: bomItems } = bom
+    ? await admin
+        .from("bom_items")
+        .select("qty_required, wastage_pct, material:materials(id, name, sku, current_stock, unit)")
+        .eq("bom_id", bom.id)
+    : { data: null }
+
+  // Block logging production if there isn't enough raw material on hand to
+  // cover today's pieces — surfaces the shortage instead of silently letting
+  // stock (and other orders drawing on the same material) go negative.
+  if (deltaProduced > 0 && bomItems) {
+    const short: string[] = []
+    for (const bi of bomItems) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const mat = Array.isArray(bi.material) ? bi.material[0] : bi.material as any
+      if (!mat) continue
+      const needed = bi.qty_required * (1 + (bi.wastage_pct ?? 0) / 100) * deltaProduced
+      if (needed > (mat.current_stock ?? 0)) {
+        short.push(`${mat.name} (need ${Math.round(needed * 100) / 100} ${mat.unit}, have ${mat.current_stock ?? 0})`)
+      }
+    }
+    if (short.length > 0) {
+      return {
+        error: `Not enough material in stock to log this production: ${short.join(", ")}. Raise a purchase order for the shortage first.`,
+      }
+    }
+  }
+
   const { error } = await supabase
     .from("production_daily_logs")
     .upsert({
@@ -422,14 +469,6 @@ export async function logDailyProduction(data: {
     }, { onConflict: "order_id,log_date" })
 
   if (error) return { error: error.message }
-
-  // Auto-advance order status from the piece log: first log → in_production,
-  // total produced reaching the order quantity → completed.
-  const { data: order } = await supabase
-    .from("orders")
-    .select("order_number, total_quantity, status, product_variant")
-    .eq("id", data.order_id)
-    .single()
 
   // Audit the production output entry
   await logAudit({
@@ -451,34 +490,21 @@ export async function logDailyProduction(data: {
 
     const totalProduced = (logs ?? []).reduce((s, l) => s + (l.quantity_produced ?? 0), 0)
 
-    // Push produced-to-date into warehouse stock — every log counts, not just
-    // a fully-completed order. Keyed on order_id so this stays in sync as
-    // more logs (or corrections) come in, without touching an item's
-    // dispatch status once it's left.
-    const admin = createAdminClient()
-    const { data: bom } = await admin
-      .from("bom_headers")
-      .select("id, product_sku")
-      .eq("product_name", order.product_variant)
-      .eq("is_active", true)
-      .maybeSingle()
-
     // Deduct raw materials for the pieces made in *this* log, FIFO — oldest
     // purchased batch consumed first, same rule as manual stock adjustments.
-    if (bom && deltaProduced > 0) {
-      const { data: bomItems } = await admin
-        .from("bom_items")
-        .select("material_id, qty_required, wastage_pct")
-        .eq("bom_id", bom.id)
-
-      for (const bi of bomItems ?? []) {
+    // Sufficiency was already checked above before the log was written.
+    if (bomItems && deltaProduced > 0) {
+      for (const bi of bomItems) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const mat = Array.isArray(bi.material) ? bi.material[0] : bi.material as any
+        if (!mat) continue
         const needed = Math.round(
           bi.qty_required * (1 + (bi.wastage_pct ?? 0) / 100) * deltaProduced * 10000
         ) / 10000
         if (needed <= 0) continue
 
         await admin.from("stock_transactions").insert({
-          material_id: bi.material_id,
+          material_id: mat.id,
           type: "production_out",
           quantity: -needed,
           reference_type: "order",
@@ -490,7 +516,7 @@ export async function logDailyProduction(data: {
         const { data: batches } = await admin
           .from("stock_batches")
           .select("id, quantity_remaining")
-          .eq("material_id", bi.material_id)
+          .eq("material_id", mat.id)
           .gt("quantity_remaining", 0)
           .order("received_at", { ascending: true })
 
