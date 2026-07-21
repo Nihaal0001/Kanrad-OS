@@ -389,6 +389,28 @@ export async function logDailyProduction(data: {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: "Not authenticated" }
 
+  // Costing must be done before production can be logged against an order —
+  // mirrors the draft → confirmed gate in updateOrderStatus, but enforced
+  // here directly since this is the actual write path production uses.
+  const { data: costing } = await supabase
+    .from("order_costings")
+    .select("id")
+    .eq("order_id", data.order_id)
+    .maybeSingle()
+  if (!costing) return { error: "Complete costing for this order before logging production." }
+
+  // Captured before the upsert so we can consume only the incremental
+  // quantity from inventory — logDailyProduction upserts on (order_id,
+  // log_date), so editing an existing day's log must not re-consume
+  // material for the portion already deducted.
+  const { data: existingLog } = await supabase
+    .from("production_daily_logs")
+    .select("quantity_produced")
+    .eq("order_id", data.order_id)
+    .eq("log_date", data.log_date)
+    .maybeSingle()
+  const deltaProduced = data.quantity_produced - (existingLog?.quantity_produced ?? 0)
+
   const { error } = await supabase
     .from("production_daily_logs")
     .upsert({
@@ -436,10 +458,56 @@ export async function logDailyProduction(data: {
     const admin = createAdminClient()
     const { data: bom } = await admin
       .from("bom_headers")
-      .select("product_sku")
+      .select("id, product_sku")
       .eq("product_name", order.product_variant)
       .eq("is_active", true)
       .maybeSingle()
+
+    // Deduct raw materials for the pieces made in *this* log, FIFO — oldest
+    // purchased batch consumed first, same rule as manual stock adjustments.
+    if (bom && deltaProduced > 0) {
+      const { data: bomItems } = await admin
+        .from("bom_items")
+        .select("material_id, qty_required, wastage_pct")
+        .eq("bom_id", bom.id)
+
+      for (const bi of bomItems ?? []) {
+        const needed = Math.round(
+          bi.qty_required * (1 + (bi.wastage_pct ?? 0) / 100) * deltaProduced * 10000
+        ) / 10000
+        if (needed <= 0) continue
+
+        await admin.from("stock_transactions").insert({
+          material_id: bi.material_id,
+          type: "production_out",
+          quantity: -needed,
+          reference_type: "order",
+          reference_id: data.order_id,
+          notes: `Auto-consumed for ${order.order_number} — ${data.log_date}`,
+        })
+
+        let remaining = needed
+        const { data: batches } = await admin
+          .from("stock_batches")
+          .select("id, quantity_remaining")
+          .eq("material_id", bi.material_id)
+          .gt("quantity_remaining", 0)
+          .order("received_at", { ascending: true })
+
+        for (const batch of batches ?? []) {
+          if (remaining <= 0) break
+          const consume = Math.min(remaining, batch.quantity_remaining)
+          await admin
+            .from("stock_batches")
+            .update({ quantity_remaining: batch.quantity_remaining - consume })
+            .eq("id", batch.id)
+          remaining -= consume
+        }
+      }
+
+      revalidateTag("materials", {})
+      revalidateTag("stock_transactions", {})
+    }
 
     await admin.from("warehouse_items").upsert(
       {
