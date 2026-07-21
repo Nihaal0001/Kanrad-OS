@@ -504,6 +504,17 @@ export async function createPurchaseOrder(formData: PurchaseOrderFormData) {
     if (linkError) return { error: linkError.message }
   }
 
+  // BOM/product costing reads materials.cost_per_unit, so keep it pinned to
+  // the price of the last PO raised for each material — the price ceiling
+  // check above still runs first (against the pre-update value), so this
+  // can only ratchet down/hold, never let a PO past the last approved price.
+  for (const item of items) {
+    if (!item.material_id) continue
+    await supabase.from("materials").update({ cost_per_unit: item.unit_price }).eq("id", item.material_id)
+  }
+  revalidateTag("materials", {})
+  revalidateTag("bom", {})
+
   revalidateTag("dashboard", {})
   revalidateTag("purchase_orders", {})
   revalidatePath("/inventory/purchase-orders")
