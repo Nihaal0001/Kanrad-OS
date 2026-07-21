@@ -580,7 +580,7 @@ export async function receivePurchaseOrderItem(
     .from("purchase_order_items")
     .update({ quantity_received: quantityReceived })
     .eq("id", itemId)
-    .select("*, material:materials(id, current_stock, cost_per_unit)")
+    .select("*, material:materials(id, name, current_stock, cost_per_unit)")
     .single()
 
   if (itemError) return { error: itemError.message }
@@ -635,6 +635,61 @@ export async function receivePurchaseOrderItem(
       .from("materials")
       .update({ cost_per_unit: Math.round(newAvgCost * 100) / 100 })
       .eq("id", item.material_id)
+
+    // 4. Record this receipt against a payable — find-or-create a purchase
+    // invoice for this PO + bill number, so it shows up in Payables right
+    // away instead of waiting on a separate manual invoice entry.
+    const trimmedBillNo = billNo!.trim()
+    const { data: existingInvoice } = await admin
+      .from("purchase_invoices")
+      .select("id")
+      .eq("purchase_order_id", poId)
+      .eq("invoice_number", trimmedBillNo)
+      .maybeSingle()
+
+    let invoiceId: string | null = existingInvoice?.id ?? null
+    if (!invoiceId) {
+      const { data: poRow } = await admin
+        .from("purchase_orders")
+        .select("supplier_name, supplier_id")
+        .eq("id", poId)
+        .single()
+
+      let payableDays = 50
+      if (poRow?.supplier_id) {
+        const { data: supplier } = await admin
+          .from("suppliers")
+          .select("payment_terms")
+          .eq("id", poRow.supplier_id)
+          .maybeSingle()
+        if (supplier?.payment_terms) payableDays = supplier.payment_terms
+      }
+      const invoiceDate = new Date().toISOString().split("T")[0]
+      const due = new Date(invoiceDate)
+      due.setDate(due.getDate() + payableDays)
+
+      const { data: newInvoice, error: invError } = await admin
+        .from("purchase_invoices")
+        .insert({
+          purchase_order_id: poId,
+          supplier_name: poRow?.supplier_name ?? "Unknown Supplier",
+          invoice_number: trimmedBillNo,
+          invoice_date: invoiceDate,
+          due_date: due.toISOString().split("T")[0],
+          status: "received",
+        })
+        .select("id")
+        .single()
+      if (invError) return { error: invError.message }
+      invoiceId = newInvoice.id
+    }
+
+    await admin.from("purchase_invoice_items").insert({
+      purchase_invoice_id: invoiceId,
+      description: mat?.name ?? "Material",
+      quantity: receivedNow,
+      unit_price: unitPrice,
+    })
   }
 
   // Check if all items are fully received
@@ -668,6 +723,8 @@ export async function receivePurchaseOrderItem(
   revalidatePath("/inventory/purchase-orders")
   revalidatePath(`/inventory/purchase-orders/${poId}`)
   revalidatePath("/inventory")
+  revalidatePath("/finance/payables")
+  revalidatePath("/finance/purchases")
   return { success: true }
 }
 
