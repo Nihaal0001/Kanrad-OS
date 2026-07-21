@@ -637,24 +637,27 @@ export async function receivePurchaseOrderItem(
       .eq("id", item.material_id)
 
     // 4. Record this receipt against a payable — find-or-create a purchase
-    // invoice for this PO + bill number, so it shows up in Payables right
-    // away instead of waiting on a separate manual invoice entry.
+    // invoice for this supplier + bill number (regardless of which PO —
+    // one supplier bill can cover receipts from more than one PO), so it
+    // shows up in Payables right away instead of waiting on a separate
+    // manual invoice entry.
     const trimmedBillNo = billNo!.trim()
+    const { data: poRow } = await admin
+      .from("purchase_orders")
+      .select("supplier_name, supplier_id, tax_rate")
+      .eq("id", poId)
+      .single()
+    const supplierName = poRow?.supplier_name ?? "Unknown Supplier"
+
     const { data: existingInvoice } = await admin
       .from("purchase_invoices")
       .select("id")
-      .eq("purchase_order_id", poId)
+      .ilike("supplier_name", supplierName)
       .eq("invoice_number", trimmedBillNo)
       .maybeSingle()
 
     let invoiceId: string | null = existingInvoice?.id ?? null
     if (!invoiceId) {
-      const { data: poRow } = await admin
-        .from("purchase_orders")
-        .select("supplier_name, supplier_id")
-        .eq("id", poId)
-        .single()
-
       let payableDays = 50
       if (poRow?.supplier_id) {
         const { data: supplier } = await admin
@@ -672,8 +675,9 @@ export async function receivePurchaseOrderItem(
         .from("purchase_invoices")
         .insert({
           purchase_order_id: poId,
-          supplier_name: poRow?.supplier_name ?? "Unknown Supplier",
+          supplier_name: supplierName,
           invoice_number: trimmedBillNo,
+          tax_rate: poRow?.tax_rate ?? 0,
           invoice_date: invoiceDate,
           due_date: due.toISOString().split("T")[0],
           status: "received",

@@ -43,6 +43,7 @@ interface RowState {
   expectedDate: string
   price: number
   quantity: number
+  taxRate: string
   submitting: boolean
   done: boolean
 }
@@ -54,6 +55,7 @@ function initialRow(s: ShortageMaterial): RowState {
     expectedDate: "",
     price: s.cost_per_unit,
     quantity: s.shortage,
+    taxRate: "",
     submitting: false,
     done: false,
   }
@@ -77,12 +79,17 @@ export function OrderShortagePO({ orderId, shortages }: OrderShortagePOProps) {
       toast.error("Enter a supplier name")
       return
     }
+    if (row.taxRate.trim() === "") {
+      toast.error("Enter the tax % for this purchase order")
+      return
+    }
     updateRow(s.id, { submitting: true })
     const result = await createPurchaseOrder({
       supplier_name: row.supplierName.trim(),
       supplier_contact: "",
       order_date: row.orderDate,
       expected_date: row.expectedDate,
+      tax_rate: Number(row.taxRate) || 0,
       notes: `Raised for material shortage on this order`,
       order_ids: [orderId],
       items: [
@@ -173,7 +180,7 @@ export function OrderShortagePO({ orderId, shortages }: OrderShortagePOProps) {
                     </div>
                   </div>
 
-                  <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="grid gap-4 sm:grid-cols-3">
                     <div className="space-y-1.5">
                       <Label>Qty to Order ({s.unit})</Label>
                       <Input
@@ -205,6 +212,18 @@ export function OrderShortagePO({ orderId, shortages }: OrderShortagePOProps) {
                         </p>
                       )}
                     </div>
+                    <div className="space-y-1.5">
+                      <Label>Tax % *</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={100}
+                        step="0.01"
+                        placeholder="e.g. 18"
+                        value={row.taxRate}
+                        onChange={(e) => updateRow(s.id, { taxRate: e.target.value })}
+                      />
+                    </div>
                   </div>
 
                   <div className="flex items-center justify-between pt-1">
@@ -215,7 +234,7 @@ export function OrderShortagePO({ orderId, shortages }: OrderShortagePOProps) {
                     <Button
                       size="sm"
                       onClick={() => handleOrder(s)}
-                      disabled={row.submitting || qtyInvalid || priceInvalid}
+                      disabled={row.submitting || qtyInvalid || priceInvalid || row.taxRate.trim() === ""}
                     >
                       <Lock className="h-3.5 w-3.5" />
                       {row.submitting ? "Raising…" : "Order This Item"}

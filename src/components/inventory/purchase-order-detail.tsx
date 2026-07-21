@@ -81,6 +81,7 @@ interface PurchaseOrderDetailProps {
     order_date: string
     expected_date: string | null
     total_amount: number
+    tax_rate: number
     notes: string | null
     items: POItem[]
     linked_orders?: LinkedOrder[]
@@ -482,6 +483,10 @@ export function PurchaseOrderDetail({ po: initialPo, isAdmin }: PurchaseOrderDet
             <div>
               <p className="text-sm text-muted-foreground">Total Amount</p>
               <p className="text-2xl font-bold">{formatCurrency(po.total_amount)}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Tax %</p>
+              <p className="font-medium">{po.tax_rate}%</p>
             </div>
             {po.supplier_contact && (
               <div>
