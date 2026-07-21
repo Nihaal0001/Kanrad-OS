@@ -73,13 +73,20 @@ interface Product {
 interface Props {
   products: Product[]
   initialProductId?: string
+  marketAluPricePerKg?: number | null
+  marketAluPriceDate?: string | null
 }
 
 function formatCurrency(n: number) {
   return n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-export function ProductCostingCalculator({ products, initialProductId }: Props) {
+export function ProductCostingCalculator({
+  products,
+  initialProductId,
+  marketAluPricePerKg,
+  marketAluPriceDate,
+}: Props) {
   const router = useRouter()
   const [selectedId, setSelectedId] = useState(initialProductId ?? "")
   const [quantity, setQuantity] = useState(100)
@@ -88,9 +95,13 @@ export function ProductCostingCalculator({ products, initialProductId }: Props) 
   const [otherCost, setOtherCost] = useState(0)
   const [marginPct, setMarginPct] = useState(20)
   const [pricingMode, setPricingMode] = useState<"actual" | "market">("actual")
-  const [marketAluPrice, setMarketAluPrice] = useState("")
+  const [marketAluPrice, setMarketAluPrice] = useState(
+    marketAluPricePerKg ? marketAluPricePerKg.toFixed(2) : ""
+  )
+  const [aluPriceEdited, setAluPriceEdited] = useState(false)
 
   const marketAluPriceNum = parseFloat(marketAluPrice) || 0
+  const isLivePrice = !aluPriceEdited && !!marketAluPricePerKg
 
   const product = products.find((p) => p.id === selectedId) ?? null
 
@@ -232,13 +243,37 @@ export function ProductCostingCalculator({ products, initialProductId }: Props) 
                     type="number"
                     min={0}
                     step="0.01"
-                    placeholder="388"
+                    placeholder={marketAluPricePerKg ? marketAluPricePerKg.toFixed(2) : "0.00"}
                     value={marketAluPrice}
-                    onChange={(e) => setMarketAluPrice(e.target.value)}
+                    onChange={(e) => {
+                      setAluPriceEdited(true)
+                      setMarketAluPrice(e.target.value)
+                    }}
                     className="pl-6 h-8 text-sm"
                   />
                 </div>
                 <span className="text-xs text-muted-foreground">/kg</span>
+                {isLivePrice ? (
+                  <Badge variant="outline" className="text-[10px] gap-1 border-emerald-500/40 text-emerald-600">
+                    <TrendingUp className="h-3 w-3" />
+                    Live — LME{marketAluPriceDate ? ` as of ${new Date(marketAluPriceDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}` : ""}
+                  </Badge>
+                ) : (
+                  marketAluPricePerKg ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAluPriceEdited(false)
+                        setMarketAluPrice(marketAluPricePerKg.toFixed(2))
+                      }}
+                      className="text-[10px] text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                    >
+                      Reset to live (₹{marketAluPricePerKg.toFixed(2)})
+                    </button>
+                  ) : (
+                    <span className="text-[10px] text-amber-600">No live LME price tracked yet</span>
+                  )
+                )}
               </div>
             )}
             {pricingMode === "actual" && (

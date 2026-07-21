@@ -1,4 +1,5 @@
 import { getProducts } from "@/actions/bom"
+import { getCommodityHistory } from "@/actions/market-intel"
 import { PageHeader } from "@/components/shared/page-header"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
@@ -11,7 +12,15 @@ interface Props {
 
 export default async function ProductCostingPage({ searchParams }: Props) {
   const { product: selectedProductId } = await searchParams
-  const products = await getProducts()
+  const [products, commodities] = await Promise.all([
+    getProducts(),
+    getCommodityHistory(),
+  ])
+
+  const aluminium = commodities.find((c) => /aluminium|aluminum/i.test(c.name))
+  // commodity prices are tracked per MT; the costing calculator works in ₹/kg
+  const marketAluPricePerKg = aluminium?.latest ? aluminium.latest / 1000 : null
+  const marketAluPriceDate = aluminium?.latestDate ?? null
 
   return (
     <>
@@ -34,6 +43,8 @@ export default async function ProductCostingPage({ searchParams }: Props) {
       <ProductCostingCalculator
         products={products}
         initialProductId={selectedProductId}
+        marketAluPricePerKg={marketAluPricePerKg}
+        marketAluPriceDate={marketAluPriceDate}
       />
     </>
   )
