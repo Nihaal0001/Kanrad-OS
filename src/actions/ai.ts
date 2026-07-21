@@ -172,11 +172,14 @@ Return your response as a JSON array (no markdown, no code fences, just raw JSON
 ]
 
 Valid routes:
-- /orders/new, /orders, /inventory, /inventory/purchase-orders/new
+- /orders/new, /orders, /inventory, /inventory/purchase-orders
 - /production, /warehouse, /tasks, /hr/attendance, /hr/payroll, /hr/leaves
 - /finance/invoices/new, /finance/invoices, /finance/costing, /finance/cash-flow
 
-Prioritize urgent items: low stock → create PO, deadline risk → check production, pending leaves → review, etc.`
+Purchase orders can only be raised from an affected order's detail page (Material Shortage
+section), not from a standalone "new PO" page — that page no longer exists.
+
+Prioritize urgent items: low stock → point to the affected order to raise a PO, deadline risk → check production, pending leaves → review, etc.`
 
 let suggestionsCache: { data: Suggestion[]; timestamp: number } | null = null
 const SUGGESTIONS_TTL = 30 * 60 * 1000 // 30 minutes

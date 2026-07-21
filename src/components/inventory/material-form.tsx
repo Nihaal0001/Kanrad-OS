@@ -64,6 +64,7 @@ export function MaterialForm({ material, categories }: MaterialFormProps) {
       unit: material?.unit ?? "meters",
       min_stock_level: material?.min_stock_level ?? 0,
       cost_per_unit: material?.cost_per_unit ?? 0,
+      max_price: material?.max_price ?? null,
       supplier_name: material?.supplier_name ?? "",
       supplier_contact: material?.supplier_contact ?? "",
       location: material?.location ?? "",
@@ -210,12 +211,9 @@ export function MaterialForm({ material, categories }: MaterialFormProps) {
               </Select>
             </div>
 
-            {/* Cost per unit — price ceiling */}
+            {/* Cost per unit — current/costing price */}
             <div className="space-y-2">
-              <Label htmlFor="cost_per_unit" className="flex items-center gap-1.5">
-                <Lock className="h-3.5 w-3.5 text-muted-foreground" />
-                Max Purchase Price (₹)
-              </Label>
+              <Label htmlFor="cost_per_unit">Cost per Unit (₹)</Label>
               <Input
                 id="cost_per_unit"
                 type="number"
@@ -224,11 +222,35 @@ export function MaterialForm({ material, categories }: MaterialFormProps) {
                 {...form.register("cost_per_unit", { valueAsNumber: true })}
               />
               <p className="text-xs text-muted-foreground">
-                Purchase Orders cannot exceed this price per unit.
+                Used for BOM/product costing. Auto-updated to the price of the last purchase order raised.
               </p>
               {form.formState.errors.cost_per_unit && (
                 <p className="text-sm text-destructive">
                   {form.formState.errors.cost_per_unit.message}
+                </p>
+              )}
+            </div>
+
+            {/* Max price — hard ceiling for purchase orders */}
+            <div className="space-y-2">
+              <Label htmlFor="max_price" className="flex items-center gap-1.5">
+                <Lock className="h-3.5 w-3.5 text-muted-foreground" />
+                Max Purchase Price (₹)
+              </Label>
+              <Input
+                id="max_price"
+                type="number"
+                min={0}
+                step="0.01"
+                placeholder="No ceiling"
+                {...form.register("max_price", { setValueAs: numberOrNull })}
+              />
+              <p className="text-xs text-muted-foreground">
+                Purchase orders can never exceed this price per unit. Leave blank for no ceiling.
+              </p>
+              {form.formState.errors.max_price && (
+                <p className="text-sm text-destructive">
+                  {form.formState.errors.max_price.message}
                 </p>
               )}
             </div>

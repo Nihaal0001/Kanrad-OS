@@ -448,19 +448,22 @@ export async function createPurchaseOrder(formData: PurchaseOrderFormData) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: "Not authenticated" }
 
-  // Enforce master inventory price ceiling on all items
+  // Enforce master inventory price ceiling on all items. This is checked
+  // against materials.max_price — an admin-set ceiling — never against
+  // cost_per_unit, since cost_per_unit itself gets overwritten to the last
+  // PO price below and would make the ceiling self-referential.
   const materialIds = validated.items.map((i) => i.material_id).filter(Boolean)
   if (materialIds.length > 0) {
     const { data: materials } = await supabase
       .from("materials")
-      .select("id, name, cost_per_unit")
+      .select("id, name, max_price")
       .in("id", materialIds)
 
     for (const item of validated.items) {
       const mat = (materials ?? []).find((m) => m.id === item.material_id)
-      if (mat && mat.cost_per_unit > 0 && item.unit_price > mat.cost_per_unit) {
+      if (mat && mat.max_price != null && mat.max_price > 0 && item.unit_price > mat.max_price) {
         return {
-          error: `Unit price for "${mat.name}" (₹${item.unit_price}) exceeds the master inventory price ceiling of ₹${mat.cost_per_unit}.`,
+          error: `Unit price for "${mat.name}" (₹${item.unit_price}) exceeds the max purchase price of ₹${mat.max_price}.`,
         }
       }
     }
@@ -505,9 +508,8 @@ export async function createPurchaseOrder(formData: PurchaseOrderFormData) {
   }
 
   // BOM/product costing reads materials.cost_per_unit, so keep it pinned to
-  // the price of the last PO raised for each material — the price ceiling
-  // check above still runs first (against the pre-update value), so this
-  // can only ratchet down/hold, never let a PO past the last approved price.
+  // the price of the last PO raised for each material. This is independent
+  // of the max_price ceiling checked above.
   for (const item of items) {
     if (!item.material_id) continue
     await supabase.from("materials").update({ cost_per_unit: item.unit_price }).eq("id", item.material_id)

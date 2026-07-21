@@ -63,6 +63,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
       unit: m.unit,
       shortage: m.shortage,
       cost_per_unit: m.cost_per_unit,
+      max_price: m.max_price,
     }))
 
   const totalQuantity = order.order_items?.reduce(

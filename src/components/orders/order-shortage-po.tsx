@@ -26,6 +26,7 @@ export interface ShortageMaterial {
   unit: string
   shortage: number
   cost_per_unit: number
+  max_price: number | null
 }
 
 interface OrderShortagePOProps {
@@ -122,6 +123,7 @@ export function OrderShortagePO({ orderId, shortages }: OrderShortagePOProps) {
           const row = rows[s.id]
           const maxQty = Math.round(s.shortage * (1 + MAX_OVER_ORDER_PCT / 100) * 1000) / 1000
           const qtyInvalid = row.quantity <= 0 || row.quantity > maxQty
+          const priceInvalid = !!s.max_price && s.max_price > 0 && row.price > s.max_price
           const amount = row.price * row.quantity
 
           return (
@@ -195,7 +197,13 @@ export function OrderShortagePO({ orderId, shortages }: OrderShortagePOProps) {
                         step="0.01"
                         value={row.price}
                         onChange={(e) => updateRow(s.id, { price: Number(e.target.value) || 0 })}
+                        className={priceInvalid ? "border-destructive" : undefined}
                       />
+                      {s.max_price != null && s.max_price > 0 && (
+                        <p className={`text-[11px] ${priceInvalid ? "text-destructive font-medium" : "text-muted-foreground"}`}>
+                          Max ₹{s.max_price.toFixed(2)}/{s.unit}{priceInvalid && " — exceeds ceiling"}
+                        </p>
+                      )}
                     </div>
                   </div>
 
@@ -207,7 +215,7 @@ export function OrderShortagePO({ orderId, shortages }: OrderShortagePOProps) {
                     <Button
                       size="sm"
                       onClick={() => handleOrder(s)}
-                      disabled={row.submitting || qtyInvalid}
+                      disabled={row.submitting || qtyInvalid || priceInvalid}
                     >
                       <Lock className="h-3.5 w-3.5" />
                       {row.submitting ? "Raising…" : "Order This Item"}

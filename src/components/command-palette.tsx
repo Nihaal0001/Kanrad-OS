@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils"
 const QUICK_LINKS = [
   { label: "New Order", href: "/orders/new" },
   { label: "Mark Attendance", href: "/hr/attendance" },
-  { label: "New Purchase Order", href: "/inventory/purchase-orders/new" },
+  { label: "Purchase Orders", href: "/inventory/purchase-orders" },
   { label: "New Invoice", href: "/finance/invoices/new" },
   { label: "Production Overview", href: "/production" },
 ]

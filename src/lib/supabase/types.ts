@@ -119,6 +119,8 @@ export type Material = {
   current_stock: number
   min_stock_level: number
   cost_per_unit: number
+  /** Admin-set ceiling — purchase orders may never exceed this price */
+  max_price: number | null
   supplier_name: string | null
   supplier_contact: string | null
   location: string | null

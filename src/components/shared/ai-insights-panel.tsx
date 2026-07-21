@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils"
 
 const VALID_HREFS = new Set([
   "/orders", "/orders/new",
-  "/inventory", "/inventory/purchase-orders", "/inventory/purchase-orders/new",
+  "/inventory", "/inventory/purchase-orders",
   "/production", "/warehouse",
   "/tasks",
   "/finance/invoices", "/finance/invoices/new", "/finance/payments", "/finance/costing", "/finance/cash-flow",

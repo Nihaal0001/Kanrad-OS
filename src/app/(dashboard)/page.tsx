@@ -30,7 +30,7 @@ import { cn } from "@/lib/utils"
 const QUICK_ACTIONS = [
   { label: "New Order", href: "/orders/new", icon: Plus },
   { label: "Mark Attendance", href: "/hr/attendance", icon: ClipboardCheck },
-  { label: "New Purchase Order", href: "/inventory/purchase-orders/new", icon: Package },
+  { label: "Purchase Orders", href: "/inventory/purchase-orders", icon: Package },
   { label: "New Invoice", href: "/finance/invoices/new", icon: FileText },
 ]
 

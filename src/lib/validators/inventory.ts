@@ -7,6 +7,7 @@ export const materialSchema = z.object({
   unit: z.string().min(1, "Unit is required"),
   min_stock_level: z.number().min(0, "Cannot be negative"),
   cost_per_unit: z.number().min(0, "Cannot be negative"),
+  max_price: z.number().min(0, "Cannot be negative").nullable().optional(),
   supplier_name: z.string().max(200).optional().or(z.literal("")),
   supplier_contact: z.string().max(200).optional().or(z.literal("")),
   location: z.string().max(200).optional().or(z.literal("")),

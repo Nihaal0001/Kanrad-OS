@@ -68,7 +68,7 @@ export async function getQuickLinks() {
   return [
     { label: "New Order", href: "/orders/new", shortcut: "O" },
     { label: "Mark Attendance", href: "/hr/attendance", shortcut: "A" },
-    { label: "New Purchase Order", href: "/inventory/purchase-orders/new", shortcut: "P" },
+    { label: "Purchase Orders", href: "/inventory/purchase-orders", shortcut: "P" },
     { label: "New Invoice", href: "/finance/invoices/new", shortcut: "I" },
     { label: "New Task", href: "/tasks", shortcut: "T" },
     { label: "Production Overview", href: "/production", shortcut: null },
