@@ -77,6 +77,11 @@ export function WarehouseDispatchForm({ stock }: WarehouseDispatchFormProps) {
   const cartons = selected && selected.master_cartons != null && selected.quantity > 0
     ? Math.round((selected.master_cartons / selected.quantity) * quantity * 1000) / 1000
     : null
+  // The zod schema can't cap quantity against the selected order's stock —
+  // that number only exists once an order is picked, not at schema-definition
+  // time — so it's enforced here instead. Without this, the input silently
+  // accepted any quantity and only failed after "Ship" was clicked.
+  const exceedsAvailable = !!selected && quantity > selected.quantity
 
   function handleOpenChange(v: boolean) {
     if (v) form.reset(emptyDefaults)
@@ -92,6 +97,10 @@ export function WarehouseDispatchForm({ stock }: WarehouseDispatchFormProps) {
   }
 
   async function onSubmit(data: WarehouseDispatchFormData) {
+    if (selected && data.quantity > selected.quantity) {
+      form.setError("quantity", { message: `Cannot exceed ${selected.quantity} ${selected.unit} available` })
+      return
+    }
     const result = await shipWarehouseStock(data)
     if ("error" in result && result.error) {
       toast.error(friendlyError(result.error))
@@ -148,14 +157,20 @@ export function WarehouseDispatchForm({ stock }: WarehouseDispatchFormProps) {
                 step="0.01"
                 max={selected?.quantity}
                 disabled={!selected}
+                aria-invalid={exceedsAvailable}
+                className={exceedsAvailable ? "border-destructive focus-visible:ring-destructive" : undefined}
                 {...form.register("quantity", { valueAsNumber: true })}
               />
-              {cartons != null && (
+              {cartons != null && !exceedsAvailable && (
                 <p className="text-xs text-muted-foreground">≈ {formatCartons(cartons)} master cartons</p>
               )}
-              {form.formState.errors.quantity && (
+              {exceedsAvailable ? (
+                <p className="text-xs text-destructive">
+                  Cannot exceed {selected!.quantity} {selected!.unit} available
+                </p>
+              ) : form.formState.errors.quantity ? (
                 <p className="text-xs text-destructive">{form.formState.errors.quantity.message}</p>
-              )}
+              ) : null}
             </div>
             <div className="space-y-2">
               <Label>Value</Label>
@@ -215,7 +230,7 @@ export function WarehouseDispatchForm({ stock }: WarehouseDispatchFormProps) {
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={form.formState.isSubmitting || !selected}>
+            <Button type="submit" disabled={form.formState.isSubmitting || !selected || exceedsAvailable || quantity <= 0}>
               {form.formState.isSubmitting ? "Shipping..." : "Ship"}
             </Button>
           </div>

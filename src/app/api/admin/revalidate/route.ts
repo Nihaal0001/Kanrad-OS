@@ -6,9 +6,29 @@ export async function POST(req: NextRequest) {
   if (secret !== process.env.CRON_SECRET) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
-  revalidateTag("materials", {})
-  revalidateTag("categories", {})
-  revalidatePath("/inventory")
-  revalidatePath("/master-inventory")
+  for (const tag of [
+    "materials",
+    "categories",
+    "orders",
+    "bom",
+    "warehouse_items",
+    "shipments",
+    "purchase_orders",
+    "stock_transactions",
+  ]) {
+    revalidateTag(tag, {})
+  }
+  for (const path of [
+    "/inventory",
+    "/master-inventory",
+    "/inventory/purchase-orders",
+    "/orders",
+    "/products",
+    "/warehouse",
+    "/logistics",
+    "/",
+  ]) {
+    revalidatePath(path)
+  }
   return NextResponse.json({ success: true })
 }
