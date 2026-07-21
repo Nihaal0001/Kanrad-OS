@@ -117,7 +117,7 @@ export function OrderShortagePO({ orderId, shortages }: OrderShortagePOProps) {
           raised, nothing on it can be changed.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-5">
         {shortages.map((s) => {
           const row = rows[s.id]
           const maxQty = Math.round(s.shortage * (1 + MAX_OVER_ORDER_PCT / 100) * 1000) / 1000
@@ -127,13 +127,13 @@ export function OrderShortagePO({ orderId, shortages }: OrderShortagePOProps) {
           return (
             <div
               key={s.id}
-              className="rounded-lg border p-4 space-y-3"
+              className="rounded-lg border p-5 space-y-4"
             >
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <p className="text-sm font-medium">{s.name}</p>
-                  <p className="text-xs text-muted-foreground font-mono">{s.sku}</p>
-                  <p className="text-xs text-amber-600 mt-0.5">
+                  <p className="text-xs text-muted-foreground font-mono mt-0.5">{s.sku}</p>
+                  <p className="text-xs text-amber-600 mt-1">
                     Short by {s.shortage} {s.unit}
                   </p>
                 </div>
@@ -146,7 +146,7 @@ export function OrderShortagePO({ orderId, shortages }: OrderShortagePOProps) {
 
               {!row.done && (
                 <>
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                  <div className="grid gap-4 sm:grid-cols-3">
                     <div className="space-y-1.5">
                       <Label>Supplier *</Label>
                       <Input
@@ -169,6 +169,9 @@ export function OrderShortagePO({ orderId, shortages }: OrderShortagePOProps) {
                         onChange={(v) => updateRow(s.id, { expectedDate: v })}
                       />
                     </div>
+                  </div>
+
+                  <div className="grid gap-4 sm:grid-cols-2">
                     <div className="space-y-1.5">
                       <Label>Qty to Order ({s.unit})</Label>
                       <Input
@@ -196,7 +199,7 @@ export function OrderShortagePO({ orderId, shortages }: OrderShortagePOProps) {
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between pt-1">
                     <div className="text-sm">
                       <span className="text-muted-foreground mr-2">Amount</span>
                       <span className="font-semibold">{formatCurrency(amount)}</span>
