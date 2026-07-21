@@ -48,6 +48,7 @@ interface POReceipt {
   order_id: string | null
   quantity: number
   received_at: string
+  bill_no: string | null
 }
 
 interface POItem {
@@ -118,6 +119,9 @@ export function PurchaseOrderDetail({ po: initialPo, isAdmin }: PurchaseOrderDet
   const [receiveQuantities, setReceiveQuantities] = useState<Record<string, string>>(
     () => Object.fromEntries((initialPo.items ?? []).map((item) => [item.id, ""]))
   )
+  const [receiveBillNos, setReceiveBillNos] = useState<Record<string, string>>(
+    () => Object.fromEntries((initialPo.items ?? []).map((item) => [item.id, ""]))
+  )
   const linkedOrders = useMemo(() => po.linked_orders ?? [], [po.linked_orders])
   const [receiveForOrder, setReceiveForOrder] = useState<Record<string, string>>(
     () => Object.fromEntries((initialPo.items ?? []).map((item) => [item.id, linkedOrders.length === 1 ? linkedOrders[0].id : ""]))
@@ -157,11 +161,16 @@ export function PurchaseOrderDetail({ po: initialPo, isAdmin }: PurchaseOrderDet
         toast.error(`Cannot receive more than ${maxQty} (pending quantity)`)
         return
       }
+      const billNo = (receiveBillNos[itemId] ?? "").trim()
+      if (!billNo) {
+        toast.error("Enter the supplier's bill number")
+        return
+      }
 
       const orderId = receiveForOrder[itemId] || null
 
       setReceivingItemId(itemId)
-      const result = await receivePurchaseOrderItem(itemId, item.quantity_received + qty, po.id, qty, orderId)
+      const result = await receivePurchaseOrderItem(itemId, item.quantity_received + qty, po.id, qty, orderId, billNo)
       if ("error" in result && result.error) {
         toast.error(friendlyError(result.error))
         setReceivingItemId(null)
@@ -175,18 +184,19 @@ export function PurchaseOrderDetail({ po: initialPo, isAdmin }: PurchaseOrderDet
             ? {
                 ...i,
                 quantity_received: i.quantity_received + qty,
-                receipts: [...(i.receipts ?? []), { id: crypto.randomUUID(), order_id: orderId, quantity: qty, received_at: new Date().toISOString() }],
+                receipts: [...(i.receipts ?? []), { id: crypto.randomUUID(), order_id: orderId, quantity: qty, received_at: new Date().toISOString(), bill_no: billNo }],
               }
             : i
         ),
       }))
       setReceiveQuantities((prev) => ({ ...prev, [itemId]: "" }))
+      setReceiveBillNos((prev) => ({ ...prev, [itemId]: "" }))
       const orderLabel = linkedOrders.find((o) => o.id === orderId)?.order_number
       toast.success(`Received ${qty} ${item.material?.unit ?? "units"}${orderLabel ? ` for ${orderLabel}` : ""}`)
       setReceivingItemId(null)
       router.refresh()
     },
-    [po.id, receiveQuantities, receiveForOrder, linkedOrders, router]
+    [po.id, receiveQuantities, receiveBillNos, receiveForOrder, linkedOrders, router]
   )
 
   return (
@@ -316,6 +326,7 @@ export function PurchaseOrderDetail({ po: initialPo, isAdmin }: PurchaseOrderDet
                         return (
                           <span key={r.id} className="rounded-full bg-muted px-2 py-0.5">
                             {orderLabel ?? "unattributed"}: {r.quantity}
+                            {r.bill_no && <span className="ml-1 text-muted-foreground/70">· Bill #{r.bill_no}</span>}
                           </span>
                         )
                       })}
@@ -359,6 +370,17 @@ export function PurchaseOrderDetail({ po: initialPo, isAdmin }: PurchaseOrderDet
                             </Select>
                           </div>
                         )}
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">Supplier Bill No. *</Label>
+                          <Input
+                            value={receiveBillNos[item.id] ?? ""}
+                            onChange={(e) =>
+                              setReceiveBillNos((prev) => ({ ...prev, [item.id]: e.target.value }))
+                            }
+                            placeholder="e.g. INV-2451"
+                            className="h-9"
+                          />
+                        </div>
                         <div className="flex items-end gap-2">
                           <div className="flex-1 space-y-1">
                             <Label className="text-xs text-muted-foreground">
@@ -385,7 +407,7 @@ export function PurchaseOrderDetail({ po: initialPo, isAdmin }: PurchaseOrderDet
                           <Button
                             size="sm"
                             className="h-9"
-                            disabled={receivingItemId === item.id || !receiveQuantities[item.id]}
+                            disabled={receivingItemId === item.id || !receiveQuantities[item.id] || !(receiveBillNos[item.id] ?? "").trim()}
                             onClick={() => handleReceiveItem(item.id, item)}
                           >
                             {receivingItemId === item.id ? "Saving…" : "Receive"}

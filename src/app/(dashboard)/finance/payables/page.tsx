@@ -56,7 +56,12 @@ export default async function PayablesPage() {
                 <CardContent className="grid grid-cols-1 gap-2 p-4 sm:grid-cols-[1.3fr_1fr_1fr_1fr_1fr_100px] sm:items-center sm:gap-4">
                   <Link href={`/finance/purchases/${p.id}`} className="min-w-0">
                     <p className="text-sm font-medium">{p.supplier_name}</p>
-                    <p className="truncate text-xs text-muted-foreground">{p.invoice_number ?? "No supplier bill #"}</p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {p.invoice_number ?? (p.received_bill_nos.length > 0 ? p.received_bill_nos.join(", ") : "No supplier bill #")}
+                    </p>
+                    {p.invoice_number && p.received_bill_nos.length > 0 && !p.received_bill_nos.includes(p.invoice_number) && (
+                      <p className="truncate text-xs text-muted-foreground/70">Bill on receipt: {p.received_bill_nos.join(", ")}</p>
+                    )}
                   </Link>
                   <p className="font-mono text-sm text-muted-foreground">{p.po_number ?? "--"}</p>
                   <p className="text-sm text-muted-foreground">{formatDate(p.invoice_date)}</p>

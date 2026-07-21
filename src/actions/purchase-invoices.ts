@@ -88,7 +88,40 @@ export async function getPayables() {
       }
     })
 
-  return outstanding
+  // Attach the supplier bill numbers entered while receiving stock against the
+  // linked PO, so a payable is traceable to a bill even if invoice_number was
+  // left blank on the (separately-entered) purchase invoice itself.
+  const poIds = [...new Set(outstanding.map((o) => o.purchase_order_id).filter(Boolean))] as string[]
+  const billNosByPo = new Map<string, string[]>()
+  if (poIds.length > 0) {
+    const { data: items } = await supabase
+      .from("purchase_order_items")
+      .select("id, purchase_order_id")
+      .in("purchase_order_id", poIds)
+    const itemIds = (items ?? []).map((i) => i.id)
+    const itemToPo = new Map((items ?? []).map((i) => [i.id, i.purchase_order_id]))
+
+    if (itemIds.length > 0) {
+      const { data: receipts } = await supabase
+        .from("purchase_order_receipts")
+        .select("purchase_order_item_id, bill_no")
+        .in("purchase_order_item_id", itemIds)
+        .not("bill_no", "is", null)
+
+      for (const r of receipts ?? []) {
+        const poId = itemToPo.get(r.purchase_order_item_id)
+        if (!poId || !r.bill_no) continue
+        const list = billNosByPo.get(poId) ?? []
+        if (!list.includes(r.bill_no)) list.push(r.bill_no)
+        billNosByPo.set(poId, list)
+      }
+    }
+  }
+
+  return outstanding.map((o) => ({
+    ...o,
+    received_bill_nos: o.purchase_order_id ? billNosByPo.get(o.purchase_order_id) ?? [] : [],
+  }))
 }
 
 export async function getPurchaseInvoice(id: string) {

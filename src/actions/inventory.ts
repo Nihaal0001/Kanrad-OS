@@ -419,7 +419,7 @@ export async function getPurchaseOrder(id: string) {
           items:purchase_order_items(
             *,
             material:materials(id, name, sku, unit, diameter_mm, thickness_mm, circle_type),
-            receipts:purchase_order_receipts(id, order_id, quantity, received_at)
+            receipts:purchase_order_receipts(id, order_id, quantity, received_at, bill_no)
           ),
           linked_orders:purchase_order_orders(order:orders(id, order_number, product_variant))
         `)
@@ -562,13 +562,18 @@ export async function receivePurchaseOrderItem(
   quantityReceived: number,
   poId: string,
   receivedNow: number,
-  orderId?: string | null
+  orderId?: string | null,
+  billNo?: string
 ) {
   const supabase = await createClient()
   const admin = createAdminClient()
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: "Not authenticated" }
+
+  if (receivedNow > 0 && !billNo?.trim()) {
+    return { error: "Enter the supplier's bill number before receiving stock." }
+  }
 
   // Update the received quantity
   const { data: item, error: itemError } = await supabase
@@ -586,6 +591,7 @@ export async function receivePurchaseOrderItem(
       purchase_order_item_id: itemId,
       order_id: orderId || null,
       quantity: receivedNow,
+      bill_no: billNo!.trim(),
     })
     if (receiptError) return { error: receiptError.message }
   }
