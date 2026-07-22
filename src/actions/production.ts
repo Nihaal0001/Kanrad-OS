@@ -392,7 +392,10 @@ export async function logDailyProduction(data: {
   // Costing must be done before production can be logged against an order —
   // mirrors the draft → confirmed gate in updateOrderStatus, but enforced
   // here directly since this is the actual write path production uses.
-  const { data: costing } = await supabase
+  // Uses the admin client because order_costings' RLS is finance/admin-only
+  // — production staff logging a batch aren't finance, so the session client
+  // would always read back null here even when a costing exists.
+  const { data: costing } = await createAdminClient()
     .from("order_costings")
     .select("id")
     .eq("order_id", data.order_id)

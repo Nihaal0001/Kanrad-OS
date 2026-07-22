@@ -193,9 +193,12 @@ export async function updateOrderStatus(id: string, status: string) {
   if (!user) return { error: "Not authenticated" }
 
   // Costing must be done before an order leaves draft — enforced server-side
-  // so this can't be bypassed by calling the action directly.
+  // so this can't be bypassed by calling the action directly. Uses the admin
+  // client because order_costings' RLS is finance/admin-only — this is just
+  // an existence check, not exposing the actual cost figures to whoever is
+  // confirming the order.
   if (status === "confirmed") {
-    const { data: costing } = await supabase
+    const { data: costing } = await createAdminClient()
       .from("order_costings")
       .select("id")
       .eq("order_id", id)
