@@ -37,7 +37,7 @@ export async function getInvoices(filters?: { status?: string }) {
   )()
 }
 
-/** Outstanding customer invoices — money owed to Kanrad, with any shipment bill it came from. */
+/** Outstanding customer invoices — money owed to Kanrad, grouped by the dispatch bill number. */
 export const getReceivables = unstable_cache(
   async () => {
     const supabase = createAdminClient()
@@ -50,23 +50,14 @@ export const getReceivables = unstable_cache(
     if (error) throw new Error(error.message)
 
     const outstanding = (invoices ?? []).filter((inv) => inv.total_amount - inv.amount_paid > 0.01)
-    if (outstanding.length === 0) return []
-
-    const { data: shipments } = await supabase
-      .from("shipments")
-      .select("invoice_id, bill_no")
-      .in("invoice_id", outstanding.map((i) => i.id))
-
-    const billByInvoice = new Map((shipments ?? []).map((s) => [s.invoice_id, s.bill_no]))
 
     return outstanding.map((inv) => ({
       ...inv,
       amount_due: Math.round((inv.total_amount - inv.amount_paid) * 100) / 100,
-      bill_no: billByInvoice.get(inv.id) ?? null,
     }))
   },
   ["receivables"],
-  { tags: ["invoices", "shipments"], revalidate: 60 }
+  { tags: ["invoices"], revalidate: 60 }
 )
 
 export async function getInvoice(id: string) {
@@ -349,6 +340,7 @@ export async function createPayment(formData: PaymentFormData) {
   revalidateTag("invoices", {})
   revalidatePath("/finance/payments")
   revalidatePath("/finance/invoices")
+  revalidatePath("/finance/receivables")
   revalidatePath("/finance/cash-flow")
   revalidatePath("/finance")
   await logAudit({ entityType: "payment", entityId: data.id, action: "created", newValues: { amount: validated.amount, method: validated.method, invoice_id: validated.invoice_id } })

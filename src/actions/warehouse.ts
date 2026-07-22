@@ -15,8 +15,6 @@ export async function getWarehouseItems(filters?: { status?: string; location?: 
       let query = supabase
         .from("warehouse_items")
         .select("*")
-        // Pushed items move to Logistics' ship queue and drop out of the warehouse view.
-        .eq("pushed_to_logistics", false)
         .order("created_at", { ascending: false })
 
       if (filters?.status) query = query.eq("status", filters.status)
@@ -73,48 +71,21 @@ export const getWarehouseLocations = unstable_cache(
 
 // ── Mutations ────────────────────────────────────────────────
 
-/** Queue a warehouse item for shipping — it shows up in Logistics' ship queue,
- *  where the bill no., customer name/contact, and transporter get filled in. */
-export async function pushToLogistics(warehouseItemId: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: "Not authenticated" }
-
-  const admin = createAdminClient()
-  const { data: item, error: itemError } = await admin
-    .from("warehouse_items")
-    .select("id, status, quantity, order_id")
-    .eq("id", warehouseItemId)
-    .maybeSingle()
-
-  if (itemError) return { error: itemError.message }
-  if (!item) return { error: "Warehouse item not found." }
-  if (item.status !== "in_warehouse" || item.quantity <= 0) {
-    return { error: "This item has no stock left to ship." }
-  }
-  if (!item.order_id) {
-    return { error: "This item has no linked order — it can't be shipped through Logistics." }
-  }
-
-  const { error } = await admin
-    .from("warehouse_items")
-    .update({ pushed_to_logistics: true, pushed_at: new Date().toISOString() })
-    .eq("id", warehouseItemId)
-
-  if (error) return { error: error.message }
-
-  revalidateTag("warehouse_items", {})
-  revalidatePath("/warehouse")
-  revalidatePath("/logistics")
-  return { success: true }
+function addDays(dateStr: string, days: number): string {
+  const d = new Date(dateStr)
+  d.setDate(d.getDate() + days)
+  return d.toISOString().split("T")[0]
 }
 
 /**
  * Dispatch a quantity of a SKU straight out of the warehouse under a bill
  * number — not tied to a single customer order (stock for one SKU can come
  * from several orders' production runs). Consumes the oldest stock first
- * across all in-warehouse rows for that SKU and logs a warehouse_dispatches
- * row per row consumed, for traceability back to the originating order(s).
+ * across all in-warehouse rows for that SKU, logs a warehouse_dispatches row
+ * per row consumed, and — for whatever portion is linked to a customer order —
+ * finds or creates a sales invoice for that customer + bill number (adding a
+ * line item to it), so it shows up in Finance → Receivables. Stock with no
+ * linked order still dispatches, it just can't be invoiced.
  */
 export async function dispatchWarehouseSku(formData: WarehouseSkuDispatchFormData) {
   const validated = warehouseSkuDispatchSchema.parse(formData)
@@ -126,10 +97,9 @@ export async function dispatchWarehouseSku(formData: WarehouseSkuDispatchFormDat
 
   const { data: rows, error: rowsError } = await admin
     .from("warehouse_items")
-    .select("id, quantity, order_id")
+    .select("id, item_name, sku, quantity, order_id")
     .eq("sku", validated.sku)
     .eq("status", "in_warehouse")
-    .eq("pushed_to_logistics", false)
     .gt("quantity", 0)
     .order("entry_date", { ascending: true })
 
@@ -142,6 +112,9 @@ export async function dispatchWarehouseSku(formData: WarehouseSkuDispatchFormDat
 
   let remaining = validated.quantity
   const today = new Date().toISOString().split("T")[0]
+  // Consumed quantity per order, so each order gets exactly one invoice line
+  // even if its stock is split across several warehouse rows.
+  const consumedByOrder = new Map<string, number>()
 
   for (const row of rows ?? []) {
     if (remaining <= 0) break
@@ -168,10 +141,82 @@ export async function dispatchWarehouseSku(formData: WarehouseSkuDispatchFormDat
     })
     if (dispatchError) return { error: dispatchError.message }
 
+    if (row.order_id) {
+      consumedByOrder.set(row.order_id, (consumedByOrder.get(row.order_id) ?? 0) + consume)
+    }
     remaining -= consume
   }
 
+  // Invoice whatever portion is attributable to a customer order.
+  for (const [orderId, qty] of consumedByOrder) {
+    const { data: order } = await admin
+      .from("orders")
+      .select("id, order_number, customer_id, gst_rate")
+      .eq("id", orderId)
+      .single()
+    if (!order?.customer_id) continue
+
+    const { data: customer } = await admin
+      .from("customers")
+      .select("id, name, address, gstin, payment_terms")
+      .eq("id", order.customer_id)
+      .single()
+    if (!customer) continue
+
+    const { data: orderItems } = await admin
+      .from("order_items")
+      .select("quantity, unit_price")
+      .eq("order_id", orderId)
+    const totalQty = (orderItems ?? []).reduce((s, i) => s + i.quantity, 0)
+    const totalValue = (orderItems ?? []).reduce((s, i) => s + i.quantity * i.unit_price, 0)
+    const avgUnitPrice = totalQty > 0 ? totalValue / totalQty : 0
+
+    const { data: existingInvoice } = await admin
+      .from("invoices")
+      .select("id")
+      .eq("customer_id", customer.id)
+      .eq("bill_no", validated.bill_no)
+      .neq("status", "cancelled")
+      .maybeSingle()
+
+    let invoiceId: string | null = existingInvoice?.id ?? null
+    if (!invoiceId) {
+      const { data: newInvoice, error: invoiceError } = await admin
+        .from("invoices")
+        .insert({
+          order_id: order.id,
+          customer_id: customer.id,
+          customer_name: customer.name,
+          customer_address: customer.address || null,
+          customer_gst: customer.gstin || null,
+          tax_rate: order.gst_rate ?? 18,
+          issue_date: today,
+          due_date: addDays(today, customer.payment_terms ?? 30),
+          status: "sent",
+          bill_no: validated.bill_no,
+          notes: `Dispatch bill ${validated.bill_no} — order ${order.order_number}`,
+        })
+        .select("id")
+        .single()
+      if (invoiceError) return { error: invoiceError.message }
+      invoiceId = newInvoice.id
+    }
+
+    const rowForSku = (rows ?? []).find((r) => r.order_id === orderId)
+    const description = rowForSku?.sku ? `${rowForSku.item_name} (${rowForSku.sku})` : rowForSku?.item_name ?? validated.sku
+
+    await admin.from("invoice_items").insert({
+      invoice_id: invoiceId,
+      description,
+      quantity: qty,
+      unit_price: avgUnitPrice,
+    })
+  }
+
   revalidateTag("warehouse_items", {})
+  revalidateTag("invoices", {})
   revalidatePath("/warehouse")
+  revalidatePath("/finance/invoices")
+  revalidatePath("/finance/receivables")
   return { success: true }
 }

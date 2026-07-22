@@ -16,7 +16,6 @@ import {
   ShoppingCart,
   IndianRupee,
   History,
-  Truck,
   Warehouse,
   XCircle,
   AlertTriangle,
@@ -109,7 +108,6 @@ export const flatNavItems: NavItem[] = [
   { title: "BOM",              href: "/products",                  icon: Grid2x2,         permission: "inventory" },
   { title: "Approvals",        href: "/inventory/approvals",       icon: ClipboardCheck,  permission: "inventory" },
   { title: "Costing",          href: "/finance/costing",           icon: Calculator,      permission: "finance" },
-  { title: "Logistics",        href: "/logistics",                 icon: Truck,           permission: "orders" },
   { title: "Finance",          href: "/finance",                   icon: IndianRupee,     permission: "finance" },
   { title: "Receivables",      href: "/finance/receivables",       icon: Wallet2,         permission: "finance" },
   { title: "Payables",         href: "/finance/payables",          icon: Wallet,          permission: "finance" },
@@ -156,7 +154,6 @@ export const navigation: NavSection[] = [
     items: [
       { title: "Orders",           href: "/orders",                    icon: ShoppingBag,  permission: "orders" },
       { title: "Production",       href: "/production",                icon: Factory,      permission: "production" },
-      { title: "Logistics",        href: "/logistics",                 icon: Truck,        permission: "orders" },
       { title: "Rejections",       href: "/rejections",                icon: XCircle,      permission: "production" },
       { title: "Master Inventory", href: "/master-inventory",          icon: Package,      permission: "inventory" },
       { title: "Inventory",        href: "/inventory",                 icon: Archive,      permission: "inventory" },

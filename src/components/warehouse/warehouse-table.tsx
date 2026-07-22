@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { Send, ChevronDown, ChevronRight, PackageOpen } from "lucide-react"
 
-import { pushToLogistics, dispatchWarehouseSku } from "@/actions/warehouse"
+import { dispatchWarehouseSku } from "@/actions/warehouse"
 import { formatDate, friendlyError } from "@/lib/utils"
 import { formatCartons } from "@/lib/master-cartons"
 import { StatusBadge } from "@/components/shared/status-badge"
@@ -125,7 +125,6 @@ export function WarehouseTable({ items, locations }: WarehouseTableProps) {
   const router = useRouter()
   const [statusFilter, setStatusFilter] = useState("all")
   const [locationFilter, setLocationFilter] = useState("all")
-  const [pushingId, setPushingId] = useState<string | null>(null)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
 
   const [dispatchGroup, setDispatchGroup] = useState<SkuGroup | null>(null)
@@ -150,18 +149,6 @@ export function WarehouseTable({ items, locations }: WarehouseTableProps) {
       else next.add(key)
       return next
     })
-  }
-
-  async function handlePush(id: string) {
-    setPushingId(id)
-    const result = await pushToLogistics(id)
-    setPushingId(null)
-    if ("error" in result && result.error) {
-      toast.error(friendlyError(result.error))
-      return
-    }
-    toast.success("Pushed to Logistics")
-    router.refresh()
   }
 
   function openDispatch(group: SkuGroup) {
@@ -325,18 +312,6 @@ export function WarehouseTable({ items, locations }: WarehouseTableProps) {
                                           <span className="tabular-nums font-medium">{row.quantity} {row.unit}</span>
                                           <span className="text-xs text-muted-foreground">{formatDate(row.entry_date)}</span>
                                         </div>
-                                        {row.status === "in_warehouse" && row.order_id && (
-                                          <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="h-7 gap-1 text-xs shrink-0"
-                                            disabled={pushingId === row.id}
-                                            onClick={() => handlePush(row.id)}
-                                          >
-                                            <Send className="h-3 w-3" />
-                                            {pushingId === row.id ? "Pushing…" : "Push to Logistics"}
-                                          </Button>
-                                        )}
                                       </div>
                                     ))}
                                   </div>
