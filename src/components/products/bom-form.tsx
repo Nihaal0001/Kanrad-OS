@@ -180,6 +180,7 @@ export function BomForm({ product, materials }: BomFormProps) {
     defaultValues: {
       product_sku: product?.product_sku ?? "",
       product_name: product?.product_name ?? "",
+      brand: product?.brand ?? "",
       category: product?.category ?? "",
       notes: product?.notes ?? "",
       items: product?.bom_items?.map((item) => ({
@@ -247,7 +248,7 @@ export function BomForm({ product, materials }: BomFormProps) {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-4">
             <div className="space-y-2">
               <Label htmlFor="product_sku">Product SKU</Label>
               <Input
@@ -268,6 +269,17 @@ export function BomForm({ product, materials }: BomFormProps) {
               />
               {form.formState.errors.product_name && (
                 <p className="text-sm text-destructive">{form.formState.errors.product_name.message}</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="brand">Brand</Label>
+              <Input
+                id="brand"
+                placeholder="e.g., Deepam"
+                {...form.register("brand")}
+              />
+              {form.formState.errors.brand && (
+                <p className="text-sm text-destructive">{form.formState.errors.brand.message}</p>
               )}
             </div>
             <div className="space-y-2">

@@ -72,6 +72,7 @@ export type BomHeader = {
   id: string
   product_sku: string
   product_name: string
+  brand: string | null
   category: string | null
   version: number
   is_active: boolean

@@ -11,6 +11,7 @@ export const bomItemSchema = z.object({
 export const bomSchema = z.object({
   product_sku: z.string().min(1, "Product SKU is required").max(50),
   product_name: z.string().min(1, "Product name is required").max(200),
+  brand: z.string().min(1, "Brand is required").max(100),
   category: z.string().max(100).optional().or(z.literal("")),
   notes: z.string().max(1000).optional().or(z.literal("")),
   items: z.array(bomItemSchema).min(1, "At least one material is required"),

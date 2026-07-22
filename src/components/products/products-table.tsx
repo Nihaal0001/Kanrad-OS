@@ -21,6 +21,7 @@ interface ProductRow {
   id: string
   product_sku: string
   product_name: string
+  brand: string | null
   category: string | null
   bom_items: unknown[]
   materialCost: number
@@ -40,6 +41,7 @@ export function ProductsTable({ products }: { products: ProductRow[] }) {
       (p) =>
         p.product_sku.toLowerCase().includes(q) ||
         p.product_name.toLowerCase().includes(q) ||
+        p.brand?.toLowerCase().includes(q) ||
         p.category?.toLowerCase().includes(q)
     )
   }, [products, search])
@@ -73,6 +75,7 @@ export function ProductsTable({ products }: { products: ProductRow[] }) {
                 <TableRow className="bg-muted/40">
                   <TableHead>SKU</TableHead>
                   <TableHead>Product Name</TableHead>
+                  <TableHead>Brand</TableHead>
                   <TableHead>Category</TableHead>
                   <TableHead className="text-center">Materials</TableHead>
                   <TableHead className="text-right">BOM Cost / Unit</TableHead>
@@ -91,6 +94,13 @@ export function ProductsTable({ products }: { products: ProductRow[] }) {
                       <Link href={`/products/${p.id}`} className="font-medium hover:underline">
                         {p.product_name}
                       </Link>
+                    </TableCell>
+                    <TableCell>
+                      {p.brand ? (
+                        <Badge variant="outline">{p.brand}</Badge>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       {p.category ? (

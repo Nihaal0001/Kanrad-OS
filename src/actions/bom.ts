@@ -103,6 +103,7 @@ export async function createProduct(formData: BomFormData) {
     .insert({
       product_sku: validated.product_sku,
       product_name: validated.product_name,
+      brand: validated.brand,
       category: validated.category || null,
       notes: validated.notes || null,
       created_by: profile?.id ?? null,
@@ -160,6 +161,7 @@ export async function updateProduct(id: string, formData: BomFormData) {
     .update({
       product_sku: validated.product_sku,
       product_name: validated.product_name,
+      brand: validated.brand,
       category: validated.category || null,
       notes: validated.notes || null,
     })
