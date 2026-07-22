@@ -439,6 +439,7 @@ export async function createPurchasePayment(formData: PurchasePaymentFormData) {
   if (error) return { error: error.message }
 
   revalidatePath("/finance/purchases")
+  revalidatePath("/finance/payables")
   revalidatePath("/finance/cash-flow")
   revalidatePath("/finance")
   await logAudit({
@@ -465,6 +466,7 @@ export async function deletePurchasePayment(id: string) {
   if (error) return { error: error.message }
 
   revalidatePath("/finance/purchases")
+  revalidatePath("/finance/payables")
   revalidatePath("/finance/cash-flow")
   revalidatePath("/finance")
   await logAudit({ entityType: "purchase_payment", entityId: id, action: "deleted" })
