@@ -391,10 +391,12 @@ export const getOrderCostings = unstable_cache(
   { tags: ["order_costings"], revalidate: 60 }
 )
 
-/** Lightweight check used to gate the draft → confirmed transition (costing must be done first). */
+/** Lightweight check used to gate the draft → confirmed transition (costing must be done first).
+ *  Uses the admin client because order_costings' RLS is finance/admin-only —
+ *  this only needs a yes/no existence answer, not the actual cost figures. */
 export async function hasOrderCosting(orderId: string): Promise<boolean> {
-  const supabase = await createClient()
-  const { data } = await supabase
+  const admin = createAdminClient()
+  const { data } = await admin
     .from("order_costings")
     .select("id")
     .eq("order_id", orderId)
