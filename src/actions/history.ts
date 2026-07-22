@@ -89,3 +89,45 @@ export const getHistoryFinance = unstable_cache(
   ["history-finance"],
   { tags: ["invoices"], revalidate: 60 }
 )
+
+/** Purchase invoices (payables) that have been fully paid off. */
+export const getHistoryPayables = unstable_cache(
+  async () => {
+    const supabase = createAdminClient()
+    const { data, error } = await supabase
+      .from("purchase_invoices")
+      .select("id, invoice_number, supplier_name, total_amount, amount_paid, status, invoice_date, created_at")
+      .eq("status", "paid")
+      .order("created_at", { ascending: false })
+
+    if (error) throw new Error(error.message)
+    return data ?? []
+  },
+  ["history-payables"],
+  { tags: ["purchase_invoices"], revalidate: 60 }
+)
+
+/** Every warehouse dispatch (SKU-wise, with bill number) that's gone out. */
+export const getHistoryDispatches = unstable_cache(
+  async () => {
+    const supabase = createAdminClient()
+    const { data, error } = await supabase
+      .from("warehouse_dispatches")
+      .select(`
+        id, quantity, bill_no, dispatched_at, notes, created_at,
+        warehouse_item:warehouse_items(item_name, sku),
+        order:orders(order_number)
+      `)
+      .order("dispatched_at", { ascending: false })
+
+    if (error) throw new Error(error.message)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (data ?? []).map((d: any) => ({
+      ...d,
+      warehouse_item: Array.isArray(d.warehouse_item) ? d.warehouse_item[0] ?? null : d.warehouse_item,
+      order: Array.isArray(d.order) ? d.order[0] ?? null : d.order,
+    }))
+  },
+  ["history-dispatches"],
+  { tags: ["warehouse_items"], revalidate: 60 }
+)

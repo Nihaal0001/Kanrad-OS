@@ -65,12 +65,36 @@ interface HistoryTransaction {
   created_at: string
 }
 
+interface HistoryPayable {
+  id: string
+  invoice_number: string | null
+  supplier_name: string | null
+  total_amount: number | null
+  amount_paid: number | null
+  status: string | null
+  invoice_date: string | null
+  created_at: string
+}
+
+interface HistoryDispatch {
+  id: string
+  quantity: number
+  bill_no: string | null
+  dispatched_at: string
+  notes: string | null
+  created_at: string
+  warehouse_item: { item_name: string; sku: string | null } | null
+  order: { order_number: string } | null
+}
+
 interface HistoryTabsProps {
   orders: HistoryOrder[]
   batches: HistoryBatch[]
   purchaseOrders: HistoryPO[]
   shipments: HistoryShipment[]
   transactions: HistoryTransaction[]
+  payables: HistoryPayable[]
+  dispatches: HistoryDispatch[]
 }
 
 // ── Empty row ───────────────────────────────────────────────
@@ -287,6 +311,86 @@ function FinanceTab({ transactions }: { transactions: HistoryTransaction[] }) {
   )
 }
 
+function PayablesTab({ payables }: { payables: HistoryPayable[] }) {
+  return (
+    <div className="rounded-lg border border-border">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Bill / Invoice #</TableHead>
+            <TableHead>Supplier</TableHead>
+            <TableHead className="text-right">Total</TableHead>
+            <TableHead className="text-right">Paid</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Date</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {payables.length === 0 ? (
+            <EmptyRow cols={6} />
+          ) : (
+            payables.map((p) => (
+              <TableRow key={p.id}>
+                <TableCell className="font-mono text-xs">{p.invoice_number ?? "--"}</TableCell>
+                <TableCell>{p.supplier_name ?? "--"}</TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {p.total_amount !== null ? formatCurrency(p.total_amount) : "--"}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {p.amount_paid !== null ? formatCurrency(p.amount_paid) : "--"}
+                </TableCell>
+                <TableCell>
+                  {p.status && <StatusBadge status={p.status} />}
+                </TableCell>
+                <TableCell className="text-sm">
+                  {p.invoice_date ? formatDate(p.invoice_date) : formatDate(p.created_at)}
+                </TableCell>
+              </TableRow>
+            ))
+          )}
+        </TableBody>
+      </Table>
+    </div>
+  )
+}
+
+function DispatchesTab({ dispatches }: { dispatches: HistoryDispatch[] }) {
+  return (
+    <div className="rounded-lg border border-border">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Item</TableHead>
+            <TableHead>SKU</TableHead>
+            <TableHead>Order #</TableHead>
+            <TableHead className="text-right">Qty</TableHead>
+            <TableHead>Bill No.</TableHead>
+            <TableHead>Date</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {dispatches.length === 0 ? (
+            <EmptyRow cols={6} />
+          ) : (
+            dispatches.map((d) => (
+              <TableRow key={d.id}>
+                <TableCell>{d.warehouse_item?.item_name ?? "--"}</TableCell>
+                <TableCell className="font-mono text-xs text-muted-foreground">
+                  {d.warehouse_item?.sku ?? "--"}
+                </TableCell>
+                <TableCell className="font-mono text-xs">{d.order?.order_number ?? "--"}</TableCell>
+                <TableCell className="text-right tabular-nums">{d.quantity}</TableCell>
+                <TableCell className="font-mono text-xs">{d.bill_no ?? "--"}</TableCell>
+                <TableCell className="text-sm">{formatDate(d.dispatched_at)}</TableCell>
+              </TableRow>
+            ))
+          )}
+        </TableBody>
+      </Table>
+    </div>
+  )
+}
+
 // ── Main component ───────────────────────────────────────────
 
 export function HistoryTabs({
@@ -295,6 +399,8 @@ export function HistoryTabs({
   purchaseOrders,
   shipments,
   transactions,
+  payables,
+  dispatches,
 }: HistoryTabsProps) {
   const [activeTab, setActiveTab] = useState("orders")
 
@@ -304,8 +410,10 @@ export function HistoryTabs({
         <TabsTrigger value="orders">Orders ({orders.length})</TabsTrigger>
         <TabsTrigger value="production">Production ({batches.length})</TabsTrigger>
         <TabsTrigger value="purchase-orders">Purchase Orders ({purchaseOrders.length})</TabsTrigger>
+        <TabsTrigger value="dispatches">Dispatches ({dispatches.length})</TabsTrigger>
         <TabsTrigger value="logistics">Logistics ({shipments.length})</TabsTrigger>
         <TabsTrigger value="finance">Finance ({transactions.length})</TabsTrigger>
+        <TabsTrigger value="payables">Payables ({payables.length})</TabsTrigger>
       </TabsList>
 
       <TabsContent value="orders">
@@ -317,11 +425,17 @@ export function HistoryTabs({
       <TabsContent value="purchase-orders">
         <PurchaseOrdersTab pos={purchaseOrders} />
       </TabsContent>
+      <TabsContent value="dispatches">
+        <DispatchesTab dispatches={dispatches} />
+      </TabsContent>
       <TabsContent value="logistics">
         <LogisticsTab shipments={shipments} />
       </TabsContent>
       <TabsContent value="finance">
         <FinanceTab transactions={transactions} />
+      </TabsContent>
+      <TabsContent value="payables">
+        <PayablesTab payables={payables} />
       </TabsContent>
     </Tabs>
   )

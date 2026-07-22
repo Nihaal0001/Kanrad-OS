@@ -343,6 +343,7 @@ export async function createPayment(formData: PaymentFormData) {
   revalidatePath("/finance/receivables")
   revalidatePath("/finance/cash-flow")
   revalidatePath("/finance")
+  revalidatePath("/history")
   await logAudit({ entityType: "payment", entityId: data.id, action: "created", newValues: { amount: validated.amount, method: validated.method, invoice_id: validated.invoice_id } })
   return { data }
 }

@@ -1,6 +1,6 @@
 "use server"
 
-import { revalidatePath } from "next/cache"
+import { revalidatePath, revalidateTag } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
 import { logAudit } from "@/actions/audit"
 import {
@@ -438,10 +438,12 @@ export async function createPurchasePayment(formData: PurchasePaymentFormData) {
 
   if (error) return { error: error.message }
 
+  revalidateTag("purchase_invoices", {})
   revalidatePath("/finance/purchases")
   revalidatePath("/finance/payables")
   revalidatePath("/finance/cash-flow")
   revalidatePath("/finance")
+  revalidatePath("/history")
   await logAudit({
     entityType: "purchase_payment",
     entityId: data.id,
@@ -465,10 +467,12 @@ export async function deletePurchasePayment(id: string) {
   const { error } = await supabase.from("purchase_payments").delete().eq("id", id)
   if (error) return { error: error.message }
 
+  revalidateTag("purchase_invoices", {})
   revalidatePath("/finance/purchases")
   revalidatePath("/finance/payables")
   revalidatePath("/finance/cash-flow")
   revalidatePath("/finance")
+  revalidatePath("/history")
   await logAudit({ entityType: "purchase_payment", entityId: id, action: "deleted" })
   return { success: true }
 }

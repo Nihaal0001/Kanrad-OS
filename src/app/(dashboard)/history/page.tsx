@@ -1,22 +1,24 @@
-import { Archive } from "lucide-react"
-
 import {
   getHistoryOrders,
   getHistoryProduction,
   getHistoryPurchaseOrders,
   getHistoryLogistics,
   getHistoryFinance,
+  getHistoryPayables,
+  getHistoryDispatches,
 } from "@/actions/history"
 import { PageHeader } from "@/components/shared/page-header"
 import { HistoryTabs } from "@/components/history/history-tabs"
 
 export default async function HistoryPage() {
-  const [orders, batches, purchaseOrders, shipments, transactions] = await Promise.all([
+  const [orders, batches, purchaseOrders, shipments, transactions, payables, dispatches] = await Promise.all([
     getHistoryOrders(),
     getHistoryProduction(),
     getHistoryPurchaseOrders(),
     getHistoryLogistics(),
     getHistoryFinance(),
+    getHistoryPayables(),
+    getHistoryDispatches(),
   ])
 
   return (
@@ -33,6 +35,8 @@ export default async function HistoryPage() {
         purchaseOrders={purchaseOrders}
         shipments={shipments}
         transactions={transactions}
+        payables={payables}
+        dispatches={dispatches}
       />
     </>
   )

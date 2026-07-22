@@ -218,5 +218,6 @@ export async function dispatchWarehouseSku(formData: WarehouseSkuDispatchFormDat
   revalidatePath("/warehouse")
   revalidatePath("/finance/invoices")
   revalidatePath("/finance/receivables")
+  revalidatePath("/history")
   return { success: true }
 }
