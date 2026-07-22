@@ -74,7 +74,7 @@ export async function buildOutbox(limit = 200): Promise<{ company: string; items
       .select("id, po_number, order_date, expected_date, supplier_name, status, items:purchase_order_items(quantity_ordered, unit_price, material:materials(id, name, unit))")
       .not("status", "in", "(draft,cancelled)"),
     admin.from("payments").select("id, amount, payment_date, reference, invoice:invoices(invoice_number, customer_name)"),
-    admin.from("purchase_payments").select("id, amount, payment_date, reference, pi:purchase_invoices(invoice_number, supplier_name)"),
+    admin.from("purchase_payments").select("id, amount, payment_date, reference, tally_ledger, pi:purchase_invoices(invoice_number, supplier_name)"),
     getBankLedger(admin),
   ])
 
@@ -147,12 +147,12 @@ export async function buildOutbox(limit = 200): Promise<{ company: string; items
       hash: hash([p.id, p.amount]),
     })
   }
-  for (const p of (payments.data ?? []) as Array<{ id: string; amount: number; payment_date: string; reference: string | null; pi: { invoice_number: string; supplier_name: string } | { invoice_number: string; supplier_name: string }[] | null }>) {
+  for (const p of (payments.data ?? []) as Array<{ id: string; amount: number; payment_date: string; reference: string | null; tally_ledger: string | null; pi: { invoice_number: string; supplier_name: string } | { invoice_number: string; supplier_name: string }[] | null }>) {
     const pi = Array.isArray(p.pi) ? p.pi[0] : p.pi
     if (!pi) continue
     candidates.push({
       entity_type: "payment", entity_id: p.id, kind: "voucher",
-      xml: buildPaymentVoucher({ number: p.reference || pi.invoice_number, date: p.payment_date, party: pi.supplier_name, amount: p.amount, bankLedger }),
+      xml: buildPaymentVoucher({ number: p.reference || pi.invoice_number, date: p.payment_date, party: pi.supplier_name, amount: p.amount, bankLedger: p.tally_ledger?.trim() || bankLedger }),
       hash: hash([p.id, p.amount]),
     })
   }

@@ -432,6 +432,7 @@ export async function createPurchasePayment(formData: PurchasePaymentFormData) {
       reference: validated.reference || null,
       payment_date: validated.payment_date,
       notes: validated.notes || null,
+      tally_ledger: validated.tally_ledger || null,
     })
     .select()
     .single()

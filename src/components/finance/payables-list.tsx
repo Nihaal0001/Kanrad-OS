@@ -55,13 +55,20 @@ function daysUntil(dateStr: string | null): number | null {
   return Math.round(diff / 86400000)
 }
 
-export function PayablesList({ payables: initialPayables }: { payables: Payable[] }) {
+export function PayablesList({
+  payables: initialPayables,
+  defaultTallyLedger,
+}: {
+  payables: Payable[]
+  defaultTallyLedger: string
+}) {
   const router = useRouter()
   const [payables, setPayables] = useState(initialPayables)
   const [payingId, setPayingId] = useState<string | null>(null)
   const [method, setMethod] = useState<string>("bank_transfer")
   const [reference, setReference] = useState("")
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().slice(0, 10))
+  const [tallyLedger, setTallyLedger] = useState(defaultTallyLedger)
   const [submitting, setSubmitting] = useState(false)
 
   const total = payables.reduce((s, p) => s + p.amount_due, 0)
@@ -72,10 +79,15 @@ export function PayablesList({ payables: initialPayables }: { payables: Payable[
     setMethod("bank_transfer")
     setReference("")
     setPaymentDate(new Date().toISOString().slice(0, 10))
+    setTallyLedger(defaultTallyLedger)
   }
 
   async function handleConfirmPayment() {
     if (!payingRow) return
+    if (!tallyLedger.trim()) {
+      toast.error("Enter the Tally ledger this payment should post against")
+      return
+    }
     setSubmitting(true)
     const result = await createPurchasePayment({
       purchase_invoice_id: payingRow.id,
@@ -84,6 +96,7 @@ export function PayablesList({ payables: initialPayables }: { payables: Payable[
       reference,
       payment_date: paymentDate,
       notes: "",
+      tally_ledger: tallyLedger.trim(),
     })
     setSubmitting(false)
 
@@ -186,6 +199,18 @@ export function PayablesList({ payables: initialPayables }: { payables: Payable[
                   onChange={(e) => setReference(e.target.value)}
                   placeholder="UTR / cheque no. / transaction id"
                 />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Tally Ledger *</Label>
+                <Input
+                  value={tallyLedger}
+                  onChange={(e) => setTallyLedger(e.target.value)}
+                  placeholder="e.g. HDFC Bank, Cash"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Which bank/cash ledger this payment posts against in Tally — defaults to the
+                  ledger set in Settings, but can be changed for this payment.
+                </p>
               </div>
             </div>
           )}
