@@ -13,6 +13,7 @@ import {
 } from "@/lib/validators/finance"
 import { logAudit } from "@/actions/audit"
 import { effectiveCostPerUnit } from "@/lib/costing"
+import { getMaterialsForOrders } from "@/actions/inventory"
 
 // ===== Invoices =====
 
@@ -423,51 +424,61 @@ export async function getOrderCosting(orderId: string) {
     .from("orders")
     .select(`
       id, order_number, product_variant, total_quantity, status,
-      customer:customers(id, name),
-      order_materials(id, quantity_required, quantity_allocated, material_id)
+      customer:customers(id, name)
     `)
     .eq("id", orderId)
     .single()
 
   if (orderErr) throw new Error(orderErr.message)
 
-  // Fetch materials separately (order_materials.material_id has no FK constraint)
-  const materialIds = (order.order_materials ?? [])
-    .map((om: { material_id: string | null }) => om.material_id)
-    .filter(Boolean) as string[]
+  // Order-specific PO price: if a PO has been raised for this order (e.g. via
+  // the Material Shortage flow), its item price takes priority for that
+  // material over the material's general effective price — the order should
+  // cost against what was actually ordered for it, once it's been ordered.
+  const { data: poLinks } = await supabase
+    .from("purchase_order_orders")
+    .select("purchase_order_id")
+    .eq("order_id", orderId)
+  const poIds = (poLinks ?? []).map((l) => l.purchase_order_id)
 
-  const materialsMap: Record<string, { id: string; name: string; cost_per_unit: number; max_price: number | null; unit: string }> = {}
-  if (materialIds.length > 0) {
-    const { data: materials } = await supabase
-      .from("materials")
-      .select("id, name, cost_per_unit, max_price, unit")
-      .in("id", materialIds)
-    for (const m of materials ?? []) {
-      materialsMap[m.id] = m
+  const orderPoPrices = new Map<string, number>()
+  if (poIds.length > 0) {
+    const { data: poItems } = await supabase
+      .from("purchase_order_items")
+      .select("material_id, unit_price, created_at")
+      .in("purchase_order_id", poIds)
+      .order("created_at", { ascending: true })
+    for (const i of poItems ?? []) {
+      if (!i.material_id) continue
+      orderPoPrices.set(i.material_id, i.unit_price) // last (most recent) wins
     }
   }
+
+  // Material cost from the product's BOM × quantity ordered, priced per
+  // material at this order's own PO price where one exists, else the
+  // material's general effective price (last PO price, else max price).
+  const bomMaterials = await getMaterialsForOrders([orderId])
+  const materialBreakdown = bomMaterials.map((m) => {
+    const unitPrice = orderPoPrices.get(m.id) ?? effectiveCostPerUnit(m)
+    const isOrderPrice = orderPoPrices.has(m.id)
+    return {
+      id: m.id,
+      name: m.name,
+      unit: m.unit,
+      quantity: m.requiredQty,
+      unit_price: unitPrice,
+      is_order_price: isOrderPrice,
+      line_cost: Math.round(m.requiredQty * unitPrice * 100) / 100,
+    }
+  })
 
   const normalizedOrder = {
     ...order,
     customer: Array.isArray(order.customer) ? order.customer[0] ?? null : order.customer,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    order_materials: (order.order_materials ?? []).map((om: any) => ({
-      ...om,
-      material: om.material_id ? (materialsMap[om.material_id] ?? null) : null,
-    })),
   }
 
-  // Compute material cost from order_materials (manual allocation)
-  const manualMaterialCost = normalizedOrder.order_materials.reduce(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (sum: number, om: any) => {
-      const costPerUnit = effectiveCostPerUnit(om.material)
-      return sum + om.quantity_allocated * costPerUnit
-    },
-    0
-  )
-
-  const computedMaterialCost = manualMaterialCost
+  const computedMaterialCost = materialBreakdown.reduce((sum, m) => sum + m.line_cost, 0)
+  const manualMaterialCost = computedMaterialCost
 
   // Fetch revenue from paid/sent invoices for this order
   const { data: invoices } = await supabase
@@ -494,6 +505,7 @@ export async function getOrderCosting(orderId: string) {
     totalRevenue,
     totalReceived,
     manualMaterialCost,
+    materialBreakdown,
   }
 }
 

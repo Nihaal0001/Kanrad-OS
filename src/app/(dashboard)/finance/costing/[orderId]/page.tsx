@@ -34,6 +34,7 @@ export default async function OrderCostingPage({ params }: Props) {
     totalRevenue,
     totalReceived,
     manualMaterialCost,
+    materialBreakdown,
   } = result!
 
   const totalCost = costing
@@ -120,30 +121,28 @@ export default async function OrderCostingPage({ params }: Props) {
             </Card>
           )}
 
-          {/* Allocated Materials */}
+          {/* BOM Material Breakup */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Allocated Materials</CardTitle>
+              <CardTitle className="text-base">Material Breakup</CardTitle>
             </CardHeader>
             <CardContent>
-              {order.order_materials.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No materials allocated for this order.</p>
+              {materialBreakdown.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No BOM found for this order&apos;s product.</p>
               ) : (
                 <div className="space-y-3">
-                  {order.order_materials.map((om: { id: string; quantity_allocated: number; material: { name?: string; cost_per_unit?: number; unit?: string } | null }) => {
-                    const cost = om.quantity_allocated * (om.material?.cost_per_unit ?? 0)
-                    return (
-                      <div key={om.id} className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium truncate">{om.material?.name ?? "—"}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {om.quantity_allocated} {om.material?.unit ?? ""} × ₹{formatCurrency(om.material?.cost_per_unit ?? 0)}
-                          </p>
-                        </div>
-                        <p className="text-sm font-medium shrink-0">₹{formatCurrency(cost)}</p>
+                  {materialBreakdown.map((m) => (
+                    <div key={m.id} className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{m.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {m.quantity} {m.unit} × ₹{formatCurrency(m.unit_price)}
+                          {m.is_order_price && <span className="ml-1 text-blue-600 font-medium">(PO price)</span>}
+                        </p>
                       </div>
-                    )
-                  })}
+                      <p className="text-sm font-medium shrink-0">₹{formatCurrency(m.line_cost)}</p>
+                    </div>
+                  ))}
                   <Separator />
                   <div className="flex justify-between text-sm font-semibold">
                     <span>Material Cost</span>
