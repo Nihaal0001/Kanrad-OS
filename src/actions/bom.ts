@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { bomSchema, type BomFormData } from "@/lib/validators/bom"
 import { logAudit } from "@/actions/audit"
+import { effectiveCostPerUnit } from "@/lib/costing"
 
 export const getProducts = unstable_cache(
   async () => {
@@ -15,7 +16,7 @@ export const getProducts = unstable_cache(
         *,
         bom_items(
           id, material_id, qty_required, unit, wastage_pct,
-          material:materials(id, name, sku, cost_per_unit, unit, current_stock)
+          material:materials(id, name, sku, cost_per_unit, max_price, unit, current_stock)
         )
       `)
       .eq("is_active", true)
@@ -30,7 +31,7 @@ export const getProducts = unstable_cache(
         material: Array.isArray(item.material) ? item.material[0] ?? null : item.material,
       }))
       const materialCost = items.reduce((sum: number, item: any) => {
-        const costPerUnit = item.material?.cost_per_unit ?? 0
+        const costPerUnit = effectiveCostPerUnit(item.material)
         const effective = item.qty_required * (1 + (item.wastage_pct ?? 0) / 100)
         return sum + effective * costPerUnit
       }, 0)
@@ -51,7 +52,7 @@ export async function getProduct(id: string) {
           *,
           bom_items(
             id, material_id, qty_required, unit, wastage_pct, notes,
-            material:materials(id, name, sku, cost_per_unit, unit, current_stock)
+            material:materials(id, name, sku, cost_per_unit, max_price, unit, current_stock)
           )
         `)
         .eq("id", id)
@@ -226,7 +227,7 @@ export async function getProductByCostForOrder(bomId: string, quantity: number) 
       id, product_sku, product_name,
       bom_items(
         id, material_id, qty_required, unit, wastage_pct,
-        material:materials(id, name, cost_per_unit, unit)
+        material:materials(id, name, cost_per_unit, max_price, unit)
       )
     `)
     .eq("id", bomId)
@@ -243,7 +244,7 @@ export async function getProductByCostForOrder(bomId: string, quantity: number) 
   let totalMaterialCost = 0
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const breakdown = items.map((item: any) => {
-    const costPerUnit = item.material?.cost_per_unit ?? 0
+    const costPerUnit = effectiveCostPerUnit(item.material)
     const effectiveQty = item.qty_required * (1 + (item.wastage_pct ?? 0) / 100)
     const lineCost = effectiveQty * costPerUnit * quantity
     totalMaterialCost += lineCost

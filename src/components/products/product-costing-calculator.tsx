@@ -34,6 +34,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { CIRCLE_WEIGHT_FACTOR } from "@/lib/circle-calc"
+import { effectiveCostPerUnit } from "@/lib/costing"
 
 const ALU_CIRCLE_RE = /^alu\s*circle/i
 
@@ -55,6 +56,7 @@ interface MaterialLine {
     name: string
     sku: string
     cost_per_unit: number
+    max_price: number | null
     unit: string
     current_stock: number
   } | null
@@ -123,17 +125,15 @@ export function ProductCostingCalculator({
           }
         }
 
-        const unitPrice = pricingMode === "market" && marketCost !== null
-          ? null // use marketCost directly
-          : mat?.cost_per_unit ?? 0
+        const actualRate = effectiveCostPerUnit(mat)
 
         const hasPrice = pricingMode === "market" && isCircle
           ? marketAluPriceNum > 0 && marketCost !== null
-          : !!(mat && mat.cost_per_unit > 0)
+          : actualRate > 0
 
         const lineCost = pricingMode === "market" && marketCost !== null
           ? marketCost
-          : (mat && mat.cost_per_unit > 0 ? effectiveQty * mat.cost_per_unit : 0)
+          : effectiveQty * actualRate
 
         return { ...item, material: mat, effectiveQty, lineCost, hasPrice, isCircle, marketCost }
       })
@@ -329,7 +329,7 @@ export function ProductCostingCalculator({
                                 return <span className="text-amber-500 font-medium">Enter alu price</span>
                               }
                               return line.hasPrice
-                                ? <span>₹{formatCurrency(line.material!.cost_per_unit)}</span>
+                                ? <span>₹{formatCurrency(effectiveCostPerUnit(line.material))}</span>
                                 : <span className="text-amber-500 font-medium">No price</span>
                             })()}
                           </p>

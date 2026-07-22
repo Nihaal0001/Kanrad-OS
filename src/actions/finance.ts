@@ -12,6 +12,7 @@ import {
   type CostingFormData,
 } from "@/lib/validators/finance"
 import { logAudit } from "@/actions/audit"
+import { effectiveCostPerUnit } from "@/lib/costing"
 
 // ===== Invoices =====
 
@@ -435,11 +436,11 @@ export async function getOrderCosting(orderId: string) {
     .map((om: { material_id: string | null }) => om.material_id)
     .filter(Boolean) as string[]
 
-  const materialsMap: Record<string, { id: string; name: string; cost_per_unit: number; unit: string }> = {}
+  const materialsMap: Record<string, { id: string; name: string; cost_per_unit: number; max_price: number | null; unit: string }> = {}
   if (materialIds.length > 0) {
     const { data: materials } = await supabase
       .from("materials")
-      .select("id, name, cost_per_unit, unit")
+      .select("id, name, cost_per_unit, max_price, unit")
       .in("id", materialIds)
     for (const m of materials ?? []) {
       materialsMap[m.id] = m
@@ -460,7 +461,7 @@ export async function getOrderCosting(orderId: string) {
   const manualMaterialCost = normalizedOrder.order_materials.reduce(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (sum: number, om: any) => {
-      const costPerUnit = om.material?.cost_per_unit ?? 0
+      const costPerUnit = effectiveCostPerUnit(om.material)
       return sum + om.quantity_allocated * costPerUnit
     },
     0
