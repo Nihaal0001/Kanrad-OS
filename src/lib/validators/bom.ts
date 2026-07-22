@@ -19,3 +19,12 @@ export const bomSchema = z.object({
 
 export type BomFormData = z.infer<typeof bomSchema>
 export type BomItemFormData = z.infer<typeof bomItemSchema>
+
+export const productCostingDefaultsSchema = z.object({
+  labor_cost_per_unit: z.number().min(0, "Cannot be negative"),
+  overhead_cost_per_unit: z.number().min(0, "Cannot be negative"),
+  other_cost_per_unit: z.number().min(0, "Cannot be negative"),
+  margin_pct: z.number().min(0, "Cannot be negative").max(1000, "Too large"),
+})
+
+export type ProductCostingDefaultsFormData = z.infer<typeof productCostingDefaultsSchema>

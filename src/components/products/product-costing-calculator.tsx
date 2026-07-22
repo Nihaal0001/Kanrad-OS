@@ -1,8 +1,9 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 import {
   AlertTriangle,
   Calculator,
@@ -12,6 +13,7 @@ import {
   IndianRupee,
   TrendingUp,
   History,
+  Save,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -35,6 +37,7 @@ import {
 } from "@/components/ui/select"
 import { CIRCLE_WEIGHT_FACTOR } from "@/lib/circle-calc"
 import { effectiveCostPerUnit } from "@/lib/costing"
+import { saveProductCosting } from "@/actions/bom"
 
 const ALU_CIRCLE_RE = /^alu\s*circle/i
 
@@ -70,6 +73,10 @@ interface Product {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   bom_items: any[]
   materialCost: number
+  labor_cost_per_unit: number | null
+  overhead_cost_per_unit: number | null
+  other_cost_per_unit: number | null
+  margin_pct: number | null
 }
 
 interface Props {
@@ -91,11 +98,13 @@ export function ProductCostingCalculator({
 }: Props) {
   const router = useRouter()
   const [selectedId, setSelectedId] = useState(initialProductId ?? "")
+  const initialProduct = products.find((p) => p.id === initialProductId)
   const [quantity, setQuantity] = useState(100)
-  const [laborCost, setLaborCost] = useState(0)
-  const [overheadCost, setOverheadCost] = useState(0)
-  const [otherCost, setOtherCost] = useState(0)
-  const [marginPct, setMarginPct] = useState(20)
+  const [laborCost, setLaborCost] = useState(initialProduct?.labor_cost_per_unit ?? 0)
+  const [overheadCost, setOverheadCost] = useState(initialProduct?.overhead_cost_per_unit ?? 0)
+  const [otherCost, setOtherCost] = useState(initialProduct?.other_cost_per_unit ?? 0)
+  const [marginPct, setMarginPct] = useState(initialProduct?.margin_pct ?? 20)
+  const [savingCosting, setSavingCosting] = useState(false)
   const [pricingMode, setPricingMode] = useState<"actual" | "market">("actual")
   const [marketAluPrice, setMarketAluPrice] = useState(
     marketAluPricePerKg ? marketAluPricePerKg.toFixed(2) : ""
@@ -106,6 +115,15 @@ export function ProductCostingCalculator({
   const isLivePrice = !aluPriceEdited && !!marketAluPricePerKg
 
   const product = products.find((p) => p.id === selectedId) ?? null
+
+  // Reload the saved defaults whenever the selected product changes.
+  useEffect(() => {
+    setLaborCost(product?.labor_cost_per_unit ?? 0)
+    setOverheadCost(product?.overhead_cost_per_unit ?? 0)
+    setOtherCost(product?.other_cost_per_unit ?? 0)
+    setMarginPct(product?.margin_pct ?? 20)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId])
 
   const bomLines: (MaterialLine & { effectiveQty: number; lineCost: number; hasPrice: boolean; isCircle: boolean; marketCost: number | null })[] =
     useMemo(() => {
@@ -152,6 +170,24 @@ export function ProductCostingCalculator({
   function handleProductChange(id: string) {
     setSelectedId(id)
     router.replace(`/products/costing?product=${id}`, { scroll: false })
+  }
+
+  async function handleSaveCosting() {
+    if (!product) return
+    setSavingCosting(true)
+    const result = await saveProductCosting(product.id, {
+      labor_cost_per_unit: laborCost,
+      overhead_cost_per_unit: overheadCost,
+      other_cost_per_unit: otherCost,
+      margin_pct: marginPct,
+    })
+    setSavingCosting(false)
+    if ("error" in result && result.error) {
+      toast.error(result.error)
+      return
+    }
+    toast.success("Costing saved for this product")
+    router.refresh()
   }
 
   return (
@@ -393,6 +429,12 @@ export function ProductCostingCalculator({
                         placeholder="0.00"
                       />
                     </div>
+                  </div>
+                  <div className="flex justify-end pt-1">
+                    <Button size="sm" onClick={handleSaveCosting} disabled={savingCosting}>
+                      <Save className="h-3.5 w-3.5" />
+                      {savingCosting ? "Saving…" : "Save Costing"}
+                    </Button>
                   </div>
                 </CardContent>
               </Card>

@@ -3,7 +3,12 @@
 import { revalidatePath, revalidateTag, unstable_cache } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
-import { bomSchema, type BomFormData } from "@/lib/validators/bom"
+import {
+  bomSchema,
+  productCostingDefaultsSchema,
+  type BomFormData,
+  type ProductCostingDefaultsFormData,
+} from "@/lib/validators/bom"
 import { logAudit } from "@/actions/audit"
 import { effectiveCostPerUnit } from "@/lib/costing"
 
@@ -198,6 +203,32 @@ export async function updateProduct(id: string, formData: BomFormData) {
     entityLabel: `${validated.product_sku} — ${validated.product_name}`,
     action: "updated",
   })
+  return { success: true }
+}
+
+/** Save the Product Costing calculator's labor/overhead/other cost and target
+ *  margin as this product's defaults, so they're prefilled next time. */
+export async function saveProductCosting(id: string, formData: ProductCostingDefaultsFormData) {
+  const validated = productCostingDefaultsSchema.parse(formData)
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
+  const { error } = await supabase
+    .from("bom_headers")
+    .update({
+      labor_cost_per_unit: validated.labor_cost_per_unit,
+      overhead_cost_per_unit: validated.overhead_cost_per_unit,
+      other_cost_per_unit: validated.other_cost_per_unit,
+      margin_pct: validated.margin_pct,
+    })
+    .eq("id", id)
+
+  if (error) return { error: error.message }
+
+  revalidateTag("bom", {})
+  revalidatePath("/products/costing")
   return { success: true }
 }
 
