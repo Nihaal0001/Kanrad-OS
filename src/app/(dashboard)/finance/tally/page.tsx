@@ -1,8 +1,7 @@
-import { RefreshCw, ArrowDownToLine, ArrowUpFromLine, AlertTriangle } from "lucide-react"
+import { RefreshCw, ArrowDownToLine } from "lucide-react"
 
-import { getTallySyncStatus, getBankLedgerSetting } from "@/actions/tally"
+import { getTallySyncStatus } from "@/actions/tally"
 import { PageHeader } from "@/components/shared/page-header"
-import { BankLedgerForm } from "@/components/finance/bank-ledger-form"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Table,
@@ -17,50 +16,24 @@ import { formatCurrency, formatDateRelative } from "@/lib/utils"
 export const dynamic = "force-dynamic"
 
 export default async function TallySyncPage() {
-  const [status, bankLedger] = await Promise.all([getTallySyncStatus(), getBankLedgerSetting()])
+  const status = await getTallySyncStatus()
 
   return (
     <>
       <PageHeader
         title="Tally Sync"
-        description="Two-way sync with TallyPrime via the local connector"
+        description="Read-only sync from TallyPrime via the local connector — Kanrad never writes back to Tally"
         breadcrumbs={[{ label: "Finance", href: "/finance" }, { label: "Tally Sync" }]}
       />
 
-      {/* Bank ledger — changes most months, so it's editable here instead of a redeploy */}
-      <Card className="mb-6">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Bank Ledger</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <BankLedgerForm defaultName={bankLedger} />
-          <p className="mt-2 text-xs text-muted-foreground">
-            New receipts/payments pushed to Tally post against this ledger. Update it here whenever Tally opens a new one — no redeploy needed.
-          </p>
-        </CardContent>
-      </Card>
-
       {/* Summary */}
-      <div className="mb-6 grid gap-4 sm:grid-cols-3">
+      <div className="mb-6 grid gap-4 sm:grid-cols-2">
         <Card>
           <CardContent className="flex items-center gap-3 p-4">
             <ArrowDownToLine className="h-5 w-5 text-blue-500" />
             <div>
               <p className="text-xs text-muted-foreground">Pulled from Tally</p>
               <p className="text-xl font-bold">{status.balances.length}<span className="ml-1 text-sm font-normal text-muted-foreground">ledgers</span></p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="flex items-center gap-3 p-4">
-            <ArrowUpFromLine className="h-5 w-5 text-emerald-500" />
-            <div>
-              <p className="text-xs text-muted-foreground">Pushed to Tally</p>
-              <p className="text-xl font-bold">{status.push.synced}
-                <span className="ml-1 text-sm font-normal text-muted-foreground">
-                  synced{status.push.pending ? ` · ${status.push.pending} pending` : ""}{status.push.error ? ` · ${status.push.error} error` : ""}
-                </span>
-              </p>
             </div>
           </CardContent>
         </Card>
@@ -74,24 +47,6 @@ export default async function TallySyncPage() {
           </CardContent>
         </Card>
       </div>
-
-      {/* Push errors */}
-      {status.recentErrors.length > 0 && (
-        <Card className="mb-6 border-red-500/30 bg-red-500/5">
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-sm">
-              <AlertTriangle className="h-4 w-4 text-red-500" /> Push errors
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-1">
-            {status.recentErrors.map((e, i) => (
-              <p key={i} className="text-xs text-muted-foreground">
-                <span className="font-medium text-foreground">{e.entity_type}</span> — {e.last_error}
-              </p>
-            ))}
-          </CardContent>
-        </Card>
-      )}
 
       {/* Balances pulled from Tally */}
       <Card>

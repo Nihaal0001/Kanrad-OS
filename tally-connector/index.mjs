@@ -1,13 +1,15 @@
 #!/usr/bin/env node
 /**
- * Kanrad ↔ Tally Prime connector agent.
+ * Kanrad ← Tally Prime connector agent (pull-only).
  *
  * Runs on the same machine/LAN as Tally Prime (which exposes its XML gateway on
- * http://localhost:9000). Bridges the cloud Kanrad app and the local Tally:
+ * http://localhost:9000). Reads data out of Tally and pushes it into Kanrad for
+ * viewing — Kanrad never writes anything back to Tally:
  *
- *   push: GET  {KANRAD_URL}/api/tally/outbox   → POST each voucher/master to Tally
- *         POST {KANRAD_URL}/api/tally/ack       ← per-item success/error
- *   pull: export Trial Balance from Tally       → POST {KANRAD_URL}/api/tally/inbound
+ *   - export Trial Balance from Tally            → POST {KANRAD_URL}/api/tally/inbound
+ *   - export List of Accounts (party ledgers)    → POST {KANRAD_URL}/api/tally/import
+ *   - export Bills Receivable/Payable            → POST {KANRAD_URL}/api/tally/outstanding
+ *   - export Vouchers (Day Book)                 → POST {KANRAD_URL}/api/tally/vouchers
  *
  * Config is read from a sibling .env file (see .env.example). Node 18+ required.
  */
@@ -45,28 +47,14 @@ async function tally(xml) {
   return res.text()
 }
 
-// ── Minimal Tally XML (mirrors src/lib/tally/xml.ts) ─────────────────────────
+// ── Minimal Tally XML (export-only — mirrors src/lib/tally/sync.ts) ──────────
 const esc = (s) => (s == null ? "" : String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"))
-
-function importEnvelope(company, messages) {
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<ENVELOPE><HEADER><TALLYREQUEST>Import Data</TALLYREQUEST></HEADER><BODY><IMPORTDATA>
-<REQUESTDESC><REPORTNAME>All Masters</REPORTNAME><STATICVARIABLES><SVCURRENTCOMPANY>${esc(company)}</SVCURRENTCOMPANY></STATICVARIABLES></REQUESTDESC>
-<REQUESTDATA>${messages.join("")}</REQUESTDATA></IMPORTDATA></BODY></ENVELOPE>`
-}
 
 function trialBalanceRequest(company) {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <ENVELOPE><HEADER><TALLYREQUEST>Export Data</TALLYREQUEST></HEADER><BODY><EXPORTDATA>
 <REQUESTDESC><REPORTNAME>Trial Balance</REPORTNAME><STATICVARIABLES><SVCURRENTCOMPANY>${esc(company)}</SVCURRENTCOMPANY><SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT></STATICVARIABLES></REQUESTDESC>
 </EXPORTDATA></BODY></ENVELOPE>`
-}
-
-function parseImportResponse(xml) {
-  const n = (t) => { const m = xml.match(new RegExp(`<${t}>\\s*([0-9-]+)\\s*</${t}>`, "i")); return m ? parseInt(m[1], 10) || 0 : 0 }
-  const errors = n("ERRORS") + n("EXCEPTIONS") + n("LINEERROR")
-  const lineErr = xml.match(/<LINEERROR>([\s\S]*?)<\/LINEERROR>/i)
-  return { created: n("CREATED"), altered: n("ALTERED"), errors, message: lineErr ? lineErr[1].trim() : null }
 }
 
 function parseTrialBalance(xml) {
@@ -228,26 +216,6 @@ function parseVouchers(xml) {
 const parseAmt = (s) => Math.abs(parseFloat((s || "").replace(/[^0-9.\-]/g, "")) || 0)
 
 // ── Cycles ───────────────────────────────────────────────────────────────────
-async function pushCycle() {
-  const { items, count } = await kanrad("/api/tally/outbox")
-  if (!count) { log(`push: nothing pending`); return }
-  log(`push: ${count} item(s)`)
-  const acks = []
-  for (const item of items) {
-    try {
-      const resp = await tally(importEnvelope(COMPANY, [item.xml]))
-      const r = parseImportResponse(resp)
-      const ok = r.errors === 0 && r.created + r.altered > 0
-      acks.push({ sync_id: item.sync_id, ok, error: ok ? null : (r.message || `Tally: ${r.errors} error(s)`) })
-      log(`  ${item.entity_type} ${ok ? "✓" : "✗ " + (r.message || "")}`)
-    } catch (e) {
-      acks.push({ sync_id: item.sync_id, ok: false, error: String(e).slice(0, 300) })
-      log(`  ${item.entity_type} ✗ ${e}`)
-    }
-  }
-  const { updated } = await kanrad("/api/tally/ack", { method: "POST", body: JSON.stringify({ acks }) })
-  log(`push: acked ${updated}`)
-}
 
 // ledger name → parent group, filled by importMastersCycle so pullCycle can
 // classify balances (expense groups etc.) — TB export alone has no parents.
@@ -308,7 +276,6 @@ async function pullVouchersCycle() {
 
 let cycleCount = 0
 async function cycle() {
-  try { await pushCycle() } catch (e) { log(`push error: ${e}`) }
   try { await importMastersCycle() } catch (e) { log(`import error: ${e}`) }
   try { await pullCycle() } catch (e) { log(`pull error: ${e}`) }
   try { await pullOutstandingCycle() } catch (e) { log(`outstanding error: ${e}`) }
@@ -320,7 +287,7 @@ async function cycle() {
 }
 
 // ── Main loop ────────────────────────────────────────────────────────────────
-log(`Kanrad ↔ Tally connector started`)
+log(`Kanrad ← Tally connector started (pull-only)`)
 log(`  Kanrad:  ${KANRAD_URL}`)
 log(`  Tally:   ${TALLY_URL}  (company "${COMPANY}")`)
 log(`  Poll:    every ${POLL_SECONDS}s`)

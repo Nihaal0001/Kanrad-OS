@@ -1,16 +1,12 @@
 import { Wallet } from "lucide-react"
 
 import { getPayables } from "@/actions/purchase-invoices"
-import { getBankLedgerSetting } from "@/actions/tally"
 import { PageHeader } from "@/components/shared/page-header"
 import { EmptyState } from "@/components/shared/empty-state"
 import { PayablesList } from "@/components/finance/payables-list"
 
 export default async function PayablesPage() {
-  const [payables, defaultTallyLedger] = await Promise.all([
-    getPayables(),
-    getBankLedgerSetting(),
-  ])
+  const payables = await getPayables()
 
   return (
     <>
@@ -27,7 +23,7 @@ export default async function PayablesPage() {
           description="Payables appear here once a purchase invoice is recorded against a received PO."
         />
       ) : (
-        <PayablesList payables={payables} defaultTallyLedger={defaultTallyLedger} />
+        <PayablesList payables={payables} />
       )}
     </>
   )

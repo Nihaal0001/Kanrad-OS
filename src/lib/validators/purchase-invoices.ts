@@ -30,7 +30,6 @@ export const purchasePaymentSchema = z.object({
   reference: z.string().optional().or(z.literal("")),
   payment_date: z.string().min(1, "Payment date is required"),
   notes: z.string().optional().or(z.literal("")),
-  tally_ledger: z.string().optional().or(z.literal("")),
 })
 
 export type PurchasePaymentFormData = z.infer<typeof purchasePaymentSchema>

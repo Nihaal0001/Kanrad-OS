@@ -6,7 +6,6 @@ import { OrgSettingsForm } from "./org-settings-form"
 import { KioskSettingsForm } from "./kiosk-settings-form"
 import { getOrgSettings, getOfficeLocation } from "./actions"
 import { ExportAllButton } from "@/components/settings/export-all-button"
-import { TallyExportCard } from "@/components/settings/tally-export-card"
 
 const MODULES = [
   { name: "Orders & Customers", status: "active" },
@@ -121,9 +120,6 @@ export default async function SettingsPage() {
             <ExportAllButton />
           </CardContent>
         </Card>
-
-        {/* Tally Export */}
-        <TallyExportCard />
 
         {/* Modules */}
         <Card>

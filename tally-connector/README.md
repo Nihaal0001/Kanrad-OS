@@ -1,29 +1,28 @@
-# Kanrad ↔ Tally Prime connector
+# Kanrad ← Tally Prime connector (pull-only)
 
-Two-way sync between cloud **Kanrad ERP** and a desktop **TallyPrime**. Tally has
-no cloud API and can't be reached from Vercel, so this small agent runs on the
-**same Windows machine/LAN as Tally** and bridges the two.
+Reads data out of a desktop **TallyPrime** into cloud **Kanrad ERP**, for
+viewing only. Tally has no cloud API and can't be reached from Vercel, so this
+small agent runs on the **same Windows machine/LAN as Tally** and bridges the
+two. Kanrad never writes anything back to Tally.
 
 ```
- Kanrad (cloud) ──/api/tally/outbox──▶ connector ──XML──▶ Tally (localhost:9000)
- Kanrad (cloud) ◀──/api/tally/inbound── connector ◀─XML── Tally (Trial Balance)
+ Kanrad (cloud) ◀──/api/tally/inbound──── connector ◀─XML── Tally (Trial Balance)
+ Kanrad (cloud) ◀──/api/tally/import────── connector ◀─XML── Tally (List of Accounts)
+ Kanrad (cloud) ◀──/api/tally/outstanding── connector ◀─XML── Tally (Bills Receivable/Payable)
+ Kanrad (cloud) ◀──/api/tally/vouchers───── connector ◀─XML── Tally (Voucher collection)
 ```
 
 ## What syncs
 
-**Kanrad → Tally (push):**
-- Masters: customers → *Sundry Debtors* ledgers, suppliers → *Sundry Creditors*, finished goods → stock items
-- Vouchers: sales invoices → Sales, purchase invoices → Purchase, customer payments → Receipt, supplier payments → Payment
-
-**Tally → Kanrad (pull):**
+**Tally → Kanrad (pull only):**
 - Ledger closing balances (Trial Balance) → mirrored read-only into Kanrad (`tally_ledger_balances`), with parent groups merged from List of Accounts
 - Party ledgers (List of Accounts) → imported as Kanrad customers/suppliers
 - Outstanding bills (Bills Receivable / Payable) → `tally_outstanding` (Finance → Outstanding)
 - Vouchers (Sales / Purchase / Receipt / Payment / …) over a rolling window → `tally_vouchers` (Finance dashboard graphs). Month-chunked windowed replace, so Tally-side edits and deletions self-heal.
 
-Masters are re-pushed when they change; vouchers are pushed once (create-once)
-to avoid duplicates. Each item is acked individually, so a failure on one (e.g.
-a missing tax ledger) doesn't block the rest.
+Nothing Kanrad does (orders, invoices, purchase orders, payments, etc.) is
+ever sent to Tally. Kanrad and Tally's books are kept independently; this
+connector only gives Kanrad a read-only window into Tally's numbers.
 
 ## Setup
 
@@ -36,14 +35,8 @@ Set these environment variables and redeploy:
 - `TALLY_CONNECTOR_SECRET` — a long random string (the agent's password)
 - `TALLY_COMPANY` — exact Tally company name (default `KANRAD ERP`)
 
-The bank ledger receipts & payments post to is set separately in-app (Finance →
-Tally Sync → "Bank Ledger"), not as an env var — it changes most months since a
-new ledger gets opened in Tally, and this way it updates without a redeploy.
-(`TALLY_BANK_LEDGER` env var still works as a fallback default if that field is empty.)
-
 ### 3. Tally (on the Windows machine)
 - Gateway of Tally → **F1: Help → Settings → Connectivity → Client/Server config** (or F11/F1 depending on version) → set **TallyPrime acts as Server**, Port **9000**.
-- Create the GST tax ledgers you use (e.g. `Output CGST @9%`, `Output SGST @9%`, `Output IGST @18%`, and the `Input ...` equivalents), plus `Sales`, `Purchases`, and the bank ledger. Party ledgers and stock items are created automatically by the push.
 
 ### 4. Run the connector
 ```bash
@@ -58,5 +51,5 @@ Leave it running (or install as a Windows service via `nssm`, PM2, or Task Sched
   **test Tally company** and check the import counts in the logs.
 - Tally's Trial Balance XML shape varies slightly by version — if `pull: no
   balances parsed`, share a sample export and the parser can be adjusted.
-- This is the recommended ownership split: Kanrad is the source of truth for
-  masters + transactions; Tally owns final balances (pulled back read-only).
+- Tally remains the source of truth for its own books; Kanrad only mirrors a
+  read-only snapshot of it for dashboards and reports.

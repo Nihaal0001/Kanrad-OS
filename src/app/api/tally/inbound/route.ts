@@ -2,8 +2,7 @@ export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
 import { NextRequest, NextResponse } from "next/server"
-import { authConnector, applyInbound } from "@/lib/tally/sync"
-import type { PulledBalance } from "@/lib/tally/xml"
+import { authConnector, applyInbound, type PulledBalance } from "@/lib/tally/sync"
 
 /** POST /api/tally/inbound — balances pulled FROM Tally. Body: { balances: PulledBalance[] } */
 export async function POST(req: NextRequest) {
