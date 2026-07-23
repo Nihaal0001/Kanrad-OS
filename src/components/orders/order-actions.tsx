@@ -99,15 +99,18 @@ export function OrderActions({ order, hasCosting }: OrderActionsProps) {
           <p className="text-sm text-destructive">{error}</p>
         )}
 
+        {/* Always reachable — not just during the draft → confirmed step —
+            since production logging requires costing regardless of what
+            status the order is already at. */}
+        <Button key="costing" className="w-full" variant={hasCosting ? "outline" : "default"} asChild>
+          <Link href={`/finance/costing/${order.id}`}>
+            <Calculator className="mr-2 h-4 w-4" />
+            {hasCosting ? "Edit Costing" : "Do Costing First"}
+          </Link>
+        </Button>
+
         {transitions.map((t) =>
-          t.status === "confirmed" && !hasCosting ? (
-            <Button key={t.status} className="w-full" variant="outline" asChild>
-              <Link href={`/finance/costing/${order.id}`}>
-                <Calculator className="mr-2 h-4 w-4" />
-                Do Costing First
-              </Link>
-            </Button>
-          ) : (
+          t.status === "confirmed" && !hasCosting ? null : (
             <Button
               key={t.status}
               className="w-full"
