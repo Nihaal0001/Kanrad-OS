@@ -99,7 +99,7 @@ export function ProductCostingCalculator({
   const router = useRouter()
   const [selectedId, setSelectedId] = useState(initialProductId ?? "")
   const initialProduct = products.find((p) => p.id === initialProductId)
-  const [quantity, setQuantity] = useState(100)
+  const [quantity, setQuantity] = useState(1)
   const [laborCost, setLaborCost] = useState(initialProduct?.labor_cost_per_unit ?? 0)
   const [overheadCost, setOverheadCost] = useState(initialProduct?.overhead_cost_per_unit ?? 0)
   const [otherCost, setOtherCost] = useState(initialProduct?.other_cost_per_unit ?? 0)
