@@ -1,51 +1,43 @@
 import { Calculator } from "lucide-react"
 
-import { getProducts } from "@/actions/bom"
-import { getMaterials } from "@/actions/inventory"
+import { getOrders } from "@/actions/orders"
+import { getOrderCostings } from "@/actions/finance"
 import { PageHeader } from "@/components/shared/page-header"
 import { EmptyState } from "@/components/shared/empty-state"
-import { ProductCostingCalculator } from "@/components/products/product-costing-calculator"
-import { CreateProductSheet } from "@/components/products/create-product-sheet"
+import { OrderCostingPicker } from "@/components/finance/order-costing-picker"
 
-interface Props {
-  searchParams: Promise<{ product?: string }>
-}
-
-export default async function CostingPage({ searchParams }: Props) {
-  const { product: selectedProductId } = await searchParams
-  const [products, materials] = await Promise.all([
-    getProducts(),
-    getMaterials(),
+export default async function CostingPage() {
+  const [orders, costings] = await Promise.all([
+    getOrders(),
+    getOrderCostings(),
   ])
 
-  const materialOptions = materials.map((m) => ({
-    id: m.id,
-    name: m.name,
-    sku: m.sku,
-    cost_per_unit: m.cost_per_unit,
-    unit: m.unit,
-  }))
+  const costedOrderIds = new Set(costings.map((c) => c.order?.id).filter(Boolean))
+  const costableOrders = orders
+    .filter((o) => o.status !== "cancelled")
+    .map((o) => ({
+      id: o.id,
+      order_number: o.order_number,
+      product_variant: o.product_variant,
+      customer_name: o.customer?.name ?? null,
+      hasCosting: costedOrderIds.has(o.id),
+    }))
 
   return (
     <>
       <PageHeader
         title="Costing"
-        description="Calculate product cost from BOM + additional expenses"
-      >
-        <CreateProductSheet materials={materialOptions} />
-      </PageHeader>
+        description="Calculate an order's cost from its BOM + additional expenses"
+      />
 
-      {products.length === 0 ? (
+      {costableOrders.length === 0 ? (
         <EmptyState
           icon={Calculator}
-          title="No products defined"
-          description="Create a product with a Bill of Materials to start calculating costs."
+          title="No orders yet"
+          description="Create an order to start calculating its cost."
         />
       ) : (
-        <ProductCostingCalculator
-          products={products}
-          initialProductId={selectedProductId}
-        />
+        <OrderCostingPicker orders={costableOrders} />
       )}
     </>
   )
