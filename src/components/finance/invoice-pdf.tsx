@@ -3,9 +3,13 @@ import {
   Page,
   Text,
   View,
+  Image,
   StyleSheet,
 } from "@react-pdf/renderer"
+import path from "path"
 import type { InvoiceDetail } from "@/lib/supabase/types"
+
+const LOGO_PATH = path.join(process.cwd(), "public", "kanrad-logo.jpeg")
 
 const TERRACOTTA = "#c2622a"
 const GRAY = "#6b7280"
@@ -24,6 +28,9 @@ const s = StyleSheet.create({
 
   // Header
   header: { flexDirection: "row", justifyContent: "space-between", marginBottom: 20 },
+  companyBlock: { flexDirection: "row", alignItems: "center", width: 320, paddingRight: 16 },
+  companyText: { width: 266 },
+  logo: { width: 44, height: 44, marginRight: 10, objectFit: "contain" },
   companyName: { fontSize: 22, fontFamily: "Helvetica-Bold", color: TERRACOTTA, marginBottom: 3 },
   companyMeta: { fontSize: 9, color: GRAY, lineHeight: 1.5 },
   invoiceTitle: { fontSize: 28, fontFamily: "Helvetica-Bold", letterSpacing: 2, color: DARK, textAlign: "right" },
@@ -135,14 +142,17 @@ export function InvoicePDFDocument({ invoice, org }: Props) {
 
         {/* Header */}
         <View style={s.header}>
-          <View>
-            <Text style={s.companyName}>{orgName}</Text>
-            {orgAddress ? <Text style={s.companyMeta}>{orgAddress}</Text> : null}
-            {orgPhone ? <Text style={s.companyMeta}>Phone: {orgPhone}</Text> : null}
-            {orgEmail ? <Text style={s.companyMeta}>{orgEmail}</Text> : null}
-            {orgGstin ? <Text style={s.companyMeta}>GSTIN: {orgGstin}</Text> : null}
+          <View style={s.companyBlock}>
+            <Image src={LOGO_PATH} style={s.logo} />
+            <View style={s.companyText}>
+              <Text style={s.companyName}>{orgName}</Text>
+              {orgAddress ? <Text style={s.companyMeta}>{orgAddress}</Text> : null}
+              {orgPhone ? <Text style={s.companyMeta}>Phone: {orgPhone}</Text> : null}
+              {orgEmail ? <Text style={s.companyMeta}>{orgEmail}</Text> : null}
+              {orgGstin ? <Text style={s.companyMeta}>GSTIN: {orgGstin}</Text> : null}
+            </View>
           </View>
-          <View style={{ alignItems: "flex-end" }}>
+          <View style={{ alignItems: "flex-end", width: 163 }}>
             <Text style={s.invoiceTitle}>INVOICE</Text>
             <Text style={s.invoiceNumber}>{invoice.invoice_number}</Text>
             <View style={[s.statusBadge, { borderWidth: 1.5, borderColor: statusColor }]}>

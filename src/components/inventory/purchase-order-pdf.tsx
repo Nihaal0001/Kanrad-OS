@@ -3,8 +3,12 @@ import {
   Page,
   Text,
   View,
+  Image,
   StyleSheet,
 } from "@react-pdf/renderer"
+import path from "path"
+
+const LOGO_PATH = path.join(process.cwd(), "public", "kanrad-logo.jpeg")
 
 const TERRACOTTA = "#c2622a"
 const GRAY = "#6b7280"
@@ -22,9 +26,12 @@ const s = StyleSheet.create({
   },
 
   header: { flexDirection: "row", justifyContent: "space-between", marginBottom: 20 },
+  companyBlock: { flexDirection: "row", alignItems: "center", width: 270, paddingRight: 16 },
+  companyText: { width: 216 },
+  logo: { width: 44, height: 44, marginRight: 10, objectFit: "contain" },
   companyName: { fontSize: 22, fontFamily: "Helvetica-Bold", color: TERRACOTTA, marginBottom: 3 },
   companyMeta: { fontSize: 9, color: GRAY, lineHeight: 1.5 },
-  docTitle: { fontSize: 26, fontFamily: "Helvetica-Bold", letterSpacing: 2, color: DARK, textAlign: "right" },
+  docTitle: { fontSize: 20, fontFamily: "Helvetica-Bold", letterSpacing: 1, color: DARK, textAlign: "right" },
   docNumber: { fontSize: 10, color: GRAY, textAlign: "right", marginTop: 3 },
   statusBadge: { marginTop: 8, paddingVertical: 3, paddingHorizontal: 10, borderRadius: 4, alignSelf: "flex-end" },
   statusText: { fontSize: 9, fontFamily: "Helvetica-Bold", letterSpacing: 0.5 },
@@ -125,14 +132,17 @@ export function PurchaseOrderPDFDocument({ po, org }: Props) {
       <Page size="A4" style={s.page}>
 
         <View style={s.header}>
-          <View>
-            <Text style={s.companyName}>{orgName}</Text>
-            {orgAddress ? <Text style={s.companyMeta}>{orgAddress}</Text> : null}
-            {orgPhone ? <Text style={s.companyMeta}>Phone: {orgPhone}</Text> : null}
-            {orgEmail ? <Text style={s.companyMeta}>{orgEmail}</Text> : null}
-            {orgGstin ? <Text style={s.companyMeta}>GSTIN: {orgGstin}</Text> : null}
+          <View style={s.companyBlock}>
+            <Image src={LOGO_PATH} style={s.logo} />
+            <View style={s.companyText}>
+              <Text style={s.companyName}>{orgName}</Text>
+              {orgAddress ? <Text style={s.companyMeta}>{orgAddress}</Text> : null}
+              {orgPhone ? <Text style={s.companyMeta}>Phone: {orgPhone}</Text> : null}
+              {orgEmail ? <Text style={s.companyMeta}>{orgEmail}</Text> : null}
+              {orgGstin ? <Text style={s.companyMeta}>GSTIN: {orgGstin}</Text> : null}
+            </View>
           </View>
-          <View style={{ alignItems: "flex-end" }}>
+          <View style={{ alignItems: "flex-end", width: 213 }}>
             <Text style={s.docTitle}>PURCHASE ORDER</Text>
             <Text style={s.docNumber}>{po.po_number}</Text>
             <View style={[s.statusBadge, { borderWidth: 1.5, borderColor: statusColor }]}>
