@@ -5,6 +5,9 @@ export const warehouseSkuDispatchSchema = z.object({
   quantity: z.number().min(0.01, "Quantity must be greater than 0"),
   bill_no: z.string().min(1, "Bill number is required").max(100),
   notes: z.string().max(1000).optional().or(z.literal("")),
+  // Which order's warehouse stock to dispatch from — null for unlinked/manual
+  // stock. Required so a dispatch is always explicitly attributed.
+  order_id: z.string().nullable(),
 })
 
 export type WarehouseSkuDispatchFormData = z.infer<typeof warehouseSkuDispatchSchema>

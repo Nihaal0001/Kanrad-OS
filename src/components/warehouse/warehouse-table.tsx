@@ -52,6 +52,13 @@ interface WarehouseItem {
   created_at: string
   master_cartons: number | null
   order_id: string | null
+  order_number: string | null
+}
+
+interface OrderOption {
+  order_id: string | null
+  order_number: string | null
+  available: number
 }
 
 interface WarehouseTableProps {
@@ -69,6 +76,7 @@ interface SkuGroup {
   totalMasterCartons: number | null
   availableQuantity: number
   rows: WarehouseItem[]
+  orderOptions: OrderOption[]
 }
 
 interface BrandGroup {
@@ -105,6 +113,26 @@ function groupItems(items: WarehouseItem[]): BrandGroup[] {
         totalMasterCartons: item.master_cartons,
         availableQuantity: item.status === "in_warehouse" ? item.quantity : 0,
         rows: [item],
+        orderOptions: [],
+      })
+    }
+  }
+
+  // Build per-order dispatch options for each SKU group, from its in-warehouse rows.
+  for (const skuMap of byBrand.values()) {
+    for (const group of skuMap.values()) {
+      const byOrder = new Map<string, OrderOption>()
+      for (const row of group.rows) {
+        if (row.status !== "in_warehouse" || row.quantity <= 0) continue
+        const key = row.order_id ?? "__unlinked__"
+        const existing = byOrder.get(key)
+        if (existing) existing.available += row.quantity
+        else byOrder.set(key, { order_id: row.order_id, order_number: row.order_number, available: row.quantity })
+      }
+      group.orderOptions = [...byOrder.values()].sort((a, b) => {
+        if (a.order_id === null) return 1
+        if (b.order_id === null) return -1
+        return (a.order_number ?? "").localeCompare(b.order_number ?? "")
       })
     }
   }
@@ -128,10 +156,15 @@ export function WarehouseTable({ items, locations }: WarehouseTableProps) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
 
   const [dispatchGroup, setDispatchGroup] = useState<SkuGroup | null>(null)
+  const [dispatchOrderKey, setDispatchOrderKey] = useState("")
   const [dispatchQty, setDispatchQty] = useState("")
   const [dispatchBillNo, setDispatchBillNo] = useState("")
   const [dispatchNotes, setDispatchNotes] = useState("")
   const [dispatching, setDispatching] = useState(false)
+
+  const selectedOrderOption = dispatchGroup?.orderOptions.find(
+    (o) => (o.order_id ?? "__unlinked__") === dispatchOrderKey
+  ) ?? null
 
   const filtered = useMemo(() => {
     let result = items
@@ -153,6 +186,7 @@ export function WarehouseTable({ items, locations }: WarehouseTableProps) {
 
   function openDispatch(group: SkuGroup) {
     setDispatchGroup(group)
+    setDispatchOrderKey(group.orderOptions.length === 1 ? (group.orderOptions[0].order_id ?? "__unlinked__") : "")
     setDispatchQty("")
     setDispatchBillNo("")
     setDispatchNotes("")
@@ -160,13 +194,17 @@ export function WarehouseTable({ items, locations }: WarehouseTableProps) {
 
   async function handleDispatch() {
     if (!dispatchGroup || !dispatchGroup.sku) return
+    if (!selectedOrderOption) {
+      toast.error("Select which order this dispatch is for")
+      return
+    }
     const qty = Number(dispatchQty)
     if (!dispatchQty || isNaN(qty) || qty <= 0) {
       toast.error("Enter a valid quantity to dispatch")
       return
     }
-    if (qty > dispatchGroup.availableQuantity) {
-      toast.error(`Cannot dispatch more than ${dispatchGroup.availableQuantity} available`)
+    if (qty > selectedOrderOption.available) {
+      toast.error(`Cannot dispatch more than ${selectedOrderOption.available} available for this order`)
       return
     }
     if (!dispatchBillNo.trim()) {
@@ -180,6 +218,7 @@ export function WarehouseTable({ items, locations }: WarehouseTableProps) {
       quantity: qty,
       bill_no: dispatchBillNo.trim(),
       notes: dispatchNotes,
+      order_id: selectedOrderOption.order_id,
     })
     setDispatching(false)
 
@@ -308,6 +347,7 @@ export function WarehouseTable({ items, locations }: WarehouseTableProps) {
                                       <div key={row.id} className="flex items-center justify-between gap-3 rounded-md border bg-background px-3 py-2 text-sm">
                                         <div className="flex items-center gap-3 min-w-0">
                                           <StatusBadge status={row.status} />
+                                          <span className="font-mono text-xs">{row.order_number ?? "Unlinked"}</span>
                                           <span className="text-muted-foreground">{row.location ?? "No location"}</span>
                                           <span className="tabular-nums font-medium">{row.quantity} {row.unit}</span>
                                           <span className="text-xs text-muted-foreground">{formatDate(row.entry_date)}</span>
@@ -340,18 +380,34 @@ export function WarehouseTable({ items, locations }: WarehouseTableProps) {
             <div className="space-y-4">
               <p className="text-xs text-muted-foreground font-mono">{dispatchGroup.sku}</p>
               <div className="space-y-1.5">
+                <Label>Dispatching for Order *</Label>
+                <Select value={dispatchOrderKey} onValueChange={setDispatchOrderKey}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select which order this is for" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {dispatchGroup.orderOptions.map((o) => (
+                      <SelectItem key={o.order_id ?? "__unlinked__"} value={o.order_id ?? "__unlinked__"}>
+                        {o.order_number ?? "Unlinked / manual stock"} — {o.available} {dispatchGroup.unit} available
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
                 <Label>Quantity to Dispatch ({dispatchGroup.unit})</Label>
                 <Input
                   type="number"
                   min={0.01}
-                  max={dispatchGroup.availableQuantity}
+                  max={selectedOrderOption?.available ?? 0}
                   step="0.01"
-                  placeholder={`Max ${dispatchGroup.availableQuantity}`}
+                  placeholder={selectedOrderOption ? `Max ${selectedOrderOption.available}` : "Select an order first"}
                   value={dispatchQty}
                   onChange={(e) => setDispatchQty(e.target.value)}
+                  disabled={!selectedOrderOption}
                 />
                 <p className="text-[11px] text-muted-foreground">
-                  {dispatchGroup.availableQuantity} {dispatchGroup.unit} available
+                  {selectedOrderOption ? `${selectedOrderOption.available} ${dispatchGroup.unit} available for this order` : "Choose an order to see availability"}
                 </p>
               </div>
               <div className="space-y-1.5">

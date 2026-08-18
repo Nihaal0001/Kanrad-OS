@@ -39,10 +39,23 @@ export async function getWarehouseItems(filters?: { status?: string; location?: 
         }
       }
 
+      const orderIds = [...new Set(items.map((i) => i.order_id).filter(Boolean))] as string[]
+      const orderNumberById = new Map<string, string>()
+      if (orderIds.length > 0) {
+        const { data: linkedOrders } = await supabase
+          .from("orders")
+          .select("id, order_number")
+          .in("id", orderIds)
+        for (const o of linkedOrders ?? []) {
+          orderNumberById.set(o.id, o.order_number)
+        }
+      }
+
       return items.map((i) => ({
         ...i,
         master_cartons: ratios.has(i.item_name) ? Math.round(i.quantity * ratios.get(i.item_name)! * 1000) / 1000 : null,
         brand: (i.sku && brandBySku.get(i.sku)) || "Unbranded",
+        order_number: i.order_id ? orderNumberById.get(i.order_id) ?? null : null,
       }))
     },
     [`warehouse-items-${filters?.status ?? "all"}-${filters?.location ?? "all"}`],
@@ -80,13 +93,14 @@ function addDays(dateStr: string, days: number): string {
 
 /**
  * Dispatch a quantity of a SKU straight out of the warehouse under a bill
- * number — not tied to a single customer order (stock for one SKU can come
- * from several orders' production runs). Consumes the oldest stock first
- * across all in-warehouse rows for that SKU, logs a warehouse_dispatches row
- * per row consumed, and — for whatever portion is linked to a customer order —
- * finds or creates a sales invoice for that customer + bill number (adding a
- * line item to it), so it shows up in Finance → Receivables. Stock with no
- * linked order still dispatches, it just can't be invoiced.
+ * number, for a specific customer order the dispatcher explicitly picks
+ * (stock for one SKU can come from several orders' production runs — order_id
+ * null means dispatching from unlinked/manually-added stock instead). Consumes
+ * the oldest stock first among that order's rows, logs a warehouse_dispatches
+ * row per row consumed, and — when linked to a customer order — finds or
+ * creates a sales invoice for that customer + bill number (adding a line
+ * item to it), so it shows up in Finance → Receivables. Unlinked stock still
+ * dispatches, it just can't be invoiced.
  */
 export async function dispatchWarehouseSku(formData: WarehouseSkuDispatchFormData) {
   const validated = warehouseSkuDispatchSchema.parse(formData)
@@ -96,7 +110,7 @@ export async function dispatchWarehouseSku(formData: WarehouseSkuDispatchFormDat
 
   const admin = createAdminClient()
 
-  const { data: rows, error: rowsError } = await admin
+  let rowsQuery = admin
     .from("warehouse_items")
     .select("id, item_name, sku, quantity, order_id")
     .eq("sku", validated.sku)
@@ -104,11 +118,17 @@ export async function dispatchWarehouseSku(formData: WarehouseSkuDispatchFormDat
     .gt("quantity", 0)
     .order("entry_date", { ascending: true })
 
+  rowsQuery = validated.order_id
+    ? rowsQuery.eq("order_id", validated.order_id)
+    : rowsQuery.is("order_id", null)
+
+  const { data: rows, error: rowsError } = await rowsQuery
+
   if (rowsError) return { error: rowsError.message }
 
   const available = (rows ?? []).reduce((s, r) => s + r.quantity, 0)
   if (validated.quantity > available) {
-    return { error: `Cannot dispatch more than the ${available} available for this SKU.` }
+    return { error: `Cannot dispatch more than the ${available} available for this order.` }
   }
 
   let remaining = validated.quantity
@@ -225,7 +245,7 @@ export async function dispatchWarehouseSku(formData: WarehouseSkuDispatchFormDat
     entityType: "warehouse_dispatch",
     entityLabel: validated.sku,
     action: "created",
-    newValues: { sku: validated.sku, quantity: validated.quantity, bill_no: validated.bill_no },
+    newValues: { sku: validated.sku, quantity: validated.quantity, bill_no: validated.bill_no, order_id: validated.order_id },
   })
 
   return { success: true }
