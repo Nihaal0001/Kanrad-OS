@@ -1,8 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
+import { Search } from "lucide-react"
 import { formatDate, formatCurrency } from "@/lib/utils"
 import { StatusBadge } from "@/components/shared/status-badge"
+import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Table,
@@ -95,6 +97,14 @@ interface HistoryTabsProps {
   transactions: HistoryTransaction[]
   payables: HistoryPayable[]
   dispatches: HistoryDispatch[]
+}
+
+// ── Search helper ────────────────────────────────────────────
+
+function matches(query: string, ...fields: (string | null | undefined)[]) {
+  if (!query) return true
+  const q = query.toLowerCase()
+  return fields.some((f) => f?.toLowerCase().includes(q))
 }
 
 // ── Empty row ───────────────────────────────────────────────
@@ -403,40 +413,84 @@ export function HistoryTabs({
   dispatches,
 }: HistoryTabsProps) {
   const [activeTab, setActiveTab] = useState("orders")
+  const [search, setSearch] = useState("")
+
+  const filteredOrders = useMemo(
+    () => orders.filter((o) => matches(search, o.order_number, o.product_variant, o.customer?.name, o.customer?.company)),
+    [orders, search]
+  )
+  const filteredBatches = useMemo(
+    () => batches.filter((b) => matches(search, b.order?.order_number, b.order?.product_variant)),
+    [batches, search]
+  )
+  const filteredPOs = useMemo(
+    () => purchaseOrders.filter((p) => matches(search, p.po_number, p.supplier_name)),
+    [purchaseOrders, search]
+  )
+  const filteredShipments = useMemo(
+    () => shipments.filter((s) => matches(search, s.shipment_number, s.customer_name, s.courier_name, s.tracking_number)),
+    [shipments, search]
+  )
+  const filteredTransactions = useMemo(
+    () => transactions.filter((t) => matches(search, t.invoice_number, t.customer_name)),
+    [transactions, search]
+  )
+  const filteredPayables = useMemo(
+    () => payables.filter((p) => matches(search, p.invoice_number, p.supplier_name)),
+    [payables, search]
+  )
+  const filteredDispatches = useMemo(
+    () => dispatches.filter((d) =>
+      matches(search, d.warehouse_item?.item_name, d.warehouse_item?.sku, d.order?.order_number, d.bill_no)
+    ),
+    [dispatches, search]
+  )
 
   return (
-    <Tabs value={activeTab} onValueChange={setActiveTab}>
-      <TabsList className="mb-6 flex flex-wrap gap-1 h-auto">
-        <TabsTrigger value="orders">Orders ({orders.length})</TabsTrigger>
-        <TabsTrigger value="production">Production ({batches.length})</TabsTrigger>
-        <TabsTrigger value="purchase-orders">Purchase Orders ({purchaseOrders.length})</TabsTrigger>
-        <TabsTrigger value="dispatches">Dispatches ({dispatches.length})</TabsTrigger>
-        <TabsTrigger value="logistics">Logistics ({shipments.length})</TabsTrigger>
-        <TabsTrigger value="finance">Finance ({transactions.length})</TabsTrigger>
-        <TabsTrigger value="payables">Payables ({payables.length})</TabsTrigger>
-      </TabsList>
+    <div className="space-y-4">
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          placeholder="Search history…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="pl-9"
+        />
+      </div>
 
-      <TabsContent value="orders">
-        <OrdersTab orders={orders} />
-      </TabsContent>
-      <TabsContent value="production">
-        <ProductionTab batches={batches} />
-      </TabsContent>
-      <TabsContent value="purchase-orders">
-        <PurchaseOrdersTab pos={purchaseOrders} />
-      </TabsContent>
-      <TabsContent value="dispatches">
-        <DispatchesTab dispatches={dispatches} />
-      </TabsContent>
-      <TabsContent value="logistics">
-        <LogisticsTab shipments={shipments} />
-      </TabsContent>
-      <TabsContent value="finance">
-        <FinanceTab transactions={transactions} />
-      </TabsContent>
-      <TabsContent value="payables">
-        <PayablesTab payables={payables} />
-      </TabsContent>
-    </Tabs>
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="mb-6 flex flex-wrap gap-1 h-auto">
+          <TabsTrigger value="orders">Orders ({filteredOrders.length})</TabsTrigger>
+          <TabsTrigger value="production">Production ({filteredBatches.length})</TabsTrigger>
+          <TabsTrigger value="purchase-orders">Purchase Orders ({filteredPOs.length})</TabsTrigger>
+          <TabsTrigger value="dispatches">Dispatches ({filteredDispatches.length})</TabsTrigger>
+          <TabsTrigger value="logistics">Logistics ({filteredShipments.length})</TabsTrigger>
+          <TabsTrigger value="finance">Finance ({filteredTransactions.length})</TabsTrigger>
+          <TabsTrigger value="payables">Payables ({filteredPayables.length})</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="orders">
+          <OrdersTab orders={filteredOrders} />
+        </TabsContent>
+        <TabsContent value="production">
+          <ProductionTab batches={filteredBatches} />
+        </TabsContent>
+        <TabsContent value="purchase-orders">
+          <PurchaseOrdersTab pos={filteredPOs} />
+        </TabsContent>
+        <TabsContent value="dispatches">
+          <DispatchesTab dispatches={filteredDispatches} />
+        </TabsContent>
+        <TabsContent value="logistics">
+          <LogisticsTab shipments={filteredShipments} />
+        </TabsContent>
+        <TabsContent value="finance">
+          <FinanceTab transactions={filteredTransactions} />
+        </TabsContent>
+        <TabsContent value="payables">
+          <PayablesTab payables={filteredPayables} />
+        </TabsContent>
+      </Tabs>
+    </div>
   )
 }
