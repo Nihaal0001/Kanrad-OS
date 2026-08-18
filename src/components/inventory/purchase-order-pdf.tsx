@@ -3,97 +3,94 @@ import {
   Page,
   Text,
   View,
-  Image,
   StyleSheet,
 } from "@react-pdf/renderer"
-import path from "path"
+import { amountInWords } from "@/lib/number-to-words"
 
-const LOGO_PATH = path.join(process.cwd(), "public", "kanrad-logo.jpeg")
-
-const TERRACOTTA = "#c2622a"
-const GRAY = "#6b7280"
-const DARK = "#1a1a1a"
+const BLACK = "#000000"
 
 const s = StyleSheet.create({
   page: {
     fontFamily: "Helvetica",
-    fontSize: 10,
-    color: DARK,
-    paddingTop: 40,
-    paddingBottom: 50,
+    fontSize: 9,
+    color: BLACK,
+    paddingTop: 32,
+    paddingBottom: 32,
     paddingHorizontal: 48,
     backgroundColor: "#ffffff",
   },
 
-  header: { flexDirection: "row", justifyContent: "space-between", marginBottom: 20 },
-  companyBlock: { flexDirection: "row", alignItems: "center", width: 270, paddingRight: 16 },
-  companyText: { width: 216 },
-  logo: { width: 44, height: 44, marginRight: 10, objectFit: "contain" },
-  companyName: { fontSize: 22, fontFamily: "Helvetica-Bold", color: TERRACOTTA, marginBottom: 3 },
-  companyMeta: { fontSize: 9, color: GRAY, lineHeight: 1.5 },
-  docTitle: { fontSize: 20, fontFamily: "Helvetica-Bold", letterSpacing: 1, color: DARK, textAlign: "right" },
-  docNumber: { fontSize: 10, color: GRAY, textAlign: "right", marginTop: 3 },
-  statusBadge: { marginTop: 8, paddingVertical: 3, paddingHorizontal: 10, borderRadius: 4, alignSelf: "flex-end" },
-  statusText: { fontSize: 9, fontFamily: "Helvetica-Bold", letterSpacing: 0.5 },
+  title: { fontSize: 16, fontFamily: "Helvetica-Bold", letterSpacing: 1, textAlign: "center", marginBottom: 10 },
 
-  divider: { height: 2, backgroundColor: TERRACOTTA, marginBottom: 24 },
-  thinDivider: { height: 1, backgroundColor: "#e5e7eb", marginVertical: 8 },
+  // Header grid
+  headerBox: { flexDirection: "row", borderWidth: 1, borderColor: BLACK, marginBottom: 0 },
+  leftCol: { width: 300, borderRightWidth: 1, borderColor: BLACK },
+  rightCol: { flex: 1 },
 
-  metaRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 28 },
-  sectionLabel: { fontSize: 8, fontFamily: "Helvetica-Bold", color: "#9ca3af", letterSpacing: 1, marginBottom: 5 },
-  partyName: { fontSize: 13, fontFamily: "Helvetica-Bold", marginBottom: 3 },
-  partyMeta: { fontSize: 9, color: GRAY, lineHeight: 1.5 },
-  metaTable: { alignItems: "flex-end" },
-  metaRow2: { flexDirection: "row", marginBottom: 5 },
-  metaLabel: { fontSize: 9, color: GRAY, marginRight: 12, width: 90, textAlign: "right" },
-  metaValue: { fontSize: 9, fontFamily: "Helvetica-Bold", textAlign: "right" },
+  partySection: { padding: 6, borderBottomWidth: 1, borderColor: BLACK },
+  partySectionLast: { padding: 6 },
+  partyLabel: { fontSize: 8, fontFamily: "Helvetica-Bold", marginBottom: 2 },
+  partyName: { fontSize: 9.5, fontFamily: "Helvetica-Bold", marginBottom: 1 },
+  partyLine: { fontSize: 8.5, lineHeight: 1.4 },
 
-  tableHeader: { flexDirection: "row", backgroundColor: "#f9f5f2", paddingVertical: 8, paddingHorizontal: 10 },
-  tableHeaderText: { fontSize: 8, fontFamily: "Helvetica-Bold", color: "#9ca3af", letterSpacing: 0.5 },
-  tableRow: { flexDirection: "row", paddingVertical: 9, paddingHorizontal: 10, borderBottomWidth: 1, borderBottomColor: "#f3f4f6" },
-  tableRowAlt: { backgroundColor: "#fafafa" },
-  colSku: { width: 76 },
-  colDesc: { flex: 1 },
-  colQty: { width: 60, textAlign: "center" },
-  colPrice: { width: 76, textAlign: "right" },
-  colAmount: { width: 84, textAlign: "right" },
-  cellText: { fontSize: 10 },
-  cellMuted: { fontSize: 10, color: GRAY },
-  cellBold: { fontSize: 10, fontFamily: "Helvetica-Bold" },
+  fieldRow: { flexDirection: "row", borderBottomWidth: 1, borderColor: BLACK },
+  fieldCellHalf: { width: "50%", padding: 6, borderRightWidth: 1, borderColor: BLACK },
+  fieldCellFull: { padding: 6, flex: 1 },
+  fieldCellTall: { padding: 6, flex: 1, minHeight: 44 },
+  fieldLabel: { fontSize: 8, color: "#333333", marginBottom: 2 },
+  fieldValue: { fontSize: 8.5, fontFamily: "Helvetica-Bold" },
 
-  totalsContainer: { flexDirection: "row", justifyContent: "flex-end", marginBottom: 28 },
-  totalsBox: { width: 210 },
-  grandTotalRow: { flexDirection: "row", justifyContent: "space-between", backgroundColor: TERRACOTTA, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 5, marginTop: 4 },
-  grandTotalText: { fontSize: 12, fontFamily: "Helvetica-Bold", color: "#ffffff" },
+  // Items table
+  table: { borderWidth: 1, borderColor: BLACK, borderTopWidth: 0 },
+  tRow: { flexDirection: "row", borderTopWidth: 1, borderColor: BLACK },
+  tRowHeader: { flexDirection: "row" },
+  colSi: { width: 30, padding: 4, borderRightWidth: 1, borderColor: BLACK },
+  colDesc: { flex: 1, padding: 4, borderRightWidth: 1, borderColor: BLACK },
+  colPart: { width: 66, padding: 4, borderRightWidth: 1, borderColor: BLACK },
+  colQty: { width: 82, padding: 4, borderRightWidth: 1, borderColor: BLACK, textAlign: "right" },
+  colRate: { width: 54, padding: 4, borderRightWidth: 1, borderColor: BLACK, textAlign: "right" },
+  colPer: { width: 34, padding: 4, borderRightWidth: 1, borderColor: BLACK, textAlign: "center" },
+  colAmount: { width: 80, padding: 4, textAlign: "right" },
+  thText: { fontSize: 7.5, fontFamily: "Helvetica-Bold" },
+  tdText: { fontSize: 8.5 },
+  tdBold: { fontSize: 8.5, fontFamily: "Helvetica-Bold" },
 
-  notesBox: { backgroundColor: "#f9f5f2", borderRadius: 6, padding: 12, marginBottom: 28 },
-  notesLabel: { fontSize: 8, fontFamily: "Helvetica-Bold", color: "#9ca3af", letterSpacing: 1, marginBottom: 5 },
-  notesText: { fontSize: 9, color: GRAY, lineHeight: 1.6 },
+  // Amount in words
+  wordsBox: { flexDirection: "row", justifyContent: "space-between", borderWidth: 1, borderTopWidth: 0, borderColor: BLACK, padding: 6 },
+  wordsText: { fontSize: 8.5, fontFamily: "Helvetica-Bold", flex: 1, paddingRight: 8 },
+  eoeText: { fontSize: 8, alignSelf: "flex-end" },
 
-  footer: { position: "absolute", bottom: 30, left: 48, right: 48 },
-  footerDivider: { height: 1, backgroundColor: "#e5e7eb", marginBottom: 8 },
-  footerRow: { flexDirection: "row", justifyContent: "space-between" },
-  footerText: { fontSize: 8, color: "#9ca3af" },
+  // Signature block
+  signBox: { flexDirection: "row", borderWidth: 1, borderTopWidth: 0, borderColor: BLACK, minHeight: 70 },
+  signLeft: { width: 300, padding: 6, borderRightWidth: 1, borderColor: BLACK },
+  signRight: { flex: 1, padding: 6, justifyContent: "space-between" },
+  panText: { fontSize: 8.5 },
+  forText: { fontSize: 8.5, textAlign: "right" },
+  signatoryText: { fontSize: 8.5, textAlign: "right" },
+
+  footerNote: { fontSize: 7.5, fontStyle: "italic", textAlign: "center", marginTop: 10, color: "#333333" },
 })
 
-const STATUS_LABEL: Record<string, string> = {
-  draft: "DRAFT",
-  sent: "SENT",
-  partial: "PARTIALLY RECEIVED",
-  received: "RECEIVED",
-  cancelled: "CANCELLED",
+function fmt(n: number, decimals = 2) {
+  return n.toLocaleString("en-IN", { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
 }
 
-const STATUS_COLOR: Record<string, string> = {
-  draft: "#9ca3af",
-  sent: "#2563eb",
-  partial: "#d97706",
-  received: "#16a34a",
-  cancelled: "#dc2626",
+function fmtDate(d: string | null) {
+  if (!d) return ""
+  const date = new Date(d + "T00:00:00")
+  if (isNaN(date.getTime())) return d
+  const day = String(date.getDate()).padStart(2, "0")
+  const month = date.toLocaleString("en-US", { month: "short" })
+  const year = String(date.getFullYear()).slice(-2)
+  return `${day}-${month}-${year}`
 }
 
-function fmt(n: number) {
-  return "Rs. " + n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+function stateCode(gstin: string | null | undefined) {
+  return gstin && gstin.length >= 2 ? gstin.slice(0, 2) : ""
+}
+
+function panFromGstin(gstin: string | null | undefined) {
+  return gstin && gstin.length >= 12 ? gstin.slice(2, 12) : ""
 }
 
 export interface PurchaseOrderPDFData {
@@ -101,8 +98,24 @@ export interface PurchaseOrderPDFData {
   status: string
   order_date: string
   expected_date: string | null
+  tax_rate: number
+  reference_no: string | null
+  other_references: string | null
+  dispatched_through: string | null
+  destination: string | null
+  terms_of_delivery: string | null
+  mode_of_payment: string | null
   supplier_name: string
   supplier_contact: string | null
+  supplier: {
+    name: string
+    company: string | null
+    address: string | null
+    city: string | null
+    state: string | null
+    gstin: string | null
+    phone: string | null
+  } | null
   total_amount: number
   notes: string | null
   items: Array<{
@@ -117,110 +130,228 @@ interface Props {
   org: Record<string, string> | null
 }
 
+function PartyBlock({
+  label,
+  name,
+  address,
+  gstin,
+  state,
+  last,
+}: {
+  label: string
+  name: string
+  address: string
+  gstin: string
+  state: string
+  last?: boolean
+}) {
+  const code = stateCode(gstin)
+  return (
+    <View style={last ? s.partySectionLast : s.partySection}>
+      <Text style={s.partyLabel}>{label}</Text>
+      <Text style={s.partyName}>{name}</Text>
+      {address ? <Text style={s.partyLine}>{address}</Text> : null}
+      {gstin ? <Text style={s.partyLine}>GSTIN/UIN: {gstin}</Text> : null}
+      {state ? <Text style={s.partyLine}>State Name : {state}{code ? `, Code : ${code}` : ""}</Text> : null}
+    </View>
+  )
+}
+
 export function PurchaseOrderPDFDocument({ po, org }: Props) {
   const orgName = org?.org_name || "KANRAD ERP"
   const orgAddress = [org?.address, org?.city, org?.state, org?.pincode].filter(Boolean).join(", ")
-  const orgPhone = org?.phone || ""
-  const orgEmail = org?.email || ""
   const orgGstin = org?.gstin || ""
+  const orgState = org?.state || ""
+  const pan = panFromGstin(orgGstin)
 
-  const statusColor = STATUS_COLOR[po.status] ?? "#9ca3af"
-  const statusLabel = STATUS_LABEL[po.status] ?? po.status.toUpperCase()
+  const supplierName = po.supplier?.name || po.supplier_name
+  const supplierAddress = po.supplier
+    ? [po.supplier.address, po.supplier.city].filter(Boolean).join(", ")
+    : ""
+  const supplierGstin = po.supplier?.gstin || ""
+  const supplierState = po.supplier?.state || ""
+
+  const isIgst = (() => {
+    const orgCode = stateCode(orgGstin)
+    const supCode = stateCode(supplierGstin)
+    if (!orgCode || !supCode) return false
+    return orgCode !== supCode
+  })()
+
+  const subtotal = po.items.reduce((sum, item) => sum + item.quantity_ordered * item.unit_price, 0)
+  const taxAmount = subtotal * (po.tax_rate / 100)
+  const grandTotal = subtotal + taxAmount
+  const halfRate = po.tax_rate / 2
+  const halfTax = taxAmount / 2
+
+  const totalQty = po.items.reduce((sum, item) => sum + item.quantity_ordered, 0)
+  const firstUnit = po.items[0]?.material?.unit ?? ""
 
   return (
     <Document>
       <Page size="A4" style={s.page}>
+        <Text style={s.title}>PURCHASE ORDER</Text>
 
-        <View style={s.header}>
-          <View style={s.companyBlock}>
-            <Image src={LOGO_PATH} style={s.logo} />
-            <View style={s.companyText}>
-              <Text style={s.companyName}>{orgName}</Text>
-              {orgAddress ? <Text style={s.companyMeta}>{orgAddress}</Text> : null}
-              {orgPhone ? <Text style={s.companyMeta}>Phone: {orgPhone}</Text> : null}
-              {orgEmail ? <Text style={s.companyMeta}>{orgEmail}</Text> : null}
-              {orgGstin ? <Text style={s.companyMeta}>GSTIN: {orgGstin}</Text> : null}
-            </View>
+        <View style={s.headerBox}>
+          <View style={s.leftCol}>
+            <PartyBlock
+              label="Invoice To"
+              name={orgName}
+              address={orgAddress}
+              gstin={orgGstin}
+              state={orgState}
+            />
+            <PartyBlock
+              label="Consignee (Ship to)"
+              name={orgName}
+              address={orgAddress}
+              gstin={orgGstin}
+              state={orgState}
+            />
+            <PartyBlock
+              label="Supplier (Bill from)"
+              name={supplierName}
+              address={supplierAddress}
+              gstin={supplierGstin}
+              state={supplierState}
+              last
+            />
           </View>
-          <View style={{ alignItems: "flex-end", width: 213 }}>
-            <Text style={s.docTitle}>PURCHASE ORDER</Text>
-            <Text style={s.docNumber}>{po.po_number}</Text>
-            <View style={[s.statusBadge, { borderWidth: 1.5, borderColor: statusColor }]}>
-              <Text style={[s.statusText, { color: statusColor }]}>{statusLabel}</Text>
+
+          <View style={s.rightCol}>
+            <View style={s.fieldRow}>
+              <View style={s.fieldCellHalf}>
+                <Text style={s.fieldLabel}>Voucher No.</Text>
+                <Text style={s.fieldValue}>{po.po_number}</Text>
+              </View>
+              <View style={s.fieldCellFull}>
+                <Text style={s.fieldLabel}>Dated</Text>
+                <Text style={s.fieldValue}>{fmtDate(po.order_date)}</Text>
+              </View>
+            </View>
+            <View style={s.fieldRow}>
+              <View style={s.fieldCellFull}>
+                <Text style={s.fieldLabel}>Mode/Terms of Payment</Text>
+                <Text style={s.fieldValue}>{po.mode_of_payment || ""}</Text>
+              </View>
+            </View>
+            <View style={s.fieldRow}>
+              <View style={s.fieldCellHalf}>
+                <Text style={s.fieldLabel}>Reference No. &amp; Date.</Text>
+                <Text style={s.fieldValue}>{po.reference_no || po.po_number}</Text>
+              </View>
+              <View style={s.fieldCellFull}>
+                <Text style={s.fieldLabel}>Other References</Text>
+                <Text style={s.fieldValue}>{po.other_references || ""}</Text>
+              </View>
+            </View>
+            <View style={s.fieldRow}>
+              <View style={s.fieldCellHalf}>
+                <Text style={s.fieldLabel}>Dispatched through</Text>
+                <Text style={s.fieldValue}>{po.dispatched_through || ""}</Text>
+              </View>
+              <View style={s.fieldCellFull}>
+                <Text style={s.fieldLabel}>Destination</Text>
+                <Text style={s.fieldValue}>{po.destination || ""}</Text>
+              </View>
+            </View>
+            <View style={[s.fieldRow, { borderBottomWidth: 0 }]}>
+              <View style={s.fieldCellTall}>
+                <Text style={s.fieldLabel}>Terms of Delivery</Text>
+                <Text style={s.fieldValue}>{po.terms_of_delivery || ""}</Text>
+              </View>
             </View>
           </View>
         </View>
 
-        <View style={s.divider} />
-
-        <View style={s.metaRow}>
-          <View>
-            <Text style={s.sectionLabel}>VENDOR</Text>
-            <Text style={s.partyName}>{po.supplier_name}</Text>
-            {po.supplier_contact ? <Text style={s.partyMeta}>{po.supplier_contact}</Text> : null}
+        {/* Items table */}
+        <View style={s.table}>
+          <View style={s.tRowHeader}>
+            <View style={s.colSi}><Text style={s.thText}>SI No.</Text></View>
+            <View style={s.colDesc}><Text style={s.thText}>Description of Goods</Text></View>
+            <View style={s.colPart}><Text style={s.thText}>Part No.</Text></View>
+            <View style={s.colQty}><Text style={s.thText}>Quantity</Text></View>
+            <View style={s.colRate}><Text style={s.thText}>Rate</Text></View>
+            <View style={s.colPer}><Text style={s.thText}>per</Text></View>
+            <View style={s.colAmount}><Text style={s.thText}>Amount</Text></View>
           </View>
-          <View style={s.metaTable}>
-            <View style={s.metaRow2}>
-              <Text style={s.metaLabel}>Order Date</Text>
-              <Text style={s.metaValue}>{po.order_date}</Text>
+
+          {po.items.map((item, idx) => (
+            <View key={idx} style={s.tRow}>
+              <View style={s.colSi}><Text style={s.tdText}>{idx + 1}</Text></View>
+              <View style={s.colDesc}><Text style={s.tdText}>{item.material?.name ?? "—"}</Text></View>
+              <View style={s.colPart}><Text style={s.tdText}>{item.material?.sku ?? ""}</Text></View>
+              <View style={s.colQty}><Text style={s.tdText}>{fmt(item.quantity_ordered, 3)} {item.material?.unit ?? ""}</Text></View>
+              <View style={s.colRate}><Text style={s.tdText}>{fmt(item.unit_price)}</Text></View>
+              <View style={s.colPer}><Text style={s.tdText}>{item.material?.unit ?? ""}</Text></View>
+              <View style={s.colAmount}><Text style={s.tdText}>{fmt(item.quantity_ordered * item.unit_price)}</Text></View>
             </View>
-            {po.expected_date ? (
-              <View style={s.metaRow2}>
-                <Text style={s.metaLabel}>Due On</Text>
-                <Text style={s.metaValue}>{po.expected_date}</Text>
-              </View>
-            ) : null}
-          </View>
-        </View>
+          ))}
 
-        <View style={{ marginBottom: 20 }}>
-          <View style={s.tableHeader}>
-            <View style={s.colSku}><Text style={s.tableHeaderText}>SKU</Text></View>
-            <View style={s.colDesc}><Text style={s.tableHeaderText}>ITEM</Text></View>
-            <View style={s.colQty}><Text style={[s.tableHeaderText, { textAlign: "center" }]}>QTY</Text></View>
-            <View style={s.colPrice}><Text style={[s.tableHeaderText, { textAlign: "right" }]}>RATE</Text></View>
-            <View style={s.colAmount}><Text style={[s.tableHeaderText, { textAlign: "right" }]}>AMOUNT</Text></View>
-          </View>
-
-          {po.items.map((item, idx) => {
-            const amount = item.quantity_ordered * item.unit_price
-            return (
-              <View key={idx} style={[s.tableRow, idx % 2 === 1 ? s.tableRowAlt : {}]}>
-                <View style={s.colSku}><Text style={s.cellMuted}>{item.material?.sku ?? ""}</Text></View>
-                <View style={s.colDesc}><Text style={s.cellText}>{item.material?.name ?? "—"}</Text></View>
-                <View style={s.colQty}><Text style={[s.cellMuted, { textAlign: "center" }]}>{item.quantity_ordered} {item.material?.unit ?? ""}</Text></View>
-                <View style={s.colPrice}><Text style={[s.cellMuted, { textAlign: "right" }]}>{fmt(item.unit_price)}</Text></View>
-                <View style={s.colAmount}><Text style={[s.cellBold, { textAlign: "right" }]}>{fmt(amount)}</Text></View>
+          {po.tax_rate > 0 && (
+            isIgst ? (
+              <View style={s.tRow}>
+                <View style={s.colSi}><Text style={s.tdText}></Text></View>
+                <View style={s.colDesc}><Text style={s.tdText}>IGST Input @ {po.tax_rate}%</Text></View>
+                <View style={s.colPart}><Text style={s.tdText}></Text></View>
+                <View style={s.colQty}><Text style={s.tdText}></Text></View>
+                <View style={s.colRate}><Text style={s.tdText}>{po.tax_rate}</Text></View>
+                <View style={s.colPer}><Text style={s.tdText}>%</Text></View>
+                <View style={s.colAmount}><Text style={s.tdText}>{fmt(taxAmount)}</Text></View>
               </View>
+            ) : (
+              <>
+                <View style={s.tRow}>
+                  <View style={s.colSi}><Text style={s.tdText}></Text></View>
+                  <View style={s.colDesc}><Text style={s.tdText}>CGST Input @ {halfRate}%</Text></View>
+                  <View style={s.colPart}><Text style={s.tdText}></Text></View>
+                  <View style={s.colQty}><Text style={s.tdText}></Text></View>
+                  <View style={s.colRate}><Text style={s.tdText}>{halfRate}</Text></View>
+                  <View style={s.colPer}><Text style={s.tdText}>%</Text></View>
+                  <View style={s.colAmount}><Text style={s.tdText}>{fmt(halfTax)}</Text></View>
+                </View>
+                <View style={s.tRow}>
+                  <View style={s.colSi}><Text style={s.tdText}></Text></View>
+                  <View style={s.colDesc}><Text style={s.tdText}>SGST Input @ {halfRate}%</Text></View>
+                  <View style={s.colPart}><Text style={s.tdText}></Text></View>
+                  <View style={s.colQty}><Text style={s.tdText}></Text></View>
+                  <View style={s.colRate}><Text style={s.tdText}>{halfRate}</Text></View>
+                  <View style={s.colPer}><Text style={s.tdText}>%</Text></View>
+                  <View style={s.colAmount}><Text style={s.tdText}>{fmt(halfTax)}</Text></View>
+                </View>
+              </>
             )
-          })}
-        </View>
+          )}
 
-        <View style={s.totalsContainer}>
-          <View style={s.totalsBox}>
-            <View style={s.thinDivider} />
-            <View style={s.grandTotalRow}>
-              <Text style={s.grandTotalText}>TOTAL</Text>
-              <Text style={s.grandTotalText}>{fmt(po.total_amount)}</Text>
-            </View>
+          <View style={[s.tRow, { borderTopWidth: 1.5 }]}>
+            <View style={s.colSi}><Text style={s.tdText}></Text></View>
+            <View style={s.colDesc}><Text style={[s.tdBold, { textAlign: "right" }]}>Total</Text></View>
+            <View style={s.colPart}><Text style={s.tdText}></Text></View>
+            <View style={s.colQty}><Text style={s.tdBold}>{fmt(totalQty, 3)} {firstUnit}</Text></View>
+            <View style={s.colRate}><Text style={s.tdText}></Text></View>
+            <View style={s.colPer}><Text style={s.tdText}></Text></View>
+            <View style={s.colAmount}><Text style={s.tdBold}>Rs. {fmt(grandTotal)}</Text></View>
           </View>
         </View>
 
-        {po.notes ? (
-          <View style={s.notesBox}>
-            <Text style={s.notesLabel}>NOTES</Text>
-            <Text style={s.notesText}>{po.notes}</Text>
-          </View>
-        ) : null}
+        {/* Amount in words */}
+        <View style={s.wordsBox}>
+          <Text style={s.wordsText}>Amount Chargeable (in words){"\n"}{amountInWords(grandTotal)}</Text>
+          <Text style={s.eoeText}>E. &amp; O.E</Text>
+        </View>
 
-        <View style={s.footer} fixed>
-          <View style={s.footerDivider} />
-          <View style={s.footerRow}>
-            <Text style={s.footerText}>{orgName}{orgGstin ? ` · GSTIN: ${orgGstin}` : ""}</Text>
-            <Text style={s.footerText}>Please confirm receipt of this order</Text>
+        {/* Signature block */}
+        <View style={s.signBox}>
+          <View style={s.signLeft}>
+            <Text style={s.panText}>Company&apos;s PAN : {pan}</Text>
+          </View>
+          <View style={s.signRight}>
+            <Text style={s.forText}>for {orgName}</Text>
+            <Text style={s.signatoryText}>Authorised Signatory</Text>
           </View>
         </View>
 
+        <Text style={s.footerNote}>This is a Computer Generated Document</Text>
       </Page>
     </Document>
   )
