@@ -146,6 +146,47 @@ export async function getMaterialsForOrders(orderIds: string[]) {
     .sort((a, b) => a.sku.localeCompare(b.sku))
 }
 
+/** For a customer order, which materials already have an open purchase order
+ *  raised against them — i.e. a linked PO that hasn't been rejected/cancelled
+ *  and still has quantity left to receive. Used to stop a second PO being
+ *  raised for the same shortage while the first is still in flight. */
+export async function getOpenPOsForOrderMaterials(orderId: string) {
+  const supabase = createAdminClient()
+
+  const { data: links, error: linksError } = await supabase
+    .from("purchase_order_orders")
+    .select("purchase_order:purchase_orders(id, po_number, status, approval_status)")
+    .eq("order_id", orderId)
+
+  if (linksError) throw new Error(linksError.message)
+
+  type POLink = { id: string; po_number: string; status: string; approval_status: string }
+  const pos = (links ?? [])
+    .map((l) => (Array.isArray(l.purchase_order) ? l.purchase_order[0] : l.purchase_order) as POLink | null)
+    .filter((po): po is POLink => !!po && po.status !== "cancelled" && po.approval_status !== "rejected")
+
+  if (pos.length === 0) return {}
+
+  const { data: items, error: itemsError } = await supabase
+    .from("purchase_order_items")
+    .select("material_id, quantity_ordered, quantity_received, purchase_order_id")
+    .in("purchase_order_id", pos.map((p) => p.id))
+
+  if (itemsError) throw new Error(itemsError.message)
+
+  const poById = new Map(pos.map((p) => [p.id, p]))
+  const byMaterial: Record<string, { po_number: string; approval_status: string; status: string }> = {}
+
+  for (const item of items ?? []) {
+    if (item.quantity_received >= item.quantity_ordered) continue // fully received — resolved
+    const po = poById.get(item.purchase_order_id)
+    if (!po) continue
+    byMaterial[item.material_id] = { po_number: po.po_number, approval_status: po.approval_status, status: po.status }
+  }
+
+  return byMaterial
+}
+
 export async function createMaterial(formData: MaterialFormData) {
   const validated = materialSchema.parse(formData)
   const supabase = await createClient()

@@ -33,6 +33,7 @@ export interface ShortageMaterial {
   unit: string
   shortage: number
   cost_per_unit: number
+  openPO: { po_number: string; approval_status: string; status: string } | null
 }
 
 export interface SupplierOption {
@@ -175,14 +176,20 @@ export function OrderShortagePO({ orderId, shortages, suppliers }: OrderShortage
                     Short by {s.shortage} {s.unit}
                   </p>
                 </div>
-                {row.done && (
-                  <span className="text-xs font-medium text-emerald-600 shrink-0">
-                    Purchase order raised
+                {(row.done || s.openPO) && (
+                  <span className="text-xs font-medium text-emerald-600 shrink-0 text-right">
+                    {row.done ? (
+                      "Purchase order raised"
+                    ) : s.openPO!.approval_status === "pending_approval" ? (
+                      <>Waiting for approval<span className="block text-muted-foreground font-normal">{s.openPO!.po_number}</span></>
+                    ) : (
+                      <>Already on order<span className="block text-muted-foreground font-normal">{s.openPO!.po_number}</span></>
+                    )}
                   </span>
                 )}
               </div>
 
-              {!row.done && (
+              {!row.done && !s.openPO && (
                 <>
                   <div className="grid gap-4 sm:grid-cols-3">
                     <div className="space-y-1.5">

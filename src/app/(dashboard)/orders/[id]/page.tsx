@@ -4,7 +4,7 @@ import { Pencil } from "lucide-react"
 
 import { getOrder } from "@/actions/orders"
 import { hasOrderCosting } from "@/actions/finance"
-import { getMaterialsForOrders } from "@/actions/inventory"
+import { getMaterialsForOrders, getOpenPOsForOrderMaterials } from "@/actions/inventory"
 import { getSuppliers } from "@/actions/suppliers"
 import { formatDate, formatCurrency } from "@/lib/utils"
 import { generatePortalToken } from "@/lib/portal"
@@ -56,6 +56,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
   const hasCosting = await hasOrderCosting(id)
   const materialsForOrder = await getMaterialsForOrders([id])
   const suppliers = await getSuppliers()
+  const openPOsByMaterial = await getOpenPOsForOrderMaterials(id)
   const shortages = materialsForOrder
     .filter((m) => m.shortage > 0)
     .map((m) => ({
@@ -65,6 +66,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
       unit: m.unit,
       shortage: m.shortage,
       cost_per_unit: m.cost_per_unit,
+      openPO: openPOsByMaterial[m.id] ?? null,
     }))
 
   const totalQuantity = order.order_items?.reduce(
