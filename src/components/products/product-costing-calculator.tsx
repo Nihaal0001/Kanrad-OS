@@ -61,6 +61,7 @@ interface MaterialLine {
     cost_per_unit: number
     unit: string
     current_stock: number
+    category_name?: string | null
   } | null
 }
 
@@ -345,7 +346,12 @@ export function ProductCostingCalculator({
                         className="flex items-center justify-between px-5 py-3"
                       >
                         <div className="min-w-0">
-                          <p className="text-sm font-medium">{line.material?.name ?? "Unknown"}</p>
+                          <p className="text-sm font-medium">
+                            {line.material?.name ?? "Unknown"}
+                            {line.material?.category_name && (
+                              <span className="ml-1.5 text-xs font-normal text-muted-foreground">· {line.material.category_name}</span>
+                            )}
+                          </p>
                           <p className="text-xs text-muted-foreground">
                             {line.qty_required} {line.unit}
                             {line.wastage_pct > 0 && (

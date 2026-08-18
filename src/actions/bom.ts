@@ -21,7 +21,7 @@ export const getProducts = unstable_cache(
         *,
         bom_items(
           id, material_id, qty_required, unit, wastage_pct,
-          material:materials(id, name, sku, cost_per_unit, unit, current_stock)
+          material:materials(id, name, sku, cost_per_unit, unit, current_stock, category:material_categories(name))
         )
       `)
       .eq("is_active", true)
@@ -31,10 +31,11 @@ export const getProducts = unstable_cache(
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return (data ?? []).map((bom: any) => {
-      const items = (bom.bom_items ?? []).map((item: any) => ({
-        ...item,
-        material: Array.isArray(item.material) ? item.material[0] ?? null : item.material,
-      }))
+      const items = (bom.bom_items ?? []).map((item: any) => {
+        const material = Array.isArray(item.material) ? item.material[0] ?? null : item.material
+        const category = material ? (Array.isArray(material.category) ? material.category[0] ?? null : material.category) : null
+        return { ...item, material: material ? { ...material, category_name: category?.name ?? null } : null }
+      })
       const materialCost = items.reduce((sum: number, item: any) => {
         const costPerUnit = effectiveCostPerUnit(item.material)
         const effective = item.qty_required * (1 + (item.wastage_pct ?? 0) / 100)
