@@ -41,7 +41,8 @@ export const purchaseOrderSchema = z.object({
   destination: z.string().max(200).optional().or(z.literal("")),
   terms_of_delivery: z.string().max(500).optional().or(z.literal("")),
   mode_of_payment: z.string().max(200).optional().or(z.literal("")),
-  order_ids: z.array(z.string()).min(1, "Select at least one order this purchase order is for"),
+  // Empty when the PO is a standalone stock-up (not raised against a specific order's shortage).
+  order_ids: z.array(z.string()),
   items: z
     .array(
       z.object({

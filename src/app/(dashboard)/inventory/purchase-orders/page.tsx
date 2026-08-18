@@ -1,7 +1,7 @@
 export const revalidate = 60
 
 import Link from "next/link"
-import { ShoppingCart, ClipboardCheck } from "lucide-react"
+import { ShoppingCart, ClipboardCheck, Plus } from "lucide-react"
 
 import { getPurchaseOrders } from "@/actions/inventory"
 import { createClient } from "@/lib/supabase/server"
@@ -29,8 +29,14 @@ export default async function PurchaseOrdersPage() {
     <>
       <PageHeader
         title="Purchase Orders"
-        description="Raised from an order's material shortage — see an order's detail page to create one"
+        description="Raised from an order's material shortage, or standalone to stock up ahead of season"
       >
+        <Button asChild>
+          <Link href="/inventory/purchase-orders/new">
+            <Plus className="h-4 w-4" />
+            New Purchase Order
+          </Link>
+        </Button>
         {isAdmin && (
           <Button variant="outline" asChild>
             <Link href="/inventory/approvals" className="relative">
@@ -53,7 +59,8 @@ export default async function PurchaseOrdersPage() {
         <EmptyState
           icon={ShoppingCart}
           title="No purchase orders yet"
-          description="Purchase orders are raised from an order's Material Shortage section, not here."
+          description="Raise one from an order's Material Shortage section, or create a standalone one to stock up."
+          action={{ label: "New Purchase Order", href: "/inventory/purchase-orders/new" }}
         />
       ) : (
         <PurchaseOrdersTable purchaseOrders={purchaseOrders} />
