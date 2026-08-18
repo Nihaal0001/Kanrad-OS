@@ -114,7 +114,10 @@ export default async function ProductDetailPage({ params }: Props) {
                         <div className="flex items-center gap-2">
                           <div>
                             <p className="text-sm font-medium">{line.material?.name ?? "—"}</p>
-                            <p className="text-xs text-muted-foreground font-mono">{line.material?.sku}</p>
+                            <p className="text-xs text-muted-foreground font-mono">
+                              {line.material?.sku}
+                              {line.material?.category_name && ` · ${line.material.category_name}`}
+                            </p>
                           </div>
                           {line.lowStock && (
                             <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />

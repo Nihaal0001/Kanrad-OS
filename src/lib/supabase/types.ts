@@ -94,7 +94,9 @@ export type BomItem = {
 }
 
 export type BomItemWithMaterial = BomItem & {
-  material: Pick<Material, "id" | "name" | "sku" | "cost_per_unit" | "unit" | "current_stock"> | null
+  material: (Pick<Material, "id" | "name" | "sku" | "cost_per_unit" | "unit" | "current_stock"> & {
+    category_name?: string | null
+  }) | null
 }
 
 export type BomDetail = BomHeader & {

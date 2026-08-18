@@ -376,6 +376,9 @@ export function BomForm({ product, materials }: BomFormProps) {
                       form.setValue(`items.${index}.unit`, unit)
                     }}
                   />
+                  {mat?.category_name && (
+                    <p className="text-xs text-muted-foreground">Category: {mat.category_name}</p>
+                  )}
                   {form.formState.errors.items?.[index]?.material_id && (
                     <p className="text-xs text-destructive">{form.formState.errors.items[index].material_id?.message}</p>
                   )}

@@ -57,7 +57,7 @@ export async function getProduct(id: string) {
           *,
           bom_items(
             id, material_id, qty_required, unit, wastage_pct, notes,
-            material:materials(id, name, sku, cost_per_unit, unit, current_stock)
+            material:materials(id, name, sku, cost_per_unit, unit, current_stock, category:material_categories(name))
           )
         `)
         .eq("id", id)
@@ -66,10 +66,11 @@ export async function getProduct(id: string) {
       if (error) throw new Error(error.message)
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const items = (data.bom_items ?? []).map((item: any) => ({
-        ...item,
-        material: Array.isArray(item.material) ? item.material[0] ?? null : item.material,
-      }))
+      const items = (data.bom_items ?? []).map((item: any) => {
+        const material = Array.isArray(item.material) ? item.material[0] ?? null : item.material
+        const category = material ? (Array.isArray(material.category) ? material.category[0] ?? null : material.category) : null
+        return { ...item, material: material ? { ...material, category_name: category?.name ?? null } : null }
+      })
 
       return { ...data, bom_items: items }
     },
