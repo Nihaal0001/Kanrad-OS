@@ -66,6 +66,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
       unit: m.unit,
       shortage: m.shortage,
       cost_per_unit: m.cost_per_unit,
+      category_name: m.category_name,
       openPO: openPOsByMaterial[m.id] ?? null,
     }))
 

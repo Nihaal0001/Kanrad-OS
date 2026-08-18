@@ -33,6 +33,7 @@ export interface ShortageMaterial {
   unit: string
   shortage: number
   cost_per_unit: number
+  category_name?: string | null
   openPO: { po_number: string; approval_status: string; status: string } | null
 }
 
@@ -171,7 +172,10 @@ export function OrderShortagePO({ orderId, shortages, suppliers }: OrderShortage
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <p className="text-sm font-medium">{s.name}</p>
-                  <p className="text-xs text-muted-foreground font-mono mt-0.5">{s.sku}</p>
+                  <p className="text-xs text-muted-foreground font-mono mt-0.5">
+                    {s.sku}
+                    {s.category_name && ` · ${s.category_name}`}
+                  </p>
                   <p className="text-xs text-amber-600 mt-1">
                     Short by {s.shortage} {s.unit}
                   </p>

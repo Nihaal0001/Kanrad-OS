@@ -142,7 +142,12 @@ export async function getMaterialsForOrders(orderIds: string[]) {
   }
 
   return [...byId.values()]
-    .map((m) => ({ ...m, requiredQty: Math.round(m.requiredQty * 100) / 100, shortage: Math.round(m.shortage * 100) / 100 }))
+    .map((m) => ({
+      ...m,
+      requiredQty: Math.round(m.requiredQty * 100) / 100,
+      shortage: Math.round(m.shortage * 100) / 100,
+      category_name: (m.category as { name: string } | null)?.name ?? null,
+    }))
     .sort((a, b) => a.sku.localeCompare(b.sku))
 }
 
