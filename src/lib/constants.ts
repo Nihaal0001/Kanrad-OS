@@ -27,6 +27,7 @@ import {
   Scale,
   Wallet,
   Wallet2,
+  Truck,
   type LucideIcon,
 } from "lucide-react"
 
@@ -101,6 +102,7 @@ export const flatNavItems: NavItem[] = [
   { title: "Dashboard",        href: "/",                          icon: LayoutDashboard, permission: "dashboard" },
   { title: "Master Inventory", href: "/master-inventory",          icon: Package,         permission: "inventory" },
   { title: "Purchase Orders",  href: "/inventory/purchase-orders", icon: ShoppingCart,    permission: "inventory" },
+  { title: "Suppliers",        href: "/suppliers",                 icon: Truck,           permission: "inventory" },
   { title: "Inventory",        href: "/inventory",                 icon: Archive,         permission: "inventory" },
   { title: "Orders",           href: "/orders",                    icon: ShoppingBag,     permission: "orders" },
   { title: "Production",       href: "/production",                icon: Factory,         permission: "production" },
@@ -158,6 +160,7 @@ export const navigation: NavSection[] = [
       { title: "Master Inventory", href: "/master-inventory",          icon: Package,      permission: "inventory" },
       { title: "Inventory",        href: "/inventory",                 icon: Archive,      permission: "inventory" },
       { title: "Purchase Orders",  href: "/inventory/purchase-orders", icon: ShoppingCart, permission: "inventory" },
+      { title: "Suppliers",        href: "/suppliers",                 icon: Truck,        permission: "inventory" },
       { title: "Approvals",        href: "/inventory/approvals",       icon: ClipboardCheck, permission: "inventory" },
       { title: "Warehouse",        href: "/warehouse",                 icon: Warehouse,    permission: "inventory" },
       { title: "BOM",              href: "/products",                  icon: Grid2x2,      permission: "inventory" },
