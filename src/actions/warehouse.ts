@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { getMasterCartonRatios } from "@/lib/master-cartons"
 import { warehouseSkuDispatchSchema, type WarehouseSkuDispatchFormData } from "@/lib/validators/warehouse"
+import { logAudit } from "@/actions/audit"
 
 // ── Queries ──────────────────────────────────────────────────
 
@@ -219,5 +220,13 @@ export async function dispatchWarehouseSku(formData: WarehouseSkuDispatchFormDat
   revalidatePath("/finance/invoices")
   revalidatePath("/finance/receivables")
   revalidatePath("/history")
+
+  await logAudit({
+    entityType: "warehouse_dispatch",
+    entityLabel: validated.sku,
+    action: "created",
+    newValues: { sku: validated.sku, quantity: validated.quantity, bill_no: validated.bill_no },
+  })
+
   return { success: true }
 }

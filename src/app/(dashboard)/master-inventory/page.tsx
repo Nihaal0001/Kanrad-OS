@@ -16,7 +16,7 @@ export default async function ItemMasterPage() {
     <>
       <PageHeader
         title="Item Master"
-        description="Material catalog — SKU, specs, max purchase price, and supplier info"
+        description="Material catalog — SKU, specs, and supplier info"
       >
         <AddMaterialSheet categories={categories} />
       </PageHeader>
@@ -25,7 +25,7 @@ export default async function ItemMasterPage() {
         <EmptyState
           icon={Package}
           title="No materials added"
-          description="Add your first material to start tracking catalog and pricing."
+          description="Add your first material to start tracking your catalog."
         />
       ) : (
         <ItemMasterTable materials={materials} categories={categories} />

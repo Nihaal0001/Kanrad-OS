@@ -4,6 +4,7 @@ import { revalidatePath, revalidateTag, unstable_cache } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { taskSchema, type TaskFormData } from "@/lib/validators/tasks"
+import { logAudit } from "@/actions/audit"
 
 export async function getTasks(filters?: { status?: string }) {
   return unstable_cache(
@@ -64,6 +65,9 @@ export async function createTask(formData: TaskFormData) {
 
   revalidateTag("tasks", {})
   revalidatePath("/tasks")
+
+  await logAudit({ entityType: "task", entityId: data.id, entityLabel: data.title, action: "created", newValues: validated })
+
   return { data }
 }
 
@@ -93,6 +97,9 @@ export async function updateTask(id: string, formData: TaskFormData) {
 
   revalidateTag("tasks", {})
   revalidatePath("/tasks")
+
+  await logAudit({ entityType: "task", entityId: id, entityLabel: data.title, action: "updated", newValues: validated })
+
   return { data }
 }
 
@@ -115,6 +122,9 @@ export async function updateTaskStatus(id: string, status: string) {
 
   revalidateTag("tasks", {})
   revalidatePath("/tasks")
+
+  await logAudit({ entityType: "task", entityId: id, action: "status_changed", newValues: { status } })
+
   return { success: true }
 }
 
@@ -130,5 +140,8 @@ export async function deleteTask(id: string) {
 
   revalidateTag("tasks", {})
   revalidatePath("/tasks")
+
+  await logAudit({ entityType: "task", entityId: id, action: "deleted" })
+
   return { success: true }
 }

@@ -21,7 +21,7 @@ export const getProducts = unstable_cache(
         *,
         bom_items(
           id, material_id, qty_required, unit, wastage_pct,
-          material:materials(id, name, sku, cost_per_unit, max_price, unit, current_stock)
+          material:materials(id, name, sku, cost_per_unit, unit, current_stock)
         )
       `)
       .eq("is_active", true)
@@ -57,7 +57,7 @@ export async function getProduct(id: string) {
           *,
           bom_items(
             id, material_id, qty_required, unit, wastage_pct, notes,
-            material:materials(id, name, sku, cost_per_unit, max_price, unit, current_stock)
+            material:materials(id, name, sku, cost_per_unit, unit, current_stock)
           )
         `)
         .eq("id", id)
@@ -260,7 +260,7 @@ export async function getProductByCostForOrder(bomId: string, quantity: number) 
       id, product_sku, product_name,
       bom_items(
         id, material_id, qty_required, unit, wastage_pct,
-        material:materials(id, name, cost_per_unit, max_price, unit)
+        material:materials(id, name, cost_per_unit, unit)
       )
     `)
     .eq("id", bomId)

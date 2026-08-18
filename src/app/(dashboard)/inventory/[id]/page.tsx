@@ -2,6 +2,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { ArrowLeft, Pencil, ArrowUpDown } from "lucide-react"
 
+import { createClient } from "@/lib/supabase/server"
 import { getMaterial, getStockTransactions } from "@/actions/inventory"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import { calculateCircleWeight, kgToPieces } from "@/lib/circle-calc"
@@ -48,6 +49,18 @@ export default async function MaterialDetailPage({ params }: MaterialDetailPageP
 
   const transactions = await getStockTransactions(id)
 
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  let isAdmin = false
+  if (user) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("auth_id", user.id)
+      .maybeSingle()
+    isAdmin = profile?.role === "admin"
+  }
+
   return (
     <>
       <PageHeader
@@ -64,12 +77,14 @@ export default async function MaterialDetailPage({ params }: MaterialDetailPageP
             Back
           </Link>
         </Button>
-        <Button variant="outline" asChild>
-          <Link href={`/inventory/${id}/adjust`}>
-            <ArrowUpDown className="h-4 w-4" />
-            Adjust Stock
-          </Link>
-        </Button>
+        {isAdmin && (
+          <Button variant="outline" asChild>
+            <Link href={`/inventory/${id}/adjust`}>
+              <ArrowUpDown className="h-4 w-4" />
+              Adjust Stock
+            </Link>
+          </Button>
+        )}
         <Button asChild>
           <Link href={`/inventory/${id}/edit`}>
             <Pencil className="h-4 w-4" />
@@ -274,12 +289,14 @@ export default async function MaterialDetailPage({ params }: MaterialDetailPageP
               <CardTitle>Quick Actions</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              <Button variant="outline" className="w-full" asChild>
-                <Link href={`/inventory/${id}/adjust`}>
-                  <ArrowUpDown className="h-4 w-4" />
-                  Adjust Stock
-                </Link>
-              </Button>
+              {isAdmin && (
+                <Button variant="outline" className="w-full" asChild>
+                  <Link href={`/inventory/${id}/adjust`}>
+                    <ArrowUpDown className="h-4 w-4" />
+                    Adjust Stock
+                  </Link>
+                </Button>
+              )}
               <Button variant="outline" className="w-full" asChild>
                 <Link href={`/inventory/${id}/edit`}>
                   <Pencil className="h-4 w-4" />

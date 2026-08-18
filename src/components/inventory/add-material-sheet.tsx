@@ -4,7 +4,7 @@ import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { Plus, Lock, Circle } from "lucide-react"
+import { Plus, Circle } from "lucide-react"
 import { toast } from "sonner"
 
 import { materialSchema, type MaterialFormData } from "@/lib/validators/inventory"
@@ -162,31 +162,15 @@ export function AddMaterialSheet({ categories }: Props) {
                 </div>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-1.5">
-                  <Label className="flex items-center gap-1.5">
-                    <Lock className="h-3.5 w-3.5 text-muted-foreground" />
-                    Max Purchase Price (₹)
-                  </Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    placeholder="0.00"
-                    {...form.register("cost_per_unit", { valueAsNumber: true })}
-                  />
-                  <p className="text-xs text-muted-foreground">POs cannot exceed this price</p>
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Min Stock Level</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    placeholder="0"
-                    {...form.register("min_stock_level", { valueAsNumber: true })}
-                  />
-                </div>
+              <div className="space-y-1.5">
+                <Label>Min Stock Level</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  placeholder="0"
+                  {...form.register("min_stock_level", { valueAsNumber: true })}
+                />
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">

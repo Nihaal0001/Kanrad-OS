@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { userRoles, type UserRole } from "@/lib/constants"
 import { DEFAULT_ROLE_PERMISSIONS } from "@/lib/permissions"
+import { logAudit } from "@/actions/audit"
 
 import type { UserRow } from "@/lib/validators/users"
 export type { UserRow } from "@/lib/validators/users"
@@ -51,6 +52,15 @@ export async function createUser(data: {
   revalidateTag("users", {})
   revalidateTag("permissions", {})
   revalidatePath("/users")
+
+  await logAudit({
+    entityType: "user",
+    entityId: authData.user.id,
+    entityLabel: data.full_name,
+    action: "created",
+    newValues: { email: data.email, role, departments: data.departments },
+  })
+
   return { success: true }
 }
 
@@ -105,6 +115,9 @@ export async function updateUserRole(
   revalidateTag("users", {})
   revalidateTag("permissions", {})
   revalidatePath("/users")
+
+  await logAudit({ entityType: "user", entityId: id, action: "updated", newValues: { role } })
+
   return { success: true }
 }
 
@@ -122,6 +135,9 @@ export async function toggleUserActive(
   revalidateTag("users", {})
   revalidateTag("permissions", {})
   revalidatePath("/users")
+
+  await logAudit({ entityType: "user", entityId: id, action: "updated", newValues: { is_active } })
+
   return { success: true }
 }
 
@@ -182,6 +198,9 @@ export async function updateUserDepartments(
   if (error) return { error: error.message }
   revalidateTag("users", {})
   revalidatePath("/users")
+
+  await logAudit({ entityType: "user", entityId: id, action: "updated", newValues: { departments } })
+
   return { success: true }
 }
 
@@ -215,5 +234,14 @@ export async function toggleRolePermission(
 
   revalidateTag("permissions", {})
   revalidatePath("/", "layout")
+
+  await logAudit({
+    entityType: "role_permission",
+    entityId: role,
+    entityLabel: role,
+    action: "updated",
+    newValues: { permission, enabled },
+  })
+
   return { success: true }
 }

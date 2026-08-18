@@ -5,6 +5,7 @@ import { Pencil } from "lucide-react"
 import { getOrder } from "@/actions/orders"
 import { hasOrderCosting } from "@/actions/finance"
 import { getMaterialsForOrders } from "@/actions/inventory"
+import { getSuppliers } from "@/actions/suppliers"
 import { formatDate, formatCurrency } from "@/lib/utils"
 import { generatePortalToken } from "@/lib/portal"
 import type { OrderDetail } from "@/lib/supabase/types"
@@ -54,6 +55,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
 
   const hasCosting = await hasOrderCosting(id)
   const materialsForOrder = await getMaterialsForOrders([id])
+  const suppliers = await getSuppliers()
   const shortages = materialsForOrder
     .filter((m) => m.shortage > 0)
     .map((m) => ({
@@ -63,7 +65,6 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
       unit: m.unit,
       shortage: m.shortage,
       cost_per_unit: m.cost_per_unit,
-      max_price: m.max_price,
     }))
 
   const totalQuantity = order.order_items?.reduce(
@@ -294,7 +295,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
           </Card>
 
           {/* Material Shortage → Purchase Order */}
-          <OrderShortagePO orderId={order.id} shortages={shortages} />
+          <OrderShortagePO orderId={order.id} shortages={shortages} suppliers={suppliers} />
         </div>
 
         {/* Right Column */}

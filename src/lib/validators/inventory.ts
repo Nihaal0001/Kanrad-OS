@@ -7,7 +7,6 @@ export const materialSchema = z.object({
   unit: z.string().min(1, "Unit is required"),
   min_stock_level: z.number().min(0, "Cannot be negative"),
   cost_per_unit: z.number().min(0, "Cannot be negative"),
-  max_price: z.number().min(0, "Cannot be negative").nullable().optional(),
   supplier_name: z.string().max(200).optional().or(z.literal("")),
   supplier_contact: z.string().max(200).optional().or(z.literal("")),
   location: z.string().max(200).optional().or(z.literal("")),
@@ -31,12 +30,17 @@ export const stockAdjustmentSchema = z.object({
 export type StockAdjustmentFormData = z.infer<typeof stockAdjustmentSchema>
 
 export const purchaseOrderSchema = z.object({
-  supplier_name: z.string().min(1, "Supplier name is required").max(200),
-  supplier_contact: z.string().max(200).optional().or(z.literal("")),
+  supplier_id: z.string().min(1, "Supplier is required"),
   order_date: z.string().min(1, "Order date is required"),
   expected_date: z.string().optional().or(z.literal("")),
   tax_rate: z.number().min(0, "Cannot be negative").max(100, "Cannot exceed 100%"),
   notes: z.string().max(1000).optional().or(z.literal("")),
+  reference_no: z.string().max(200).optional().or(z.literal("")),
+  other_references: z.string().max(200).optional().or(z.literal("")),
+  dispatched_through: z.string().max(200).optional().or(z.literal("")),
+  destination: z.string().max(200).optional().or(z.literal("")),
+  terms_of_delivery: z.string().max(500).optional().or(z.literal("")),
+  mode_of_payment: z.string().max(200).optional().or(z.literal("")),
   order_ids: z.array(z.string()).min(1, "Select at least one order this purchase order is for"),
   items: z
     .array(

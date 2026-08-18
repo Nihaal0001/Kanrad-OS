@@ -11,6 +11,22 @@ import {
   type StockAdjustmentFormData,
   type PurchaseOrderFormData,
 } from "@/lib/validators/inventory"
+import { logAudit } from "@/actions/audit"
+
+async function requireAdmin() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("auth_id", user.id)
+    .maybeSingle()
+
+  if (profile?.role !== "admin") return { error: "Forbidden: admin only" }
+  return { supabase, userId: user.id }
+}
 
 // ==================== Categories ====================
 
@@ -157,6 +173,15 @@ export async function createMaterial(formData: MaterialFormData) {
 
   revalidateTag("materials", {})
   revalidatePath("/inventory")
+
+  await logAudit({
+    entityType: "material",
+    entityId: data.id,
+    entityLabel: data.name,
+    action: "created",
+    newValues: cleaned,
+  })
+
   return { data }
 }
 
@@ -188,6 +213,15 @@ export async function updateMaterial(id: string, formData: MaterialFormData) {
   revalidateTag("materials", {})
   revalidatePath("/inventory")
   revalidatePath(`/inventory/${id}`)
+
+  await logAudit({
+    entityType: "material",
+    entityId: id,
+    entityLabel: data.name,
+    action: "updated",
+    newValues: cleaned,
+  })
+
   return { data }
 }
 
@@ -220,6 +254,13 @@ export async function zeroAllMaterialStock(secret?: string) {
   revalidateTag("materials", {})
   revalidatePath("/inventory")
   revalidatePath("/master-inventory")
+
+  await logAudit({
+    entityType: "material",
+    action: "updated",
+    newValues: { bulk_action: "zero_all_stock", updated },
+  })
+
   return { success: true, updated }
 }
 
@@ -290,6 +331,13 @@ export async function applyCirclePricing(aluPricePerKg: number) {
   revalidateTag("materials", {})
   revalidatePath("/master-inventory")
   revalidatePath("/inventory")
+
+  await logAudit({
+    entityType: "material",
+    action: "updated",
+    newValues: { bulk_action: "apply_circle_pricing", price_per_kg: aluPricePerKg, updated: updates.length, skipped },
+  })
+
   return { success: true, updated: updates.length, skipped }
 }
 
@@ -308,6 +356,9 @@ export async function deleteMaterial(id: string) {
 
   revalidateTag("materials", {})
   revalidatePath("/inventory")
+
+  await logAudit({ entityType: "material", entityId: id, action: "deleted" })
+
   return { success: true }
 }
 
@@ -332,12 +383,12 @@ export async function getStockTransactions(materialId: string) {
 }
 
 export async function createStockTransaction(formData: StockAdjustmentFormData) {
-  const validated = stockAdjustmentSchema.parse(formData)
-  const supabase = await createClient()
+  const auth = await requireAdmin()
+  if ("error" in auth) return auth
+  const { supabase } = auth
   const admin = createAdminClient()
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: "Not authenticated" }
+  const validated = stockAdjustmentSchema.parse(formData)
 
   const isOutbound = validated.type === "production_out"
   const quantity = isOutbound ? -Math.abs(validated.quantity) : Math.abs(validated.quantity)
@@ -378,6 +429,14 @@ export async function createStockTransaction(formData: StockAdjustmentFormData) 
   revalidateTag("dashboard", {})
   revalidatePath("/inventory")
   revalidatePath(`/inventory/${validated.material_id}`)
+
+  await logAudit({
+    entityType: "stock_transaction",
+    entityId: validated.material_id,
+    action: "created",
+    newValues: { type: validated.type, quantity, notes: validated.notes || undefined },
+  })
+
   return { success: true }
 }
 
@@ -416,6 +475,7 @@ export async function getPurchaseOrder(id: string) {
         .from("purchase_orders")
         .select(`
           *,
+          supplier:suppliers(id, name, company, address, city, state, gstin, phone, email),
           items:purchase_order_items(
             *,
             material:materials(id, name, sku, unit, diameter_mm, thickness_mm, circle_type),
@@ -434,7 +494,10 @@ export async function getPurchaseOrder(id: string) {
         .map((l: any) => (Array.isArray(l.order) ? l.order[0] : l.order))
         .filter(Boolean)
 
-      return { ...data, linked_orders: linkedOrders }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const supplier = Array.isArray((data as any).supplier) ? (data as any).supplier[0] : (data as any).supplier
+
+      return { ...data, supplier: supplier ?? null, linked_orders: linkedOrders }
     },
     [`purchase-order-${id}`],
     { tags: ["purchase_orders"], revalidate: 60 }
@@ -448,26 +511,13 @@ export async function createPurchaseOrder(formData: PurchaseOrderFormData) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: "Not authenticated" }
 
-  // Enforce master inventory price ceiling on all items. This is checked
-  // against materials.max_price — an admin-set ceiling — never against
-  // cost_per_unit, since cost_per_unit itself gets overwritten to the last
-  // PO price below and would make the ceiling self-referential.
-  const materialIds = validated.items.map((i) => i.material_id).filter(Boolean)
-  if (materialIds.length > 0) {
-    const { data: materials } = await supabase
-      .from("materials")
-      .select("id, name, max_price")
-      .in("id", materialIds)
+  const { data: supplier, error: supplierError } = await supabase
+    .from("suppliers")
+    .select("id, name, phone")
+    .eq("id", validated.supplier_id)
+    .single()
 
-    for (const item of validated.items) {
-      const mat = (materials ?? []).find((m) => m.id === item.material_id)
-      if (mat && mat.max_price != null && mat.max_price > 0 && item.unit_price > mat.max_price) {
-        return {
-          error: `Unit price for "${mat.name}" (₹${item.unit_price}) exceeds the max purchase price of ₹${mat.max_price}.`,
-        }
-      }
-    }
-  }
+  if (supplierError || !supplier) return { error: "Selected supplier was not found" }
 
   const { items, order_ids, ...poData } = validated
   const cleaned = Object.fromEntries(
@@ -478,6 +528,8 @@ export async function createPurchaseOrder(formData: PurchaseOrderFormData) {
     .from("purchase_orders")
     .insert({
       ...cleaned,
+      supplier_name: supplier.name,
+      supplier_contact: supplier.phone,
       po_number: "", // trigger will set this
     })
     .select()
@@ -508,8 +560,7 @@ export async function createPurchaseOrder(formData: PurchaseOrderFormData) {
   }
 
   // BOM/product costing reads materials.cost_per_unit, so keep it pinned to
-  // the price of the last PO raised for each material. This is independent
-  // of the max_price ceiling checked above.
+  // the price of the last PO raised for each material.
   for (const item of items) {
     if (!item.material_id) continue
     await supabase.from("materials").update({ cost_per_unit: item.unit_price }).eq("id", item.material_id)
@@ -520,6 +571,15 @@ export async function createPurchaseOrder(formData: PurchaseOrderFormData) {
   revalidateTag("dashboard", {})
   revalidateTag("purchase_orders", {})
   revalidatePath("/inventory/purchase-orders")
+
+  await logAudit({
+    entityType: "purchase_order",
+    entityId: po.id,
+    entityLabel: po.po_number,
+    action: "created",
+    newValues: { supplier_id: validated.supplier_id, items },
+  })
+
   return { data: po }
 }
 
@@ -553,6 +613,14 @@ export async function updatePurchaseOrderStatus(id: string, status: string) {
       .then(({ emailPurchaseOrderCopy }) => emailPurchaseOrderCopy(id))
       .catch((err) => console.error("[po-email] failed:", err))
   }
+
+  await logAudit({
+    entityType: "purchase_order",
+    entityId: id,
+    action: "status_changed",
+    oldValues: { status: before?.status },
+    newValues: { status },
+  })
 
   return { success: true }
 }
@@ -729,6 +797,16 @@ export async function receivePurchaseOrderItem(
   revalidatePath("/inventory")
   revalidatePath("/finance/payables")
   revalidatePath("/finance/purchases")
+
+  if (receivedNow > 0) {
+    await logAudit({
+      entityType: "purchase_order",
+      entityId: poId,
+      action: "updated",
+      newValues: { received_item_id: itemId, received_now: receivedNow, bill_no: billNo },
+    })
+  }
+
   return { success: true }
 }
 
@@ -758,6 +836,14 @@ export async function approvePurchaseOrder(id: string, notes?: string) {
   revalidateTag("purchase_orders", {})
   revalidatePath("/inventory/purchase-orders")
   revalidatePath(`/inventory/purchase-orders/${id}`)
+
+  await logAudit({
+    entityType: "purchase_order",
+    entityId: id,
+    action: "approved",
+    newValues: { notes },
+  })
+
   return { success: true }
 }
 
@@ -785,6 +871,14 @@ export async function rejectPurchaseOrder(id: string, notes?: string) {
   revalidateTag("purchase_orders", {})
   revalidatePath("/inventory/purchase-orders")
   revalidatePath(`/inventory/purchase-orders/${id}`)
+
+  await logAudit({
+    entityType: "purchase_order",
+    entityId: id,
+    action: "rejected",
+    newValues: { notes },
+  })
+
   return { success: true }
 }
 
@@ -831,5 +925,8 @@ export async function deletePurchaseOrder(id: string) {
 
   revalidateTag("purchase_orders", {})
   revalidatePath("/inventory/purchase-orders")
+
+  await logAudit({ entityType: "purchase_order", entityId: id, action: "deleted" })
+
   return { success: true }
 }

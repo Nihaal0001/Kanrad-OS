@@ -59,7 +59,6 @@ interface MaterialLine {
     name: string
     sku: string
     cost_per_unit: number
-    max_price: number | null
     unit: string
     current_stock: number
   } | null

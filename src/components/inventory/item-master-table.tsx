@@ -3,7 +3,7 @@
 import { useState, useMemo, useCallback, useTransition } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { MoreHorizontal, Search, Pencil, Trash2, AlertTriangle, IndianRupee, Lock, Download, RefreshCw } from "lucide-react"
+import { MoreHorizontal, Search, Pencil, Trash2, Download, RefreshCw } from "lucide-react"
 
 import type { MaterialWithCategory } from "@/lib/supabase/types"
 import { friendlyError } from "@/lib/utils"
@@ -36,10 +36,6 @@ interface ItemMasterTableProps {
   categories: Array<{ id: string; name: string }>
 }
 
-function formatCurrency(n: number) {
-  return n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-}
-
 export function ItemMasterTable({ materials, categories }: ItemMasterTableProps) {
   const router = useRouter()
   const [search, setSearch] = useState("")
@@ -69,11 +65,6 @@ export function ItemMasterTable({ materials, categories }: ItemMasterTableProps)
     return result
   }, [materials, categoryFilter, search])
 
-  const unpricedCount = useMemo(
-    () => materials.filter((m) => !m.cost_per_unit || m.cost_per_unit === 0).length,
-    [materials]
-  )
-
   const handleDelete = useCallback(
     async (id: string) => {
       setDeletingId(id)
@@ -93,31 +84,6 @@ export function ItemMasterTable({ materials, categories }: ItemMasterTableProps)
   )
 
   const aluPriceNum = parseFloat(aluPrice) || 0
-
-  function parseNameDimensions(name: string): { dia: number; thick: number } | null {
-    const m = name.match(/(\d+(?:\.\d+)?)\s*[xX*]\s*(\d+(?:\.\d+)?)/i)
-    if (!m) return null
-    const dia = parseFloat(m[1])
-    const thick = parseFloat(m[2])
-    return dia > 0 && thick > 0 ? { dia, thick } : null
-  }
-
-  function calcCircleCost(material: MaterialWithCategory): { cost: number; dia: number; thick: number } | null {
-    if (aluPriceNum <= 0) return null
-    // Detect by name "Alu Circle ..." or by circle_type being set
-    const isCircle = /^alu\s*circle/i.test(material.name.trim()) || material.circle_type != null
-    if (!isCircle) return null
-    const dia = material.diameter_mm
-    const thick = material.thickness_mm
-    if (dia && thick) {
-      const cost = Math.round(dia * dia * thick * CIRCLE_WEIGHT_FACTOR * aluPriceNum * 100) / 100
-      return { cost, dia, thick }
-    }
-    const parsed = parseNameDimensions(material.name)
-    if (!parsed) return null
-    const cost = Math.round(parsed.dia * parsed.dia * parsed.thick * CIRCLE_WEIGHT_FACTOR * aluPriceNum * 100) / 100
-    return { cost, dia: parsed.dia, thick: parsed.thick }
-  }
 
   function handleApplyCirclePricing() {
     if (aluPriceNum <= 0) {
@@ -183,16 +149,6 @@ export function ItemMasterTable({ materials, categories }: ItemMasterTableProps)
           </Button>
         </div>
       </div>
-
-      {/* Unpriced warning */}
-      {unpricedCount > 0 && (
-        <div className="flex items-center gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm">
-          <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
-          <span className="text-amber-700">
-            <strong>{unpricedCount} material{unpricedCount > 1 ? "s" : ""}</strong> have no cost set — BOM costing will be incomplete.
-          </span>
-        </div>
-      )}
 
       {/* Toolbar */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -280,12 +236,6 @@ export function ItemMasterTable({ materials, categories }: ItemMasterTableProps)
                 <TableHead>Name</TableHead>
                 <TableHead>Category</TableHead>
                 <TableHead>Unit</TableHead>
-                <TableHead className="text-right">
-                  <span className="inline-flex items-center gap-1 justify-end">
-                    <Lock className="h-3 w-3 text-muted-foreground" />
-                    Max Purchase Price
-                  </span>
-                </TableHead>
                 <TableHead>Supplier</TableHead>
                 <TableHead className="w-[50px]">
                   <span className="sr-only">Actions</span>
@@ -316,40 +266,6 @@ export function ItemMasterTable({ materials, categories }: ItemMasterTableProps)
                     )}
                   </TableCell>
                   <TableCell className="text-muted-foreground">{material.unit}</TableCell>
-                  <TableCell className="text-right">
-                    {(() => {
-                      const isCircle = material.circle_type != null
-                      const calc = isCircle ? calcCircleCost(material) : null
-                      if (calc !== null) {
-                        return (
-                          <div className="text-right">
-                            <span className="tabular-nums font-semibold">
-                              ₹{formatCurrency(calc.cost)}
-                            </span>
-                            <span className="block text-xs text-muted-foreground">
-                              {calc.dia}×{calc.thick}mm · preview
-                            </span>
-                          </div>
-                        )
-                      }
-                      if (material.cost_per_unit > 0) {
-                        return (
-                          <span className="tabular-nums font-semibold">
-                            ₹{formatCurrency(material.cost_per_unit)}
-                          </span>
-                        )
-                      }
-                      return (
-                        <Link
-                          href={`/inventory/${material.id}/edit`}
-                          className="inline-flex items-center gap-1 text-xs text-amber-600 hover:underline"
-                        >
-                          <IndianRupee className="h-3 w-3" />
-                          Set price
-                        </Link>
-                      )
-                    })()}
-                  </TableCell>
                   <TableCell>
                     {material.supplier_name ?? (
                       <span className="text-muted-foreground">—</span>

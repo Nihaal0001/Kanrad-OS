@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation"
 import { MoreHorizontal, Search, Eye, Pencil, Trash2, AlertTriangle, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react"
 
 import type { MaterialWithCategory } from "@/lib/supabase/types"
-import { cn, friendlyError } from "@/lib/utils"
+import { cn, friendlyError, formatCurrency } from "@/lib/utils"
 import { calculateCircleWeight, kgToPieces } from "@/lib/circle-calc"
 import { deleteMaterial } from "@/actions/inventory"
 import { toast } from "sonner"
@@ -222,6 +222,7 @@ export function MaterialsTable({ materials, categories }: MaterialsTableProps) {
                 <TableHead className="text-right">Stock (pcs)</TableHead>
                 <TableHead className="text-right">Min</TableHead>
                 <TableHead>Unit</TableHead>
+                <TableHead className="text-right">Avg Cost</TableHead>
                 <TableHead className="w-[50px]">
                   <span className="sr-only">Actions</span>
                 </TableHead>
@@ -276,6 +277,11 @@ export function MaterialsTable({ materials, categories }: MaterialsTableProps) {
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {material.unit}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums font-semibold">
+                    {material.cost_per_unit > 0
+                      ? formatCurrency(material.cost_per_unit)
+                      : "—"}
                   </TableCell>
                   <TableCell>
                     <DropdownMenu>

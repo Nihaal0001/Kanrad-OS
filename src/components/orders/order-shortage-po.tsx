@@ -12,6 +12,13 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { DatePicker } from "@/components/ui/date-picker"
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
   Card,
   CardContent,
   CardDescription,
@@ -26,42 +33,60 @@ export interface ShortageMaterial {
   unit: string
   shortage: number
   cost_per_unit: number
-  max_price: number | null
+}
+
+export interface SupplierOption {
+  id: string
+  name: string
+  company: string | null
 }
 
 interface OrderShortagePOProps {
   orderId: string
   shortages: ShortageMaterial[]
+  suppliers: SupplierOption[]
 }
 
 // Buying a bit extra to cover wastage/rounding is fine — capped at 10% over the shortfall.
 const MAX_OVER_ORDER_PCT = 10
 
 interface RowState {
-  supplierName: string
+  supplierId: string
   orderDate: string
   expectedDate: string
   price: number
   quantity: number
   taxRate: string
+  referenceNo: string
+  dispatchedThrough: string
+  destination: string
+  modeOfPayment: string
+  otherReferences: string
+  termsOfDelivery: string
   submitting: boolean
   done: boolean
 }
 
 function initialRow(s: ShortageMaterial): RowState {
   return {
-    supplierName: "",
+    supplierId: "",
     orderDate: new Date().toISOString().slice(0, 10),
     expectedDate: "",
     price: s.cost_per_unit,
     quantity: s.shortage,
     taxRate: "",
+    referenceNo: "",
+    dispatchedThrough: "",
+    destination: "",
+    modeOfPayment: "",
+    otherReferences: "",
+    termsOfDelivery: "",
     submitting: false,
     done: false,
   }
 }
 
-export function OrderShortagePO({ orderId, shortages }: OrderShortagePOProps) {
+export function OrderShortagePO({ orderId, shortages, suppliers }: OrderShortagePOProps) {
   const router = useRouter()
   const [rows, setRows] = useState<Record<string, RowState>>(
     Object.fromEntries(shortages.map((s) => [s.id, initialRow(s)]))
@@ -75,8 +100,8 @@ export function OrderShortagePO({ orderId, shortages }: OrderShortagePOProps) {
 
   async function handleOrder(s: ShortageMaterial) {
     const row = rows[s.id]
-    if (!row.supplierName.trim()) {
-      toast.error("Enter a supplier name")
+    if (!row.supplierId) {
+      toast.error("Select a supplier")
       return
     }
     if (row.taxRate.trim() === "") {
@@ -85,12 +110,17 @@ export function OrderShortagePO({ orderId, shortages }: OrderShortagePOProps) {
     }
     updateRow(s.id, { submitting: true })
     const result = await createPurchaseOrder({
-      supplier_name: row.supplierName.trim(),
-      supplier_contact: "",
+      supplier_id: row.supplierId,
       order_date: row.orderDate,
       expected_date: row.expectedDate,
       tax_rate: Number(row.taxRate) || 0,
       notes: `Raised for material shortage on this order`,
+      reference_no: row.referenceNo.trim(),
+      dispatched_through: row.dispatchedThrough.trim(),
+      destination: row.destination.trim(),
+      mode_of_payment: row.modeOfPayment.trim(),
+      other_references: row.otherReferences.trim(),
+      terms_of_delivery: row.termsOfDelivery.trim(),
       order_ids: [orderId],
       items: [
         {
@@ -130,7 +160,6 @@ export function OrderShortagePO({ orderId, shortages }: OrderShortagePOProps) {
           const row = rows[s.id]
           const maxQty = Math.round(s.shortage * (1 + MAX_OVER_ORDER_PCT / 100) * 1000) / 1000
           const qtyInvalid = row.quantity <= 0 || row.quantity > maxQty
-          const priceInvalid = !!s.max_price && s.max_price > 0 && row.price > s.max_price
           const amount = row.price * row.quantity
 
           return (
@@ -158,11 +187,21 @@ export function OrderShortagePO({ orderId, shortages }: OrderShortagePOProps) {
                   <div className="grid gap-4 sm:grid-cols-3">
                     <div className="space-y-1.5">
                       <Label>Supplier *</Label>
-                      <Input
-                        value={row.supplierName}
-                        onChange={(e) => updateRow(s.id, { supplierName: e.target.value })}
-                        placeholder="Supplier name"
-                      />
+                      <Select
+                        value={row.supplierId}
+                        onValueChange={(v) => updateRow(s.id, { supplierId: v })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a supplier" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {suppliers.map((sup) => (
+                            <SelectItem key={sup.id} value={sup.id}>
+                              {sup.name}{sup.company ? ` (${sup.company})` : ""}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="space-y-1.5">
                       <Label>Order Date</Label>
@@ -204,13 +243,7 @@ export function OrderShortagePO({ orderId, shortages }: OrderShortagePOProps) {
                         step="0.01"
                         value={row.price}
                         onChange={(e) => updateRow(s.id, { price: Number(e.target.value) || 0 })}
-                        className={priceInvalid ? "border-destructive" : undefined}
                       />
-                      {s.max_price != null && s.max_price > 0 && (
-                        <p className={`text-[11px] ${priceInvalid ? "text-destructive font-medium" : "text-muted-foreground"}`}>
-                          Max ₹{s.max_price.toFixed(2)}/{s.unit}{priceInvalid && " — exceeds ceiling"}
-                        </p>
-                      )}
                     </div>
                     <div className="space-y-1.5">
                       <Label>Tax % *</Label>
@@ -226,6 +259,55 @@ export function OrderShortagePO({ orderId, shortages }: OrderShortagePOProps) {
                     </div>
                   </div>
 
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-muted-foreground">Reference No.</Label>
+                      <Input
+                        value={row.referenceNo}
+                        onChange={(e) => updateRow(s.id, { referenceNo: e.target.value })}
+                        placeholder="Defaults to voucher no."
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-muted-foreground">Other References</Label>
+                      <Input
+                        value={row.otherReferences}
+                        onChange={(e) => updateRow(s.id, { otherReferences: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-muted-foreground">Mode/Terms of Payment</Label>
+                      <Input
+                        value={row.modeOfPayment}
+                        onChange={(e) => updateRow(s.id, { modeOfPayment: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-muted-foreground">Dispatched Through</Label>
+                      <Input
+                        value={row.dispatchedThrough}
+                        onChange={(e) => updateRow(s.id, { dispatchedThrough: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-muted-foreground">Destination</Label>
+                      <Input
+                        value={row.destination}
+                        onChange={(e) => updateRow(s.id, { destination: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-muted-foreground">Terms of Delivery</Label>
+                      <Input
+                        value={row.termsOfDelivery}
+                        onChange={(e) => updateRow(s.id, { termsOfDelivery: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
                   <div className="flex items-center justify-between pt-1">
                     <div className="text-sm">
                       <span className="text-muted-foreground mr-2">Amount</span>
@@ -234,7 +316,7 @@ export function OrderShortagePO({ orderId, shortages }: OrderShortagePOProps) {
                     <Button
                       size="sm"
                       onClick={() => handleOrder(s)}
-                      disabled={row.submitting || qtyInvalid || priceInvalid || row.taxRate.trim() === ""}
+                      disabled={row.submitting || qtyInvalid || row.taxRate.trim() === "" || !row.supplierId}
                     >
                       <Lock className="h-3.5 w-3.5" />
                       {row.submitting ? "Raising…" : "Order This Item"}
