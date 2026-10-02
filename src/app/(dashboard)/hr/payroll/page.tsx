@@ -6,6 +6,8 @@ import { PayrollForm } from "@/components/hr/payroll-form"
 import { WorkerSalariesSheet } from "@/components/hr/worker-salaries-sheet"
 import { GeneratePayrollButton } from "@/components/hr/generate-payroll-button"
 import { WorkerPayrollList } from "@/components/hr/worker-payroll-list"
+import { PayrollTeaAllowanceInput } from "@/components/hr/payroll-tea-allowance-input"
+import { AddWorkersSheet } from "@/components/hr/add-workers-sheet"
 import { HRDateFilter } from "@/components/hr/date-filter"
 import { DeleteButton } from "@/components/hr/delete-button"
 import { Button } from "@/components/ui/button"
@@ -41,6 +43,7 @@ export default async function PayrollPage({ searchParams }: Props) {
         }
       >
         <HRDateFilter type="month" value={month ?? ""} />
+        <AddWorkersSheet />
         <WorkerSalariesSheet workers={workers} />
         <GeneratePayrollButton />
         <PayrollForm workers={workers} />
@@ -88,7 +91,13 @@ export default async function PayrollPage({ searchParams }: Props) {
                     <td className="px-4 py-2.5 text-right text-muted-foreground">{p.days_present}/{p.working_days}</td>
                     <td className="px-4 py-2.5 text-right text-muted-foreground" title="Days present × daily wage — no OT or deductions">₹{formatCurrency(p.base_wage)}</td>
                     <td className="px-4 py-2.5 text-right text-muted-foreground">{p.overtime_hours}h</td>
-                    <td className="px-4 py-2.5 text-right text-muted-foreground">₹{formatCurrency(p.tea_allowance ?? 0)}</td>
+                    <td className="px-4 py-2.5 text-right text-muted-foreground">
+                      {p.status === "draft" ? (
+                        <PayrollTeaAllowanceInput id={p.id} value={p.tea_allowance ?? 0} />
+                      ) : (
+                        `₹${formatCurrency(p.tea_allowance ?? 0)}`
+                      )}
+                    </td>
                     <td className="px-4 py-2.5 text-right text-muted-foreground">₹{formatCurrency(p.bonus ?? 0)}</td>
                     <td className="px-4 py-2.5 text-right text-muted-foreground">₹{formatCurrency(p.deductions)}</td>
                     <td className="px-4 py-2.5 text-right font-semibold">₹{formatCurrency(p.total_wage)}</td>

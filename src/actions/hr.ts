@@ -630,6 +630,26 @@ export async function createPayroll(formData: PayrollFormData) {
   return { data }
 }
 
+/** Edit a draft payroll record's tea allowance (locked once marked paid). */
+export async function updatePayrollTeaAllowance(id: string, tea_allowance: number) {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
+  const amount = Number.isFinite(tea_allowance) && tea_allowance >= 0 ? tea_allowance : 0
+  const { error } = await supabase
+    .from("payroll")
+    .update({ tea_allowance: amount })
+    .eq("id", id)
+    .eq("status", "draft")
+
+  if (error) return { error: error.message }
+
+  revalidatePath("/hr/payroll")
+  return { success: true }
+}
+
 export async function updatePayrollStatus(id: string, status: "draft" | "paid") {
   const supabase = await createClient()
 
