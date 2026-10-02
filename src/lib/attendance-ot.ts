@@ -21,6 +21,9 @@ export const SHIFT_HOURS: Record<"male" | "female", number> = {
   female: 9,
 }
 
+/** OT is paid at 1.5× the worker's base hourly rate. */
+export const OT_MULTIPLIER = 1.5
+
 export interface OvertimeResult {
   /** OT hours: early-arrival minutes before shift start + late-departure minutes after shift end. */
   overtimeHours: number

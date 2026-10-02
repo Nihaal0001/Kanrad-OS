@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { IndianRupee } from "lucide-react"
 import { toast } from "sonner"
 
-import { setWorkerSalaries, setWorkerGenderAndOT } from "@/actions/hr"
+import { setWorkerSalaries, setWorkerDetails } from "@/actions/hr"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
@@ -26,23 +26,25 @@ interface Worker {
   department: string | null
   monthly_salary?: number | string | null
   gender?: string | null
-  ot_rate?: number | string | null
+  tea_allowance?: number | string | null
 }
 
 export function WorkerSalariesSheet({ workers }: { workers: Worker[] }) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [values, setValues] = useState<Record<string, string>>({})
+  const [names, setNames] = useState<Record<string, string>>({})
   const [genders, setGenders] = useState<Record<string, Gender>>({})
-  const [otRates, setOtRates] = useState<Record<string, string>>({})
+  const [teaAllowances, setTeaAllowances] = useState<Record<string, string>>({})
   const [isPending, startTransition] = useTransition()
 
   function handleOpen(next: boolean) {
     if (next) {
       // seed inputs with current values
       setValues(Object.fromEntries(workers.map((w) => [w.id, String(Number(w.monthly_salary ?? 0) || "")])))
+      setNames(Object.fromEntries(workers.map((w) => [w.id, w.full_name])))
       setGenders(Object.fromEntries(workers.map((w) => [w.id, (w.gender as Gender) ?? null])))
-      setOtRates(Object.fromEntries(workers.map((w) => [w.id, String(Number(w.ot_rate ?? 0) || "")])))
+      setTeaAllowances(Object.fromEntries(workers.map((w) => [w.id, String(Number(w.tea_allowance ?? 0) || "")])))
     }
     setOpen(next)
   }
@@ -52,32 +54,37 @@ export function WorkerSalariesSheet({ workers }: { workers: Worker[] }) {
       .map((w) => ({ id: w.id, monthly_salary: Math.max(0, Number(values[w.id]) || 0) }))
       .filter((u) => u.monthly_salary !== Number(workers.find((w) => w.id === u.id)?.monthly_salary ?? 0))
 
-    const genderOtUpdates = workers
+    const detailUpdates = workers
       .map((w) => ({
         id: w.id,
+        full_name: (names[w.id] ?? w.full_name).trim() || w.full_name,
         gender: genders[w.id] ?? null,
-        ot_rate: Math.max(0, Number(otRates[w.id]) || 0),
+        tea_allowance: Math.max(0, Number(teaAllowances[w.id]) || 0),
       }))
       .filter((u) => {
         const orig = workers.find((w) => w.id === u.id)
-        return u.gender !== ((orig?.gender as Gender) ?? null) || u.ot_rate !== Number(orig?.ot_rate ?? 0)
+        return (
+          u.full_name !== orig?.full_name ||
+          u.gender !== ((orig?.gender as Gender) ?? null) ||
+          u.tea_allowance !== Number(orig?.tea_allowance ?? 0)
+        )
       })
 
-    if (salaryUpdates.length === 0 && genderOtUpdates.length === 0) {
+    if (salaryUpdates.length === 0 && detailUpdates.length === 0) {
       toast.info("No changes to save")
       return
     }
     startTransition(async () => {
       const results = await Promise.all([
         salaryUpdates.length > 0 ? setWorkerSalaries(salaryUpdates) : Promise.resolve({ updated: 0 }),
-        genderOtUpdates.length > 0 ? setWorkerGenderAndOT(genderOtUpdates) : Promise.resolve({ updated: 0 }),
+        detailUpdates.length > 0 ? setWorkerDetails(detailUpdates) : Promise.resolve({ updated: 0 }),
       ])
       const errored = results.find((r) => "error" in r)
       if (errored && "error" in errored) {
         toast.error(errored.error)
         return
       }
-      const totalUpdated = Math.max(salaryUpdates.length, genderOtUpdates.length)
+      const totalUpdated = Math.max(salaryUpdates.length, detailUpdates.length)
       toast.success(`Saved ${totalUpdated} worker${totalUpdated === 1 ? "" : "s"}`)
       setOpen(false)
       router.refresh()
@@ -94,11 +101,12 @@ export function WorkerSalariesSheet({ workers }: { workers: Worker[] }) {
       </DialogTrigger>
       <DialogContent className="sm:max-w-xl p-0 gap-0 overflow-hidden">
         <DialogHeader className="px-6 pt-6 pb-3 border-b">
-          <DialogTitle>Salary, Gender & Overtime</DialogTitle>
+          <DialogTitle>Worker Details</DialogTitle>
           <DialogDescription>
             Monthly salary converts to a daily rate (monthly ÷ working days) and pays for days
             present. Shift window is 8am-6pm for men and 8am-5pm for women — time worked outside
-            that window counts as overtime, paid at each worker&apos;s ₹/hour OT rate.
+            that window counts as overtime, paid at 1.5× the worker&apos;s base hourly rate. Tea
+            allowance is a fixed ₹ amount added to every payslip.
           </DialogDescription>
         </DialogHeader>
 
@@ -106,8 +114,12 @@ export function WorkerSalariesSheet({ workers }: { workers: Worker[] }) {
           {workers.map((w) => (
             <div key={w.id} className="flex flex-wrap items-center gap-3 px-6 py-2.5">
               <div className="min-w-0 flex-1 basis-32">
-                <p className="truncate text-sm font-medium">{w.full_name}</p>
-                {w.department && <p className="truncate text-xs text-muted-foreground">{w.department}</p>}
+                <Input
+                  className="h-9 text-sm font-medium"
+                  value={names[w.id] ?? ""}
+                  onChange={(e) => setNames((v) => ({ ...v, [w.id]: e.target.value }))}
+                />
+                {w.department && <p className="truncate text-xs text-muted-foreground mt-1">{w.department}</p>}
               </div>
 
               <div className="relative w-28 shrink-0">
@@ -139,16 +151,16 @@ export function WorkerSalariesSheet({ workers }: { workers: Worker[] }) {
                 ))}
               </div>
 
-              <div className="relative w-24 shrink-0">
+              <div className="relative w-28 shrink-0">
                 <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">₹</span>
                 <Input
                   type="number"
                   min={0}
                   inputMode="numeric"
                   className="h-9 pl-6 text-right"
-                  placeholder="OT/hr"
-                  value={otRates[w.id] ?? ""}
-                  onChange={(e) => setOtRates((v) => ({ ...v, [w.id]: e.target.value }))}
+                  placeholder="Tea Allow."
+                  value={teaAllowances[w.id] ?? ""}
+                  onChange={(e) => setTeaAllowances((v) => ({ ...v, [w.id]: e.target.value }))}
                 />
               </div>
             </div>

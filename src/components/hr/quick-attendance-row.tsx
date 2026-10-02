@@ -14,7 +14,6 @@ interface Worker {
   full_name: string
   department: string | null
   gender?: "male" | "female" | null
-  ot_rate?: number | null
   monthly_salary?: number | null
 }
 

@@ -71,7 +71,8 @@ interface Payroll {
   overtime_rate: number
   deductions: number
   bonus: number
-  net_salary: number
+  tea_allowance: number
+  total_wage: number
   status: string
   notes?: string | null
   worker?: {
@@ -101,7 +102,7 @@ export function PayslipPDFDocument({ payroll, org }: Props) {
 
   const basicWage = payroll.days_present * payroll.daily_wage
   const overtimePay = payroll.overtime_hours * payroll.overtime_rate
-  const grossSalary = basicWage + overtimePay + (payroll.bonus ?? 0)
+  const grossSalary = basicWage + overtimePay + (payroll.bonus ?? 0) + (payroll.tea_allowance ?? 0)
 
   return (
     <Document>
@@ -169,6 +170,12 @@ export function PayslipPDFDocument({ payroll, org }: Props) {
               <Text style={s.rowValue}>{fmt(overtimePay)}</Text>
             </View>
           )}
+          {(payroll.tea_allowance ?? 0) > 0 && (
+            <View style={s.row}>
+              <Text style={s.rowLabel}>Tea Allowance</Text>
+              <Text style={s.rowValue}>{fmt(payroll.tea_allowance)}</Text>
+            </View>
+          )}
           {(payroll.bonus ?? 0) > 0 && (
             <View style={s.row}>
               <Text style={s.rowLabel}>Bonus / Incentive</Text>
@@ -195,7 +202,7 @@ export function PayslipPDFDocument({ payroll, org }: Props) {
         {/* Net Salary */}
         <View style={s.netRow}>
           <Text style={s.netLabel}>NET SALARY</Text>
-          <Text style={s.netValue}>{fmt(payroll.net_salary)}</Text>
+          <Text style={s.netValue}>{fmt(payroll.total_wage)}</Text>
         </View>
 
         {payroll.notes ? (

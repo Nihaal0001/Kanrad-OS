@@ -64,6 +64,8 @@ export default async function PayrollPage({ searchParams }: Props) {
                   <th className="px-4 py-2.5 text-right">Days</th>
                   <th className="px-4 py-2.5 text-right">Base Pay</th>
                   <th className="px-4 py-2.5 text-right">OT Hrs</th>
+                  <th className="px-4 py-2.5 text-right">Tea Allow.</th>
+                  <th className="px-4 py-2.5 text-right">Bonus</th>
                   <th className="px-4 py-2.5 text-right">Deductions</th>
                   <th className="px-4 py-2.5 text-right">Total</th>
                   <th className="px-4 py-2.5 text-right">Actions</th>
@@ -86,6 +88,8 @@ export default async function PayrollPage({ searchParams }: Props) {
                     <td className="px-4 py-2.5 text-right text-muted-foreground">{p.days_present}/{p.working_days}</td>
                     <td className="px-4 py-2.5 text-right text-muted-foreground" title="Days present × daily wage — no OT or deductions">₹{formatCurrency(p.base_wage)}</td>
                     <td className="px-4 py-2.5 text-right text-muted-foreground">{p.overtime_hours}h</td>
+                    <td className="px-4 py-2.5 text-right text-muted-foreground">₹{formatCurrency(p.tea_allowance ?? 0)}</td>
+                    <td className="px-4 py-2.5 text-right text-muted-foreground">₹{formatCurrency(p.bonus ?? 0)}</td>
                     <td className="px-4 py-2.5 text-right text-muted-foreground">₹{formatCurrency(p.deductions)}</td>
                     <td className="px-4 py-2.5 text-right font-semibold">₹{formatCurrency(p.total_wage)}</td>
                     <td className="px-4 py-2.5">

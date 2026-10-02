@@ -325,11 +325,12 @@ export function BomForm({ product, materials }: BomFormProps) {
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Header row */}
-          <div className="hidden sm:grid grid-cols-[2fr_1fr_0.8fr_0.8fr_1fr_40px] gap-3 text-xs font-medium text-muted-foreground uppercase tracking-wide px-1">
+          <div className="hidden sm:grid grid-cols-[2fr_1fr_0.8fr_0.8fr_0.8fr_1fr_40px] gap-3 text-xs font-medium text-muted-foreground uppercase tracking-wide px-1">
             <span>Material</span>
             <span>Qty Required</span>
             <span>Unit</span>
             <span>Wastage %</span>
+            <span className="text-right">Price</span>
             <span className="text-right">Line Cost</span>
             <span />
           </div>
@@ -344,7 +345,7 @@ export function BomForm({ product, materials }: BomFormProps) {
             return (
               <div
                 key={field.id}
-                className="grid grid-cols-1 sm:grid-cols-[2fr_1fr_0.8fr_0.8fr_1fr_40px] gap-3 items-start rounded-lg border p-3 sm:border-0 sm:p-0"
+                className="grid grid-cols-1 sm:grid-cols-[2fr_1fr_0.8fr_0.8fr_0.8fr_1fr_40px] gap-3 items-start rounded-lg border p-3 sm:border-0 sm:p-0"
               >
                 {/* Material picker: category filter + combobox */}
                 <div className="space-y-1.5">
@@ -427,6 +428,12 @@ export function BomForm({ product, materials }: BomFormProps) {
                     placeholder="0"
                     {...form.register(`items.${index}.wastage_pct`, { valueAsNumber: true })}
                   />
+                </div>
+
+                {/* Price (from material master) */}
+                <div className="flex flex-col items-end justify-center h-9 text-sm tabular-nums text-muted-foreground">
+                  <span className="sm:hidden text-xs self-start text-muted-foreground">Price</span>
+                  {mat ? `₹${formatCurrency(mat.cost_per_unit)}/${mat.unit}` : "—"}
                 </div>
 
                 {/* Line cost */}

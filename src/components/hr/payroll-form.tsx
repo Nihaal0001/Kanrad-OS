@@ -9,6 +9,7 @@ import { Loader2, Plus } from "lucide-react"
 import { toast } from "sonner"
 import { payrollSchema, type PayrollFormData } from "@/lib/validators/hr"
 import { createPayroll, getAttendanceSummary } from "@/actions/hr"
+import { baseHourlyRate, OT_MULTIPLIER } from "@/lib/attendance-ot"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { DatePicker } from "@/components/ui/date-picker"
@@ -34,6 +35,9 @@ interface Worker {
   id: string
   full_name: string
   department: string | null
+  monthly_salary?: number | string | null
+  gender?: string | null
+  tea_allowance?: number | string | null
 }
 
 interface PayrollFormProps {
@@ -73,6 +77,7 @@ export function PayrollForm({ workers, trigger }: PayrollFormProps) {
       overtime_rate: 0,
       deductions: 0,
       bonus: 0,
+      tea_allowance: 0,
       notes: "",
     },
   })
@@ -80,16 +85,18 @@ export function PayrollForm({ workers, trigger }: PayrollFormProps) {
   const workerId = watch("worker_id")
   const periodStart = watch("period_start")
   const periodEnd = watch("period_end")
+  const workingDays = watch("working_days") ?? 0
   const dailyWage = watch("daily_wage") ?? 0
   const overtimeRate = watch("overtime_rate") ?? 0
   const daysPresent = watch("days_present") ?? 0
   const overtimeHours = watch("overtime_hours") ?? 0
   const deductions = watch("deductions") ?? 0
   const bonus = watch("bonus") ?? 0
+  const teaAllowance = watch("tea_allowance") ?? 0
 
   const baseWage = Number(daysPresent) * Number(dailyWage)
   const overtimePay = Number(overtimeHours) * Number(overtimeRate)
-  const totalWage = baseWage + overtimePay - Number(deductions) + Number(bonus)
+  const totalWage = baseWage + overtimePay - Number(deductions) + Number(bonus) + Number(teaAllowance)
 
   // Auto-fill attendance when worker + period is filled
   useEffect(() => {
@@ -101,6 +108,21 @@ export function PayrollForm({ workers, trigger }: PayrollFormProps) {
       setLoadingAttendance(false)
     })
   }, [workerId, periodStart, periodEnd, setValue])
+
+  // Auto-fill daily wage, OT rate (1.5× base hourly rate) and tea allowance
+  // from the worker's salary/gender/tea allowance when worker or working
+  // days changes.
+  useEffect(() => {
+    if (!workerId || workerId === "none") return
+    const worker = workers.find((w) => w.id === workerId)
+    if (!worker) return
+    const salary = Number(worker.monthly_salary ?? 0)
+    const gender = (worker.gender as "male" | "female" | null) ?? null
+    const hourlyRate = baseHourlyRate(salary, Number(workingDays), gender)
+    setValue("daily_wage", Number(workingDays) > 0 ? Math.round((salary / Number(workingDays)) * 100) / 100 : 0)
+    setValue("overtime_rate", Math.round(hourlyRate * OT_MULTIPLIER * 100) / 100)
+    setValue("tea_allowance", Math.max(0, Number(worker.tea_allowance ?? 0)))
+  }, [workerId, workingDays, workers, setValue])
 
   async function onSubmit(data: PayrollFormData) {
     setLoading(true)
@@ -237,7 +259,7 @@ export function PayrollForm({ workers, trigger }: PayrollFormProps) {
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="overtime_rate">OT Rate/hr (₹)</Label>
+              <Label htmlFor="overtime_rate">OT Rate/hr (₹, 1.5× base)</Label>
               <Input
                 id="overtime_rate"
                 type="number"
@@ -266,6 +288,16 @@ export function PayrollForm({ workers, trigger }: PayrollFormProps) {
                 {...register("bonus", { valueAsNumber: true })}
               />
             </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="tea_allowance">Tea Allowance (₹)</Label>
+              <Input
+                id="tea_allowance"
+                type="number"
+                min="0"
+                step="0.01"
+                {...register("tea_allowance", { valueAsNumber: true })}
+              />
+            </div>
           </div>
 
           <Separator />
@@ -278,6 +310,18 @@ export function PayrollForm({ workers, trigger }: PayrollFormProps) {
             <div className="flex justify-between text-muted-foreground">
               <span>Overtime ({Number(overtimeHours)} hrs × ₹{formatCurrency(Number(overtimeRate))})</span>
               <span>₹{formatCurrency(overtimePay)}</span>
+            </div>
+            <div className="flex justify-between text-muted-foreground">
+              <span>Tea Allowance</span>
+              <span>₹{formatCurrency(Number(teaAllowance))}</span>
+            </div>
+            <div className="flex justify-between text-muted-foreground">
+              <span>Bonus</span>
+              <span>₹{formatCurrency(Number(bonus))}</span>
+            </div>
+            <div className="flex justify-between text-muted-foreground">
+              <span>Deductions</span>
+              <span>− ₹{formatCurrency(Number(deductions))}</span>
             </div>
             <div className="flex justify-between font-semibold text-base pt-1 border-t border-border">
               <span>Net Wage</span>

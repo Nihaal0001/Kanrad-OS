@@ -48,6 +48,7 @@ export const payrollSchema = z.object({
   overtime_rate: z.number().min(0),
   deductions: z.number().min(0),
   bonus: z.number().min(0),
+  tea_allowance: z.number().min(0),
   notes: z.string().optional().or(z.literal("")),
 })
 

@@ -1,5 +1,8 @@
 import { createAdminClient } from "@/lib/supabase/admin"
-import { lateDeductionAmount, baseHourlyRate, workingDaysInMonth } from "@/lib/attendance-ot"
+import { lateDeductionAmount, baseHourlyRate, workingDaysInMonth, OT_MULTIPLIER } from "@/lib/attendance-ot"
+
+/** Awarded when a worker was present every working day of the month (no absence, half-day or leave). */
+const FULL_ATTENDANCE_BONUS = 250
 
 export { workingDaysInMonth }
 
@@ -12,13 +15,16 @@ export { workingDaysInMonth }
  * (present = 1, half day = 0.5, rounded; Sundays excluded even if marked
  * present, since they're outside the working-day divisor). Overtime hours are
  * summed from attendance.overtime_hours (time worked outside the shift
- * window, including all Sunday hours — see calculateOvertime), paid at the
- * worker's profiles.ot_rate. Late-arrival and early-departure minutes
- * (attendance.late_minutes / early_minutes) are valued at the worker's BASE
- * hourly rate (monthly salary ÷ working days ÷ shift hours — not the OT rate)
- * and land in `deductions`, coming off base pay rather than reducing OT hours.
- * Skips workers who already have a payroll record for that period, so it
- * never overwrites manual edits. No auth — callers gate it.
+ * window, including all Sunday hours — see calculateOvertime), paid at 1.5×
+ * the worker's base hourly rate (monthly salary ÷ working days ÷ shift
+ * hours). Late-arrival and early-departure minutes (attendance.late_minutes /
+ * early_minutes) are valued at that same BASE hourly rate — not the OT rate —
+ * and land in `deductions`, coming off base pay rather than reducing OT
+ * hours. Tea allowance is snapshotted from profiles.tea_allowance. A ₹250
+ * bonus is auto-awarded when a worker was present every working day of the
+ * month (no absence/half-day/leave). Skips workers who already have a
+ * payroll record for that period, so it never overwrites manual edits. No
+ * auth — callers gate it.
  */
 export async function runMonthlyPayroll(
   year: number,
@@ -32,7 +38,7 @@ export async function runMonthlyPayroll(
   const workingDays = workingDaysInMonth(year, month0)
 
   const [{ data: workers }, { data: existing }] = await Promise.all([
-    admin.from("profiles").select("id, monthly_salary, ot_rate, gender").eq("is_active", true),
+    admin.from("profiles").select("id, monthly_salary, tea_allowance, gender").eq("is_active", true),
     admin.from("payroll").select("worker_id").eq("period_start", periodStart).eq("period_end", periodEnd),
   ])
 
@@ -76,17 +82,20 @@ export async function runMonthlyPayroll(
     .map((w) => {
       const salary = w.monthly_salary ?? 0
       const hourlyRate = baseHourlyRate(salary, workingDays, w.gender as "male" | "female" | null)
+      const daysPresent = presentByWorker[w.id] ?? 0
+      const fullAttendance = workingDays > 0 && daysPresent >= workingDays
       return {
         worker_id: w.id,
         period_start: periodStart,
         period_end: periodEnd,
         working_days: workingDays,
-        days_present: Math.round(presentByWorker[w.id] ?? 0),
+        days_present: Math.round(daysPresent),
         overtime_hours: Math.round((overtimeByWorker[w.id] ?? 0) * 100) / 100,
         daily_wage: workingDays > 0 ? Math.round((salary / workingDays) * 100) / 100 : 0,
-        overtime_rate: w.ot_rate ?? 0,
+        overtime_rate: Math.round(hourlyRate * OT_MULTIPLIER * 100) / 100,
         deductions: lateDeductionAmount(deductibleMinutesByWorker[w.id] ?? 0, hourlyRate),
-        bonus: 0,
+        bonus: fullAttendance ? FULL_ATTENDANCE_BONUS : 0,
+        tea_allowance: w.tea_allowance ?? 0,
         status: "draft" as const,
       }
     })

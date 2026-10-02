@@ -23,7 +23,7 @@ export const getWorkers = unstable_cache(
     const supabase = createAdminClient()
     const { data, error } = await supabase
       .from("profiles")
-      .select("id, full_name, role, department, is_active, monthly_salary, gender, ot_rate, roll_no")
+      .select("id, full_name, role, department, is_active, monthly_salary, gender, tea_allowance, roll_no")
       .eq("is_active", true)
       .order("roll_no", { ascending: true, nullsFirst: false })
       .order("full_name")
@@ -53,10 +53,12 @@ export async function setWorkerSalaries(updates: { id: string; monthly_salary: n
   return { updated }
 }
 
-/** Set gender (male/female — determines shift window: 8am-6pm vs 8am-5pm)
- *  and per-hour OT rate for one or more workers. */
-export async function setWorkerGenderAndOT(
-  updates: { id: string; gender: "male" | "female" | null; ot_rate: number }[]
+/** Set name, gender (male/female — determines shift window: 8am-6pm vs
+ *  8am-5pm) and tea allowance for one or more workers. OT pay is always
+ *  computed from the base hourly rate (see src/lib/attendance-ot.ts), not
+ *  set manually here. */
+export async function setWorkerDetails(
+  updates: { id: string; full_name: string; gender: "male" | "female" | null; tea_allowance: number }[]
 ) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -65,10 +67,12 @@ export async function setWorkerGenderAndOT(
   const admin = createAdminClient()
   let updated = 0
   for (const u of updates) {
-    const ot_rate = Number.isFinite(u.ot_rate) && u.ot_rate >= 0 ? u.ot_rate : 0
+    const full_name = u.full_name.trim()
+    if (!full_name) continue
+    const tea_allowance = Number.isFinite(u.tea_allowance) && u.tea_allowance >= 0 ? u.tea_allowance : 0
     const { error } = await admin
       .from("profiles")
-      .update({ gender: u.gender, ot_rate })
+      .update({ full_name, gender: u.gender, tea_allowance })
       .eq("id", u.id)
     if (!error) updated++
   }
@@ -614,6 +618,7 @@ export async function createPayroll(formData: PayrollFormData) {
       overtime_rate: validated.overtime_rate,
       deductions: validated.deductions,
       bonus: validated.bonus,
+      tea_allowance: validated.tea_allowance,
       notes: validated.notes || null,
     })
     .select()
