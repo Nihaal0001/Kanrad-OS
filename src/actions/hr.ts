@@ -200,7 +200,29 @@ export async function createWorkers(input: { names: string[]; department?: strin
   revalidateTag("workers", {})
   revalidatePath("/hr")
   revalidatePath("/hr/attendance")
+  revalidatePath("/hr/payroll")
   return { count: data?.length ?? 0 }
+}
+
+/**
+ * Remove a worker from attendance/payroll. Soft-delete (is_active = false)
+ * rather than a hard delete — their past attendance and payroll records
+ * stay intact, they just stop appearing in worker lists going forward.
+ */
+export async function removeWorker(id: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
+  const admin = createAdminClient()
+  const { error } = await admin.from("profiles").update({ is_active: false }).eq("id", id)
+  if (error) return { error: error.message }
+
+  revalidateTag("workers", {})
+  revalidatePath("/hr")
+  revalidatePath("/hr/attendance")
+  revalidatePath("/hr/payroll")
+  return { success: true }
 }
 
 // ===== Shifts =====

@@ -5,6 +5,8 @@ import { MarkAllPresentButton } from "@/components/hr/mark-all-present-button"
 import { AttendanceDateNav } from "@/components/hr/date-filter"
 import { AttendanceStatusSection } from "@/components/hr/attendance-status-section"
 import { DayChangeRefresh } from "@/components/hr/day-change-refresh"
+import { AddWorkersSheet } from "@/components/hr/add-workers-sheet"
+import { RemoveWorkerDialog } from "@/components/hr/remove-worker-dialog"
 import { cn } from "@/lib/utils"
 
 interface Props {
@@ -54,6 +56,8 @@ export default async function AttendancePage({ searchParams }: Props) {
       <PageHeader title="Attendance" description="Daily attendance and overtime tracking">
         <AttendanceDateNav date={effectiveDate} />
         <MarkAllPresentButton date={effectiveDate} />
+        <AddWorkersSheet />
+        <RemoveWorkerDialog workers={workers} />
         <AttendanceForm workers={workers} defaultDate={effectiveDate} />
       </PageHeader>
 

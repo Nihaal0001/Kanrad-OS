@@ -8,6 +8,7 @@ import { GeneratePayrollButton } from "@/components/hr/generate-payroll-button"
 import { WorkerPayrollList } from "@/components/hr/worker-payroll-list"
 import { PayrollTeaAllowanceInput } from "@/components/hr/payroll-tea-allowance-input"
 import { AddWorkersSheet } from "@/components/hr/add-workers-sheet"
+import { RemoveWorkerDialog } from "@/components/hr/remove-worker-dialog"
 import { HRDateFilter } from "@/components/hr/date-filter"
 import { DeleteButton } from "@/components/hr/delete-button"
 import { Button } from "@/components/ui/button"
@@ -44,6 +45,7 @@ export default async function PayrollPage({ searchParams }: Props) {
       >
         <HRDateFilter type="month" value={month ?? ""} />
         <AddWorkersSheet />
+        <RemoveWorkerDialog workers={workers} />
         <WorkerSalariesSheet workers={workers} />
         <GeneratePayrollButton />
         <PayrollForm workers={workers} />
