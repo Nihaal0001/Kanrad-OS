@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, Fragment } from "react"
+import { useState, useMemo, useRef, Fragment } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { Send, ChevronDown, ChevronRight, PackageOpen } from "lucide-react"
@@ -70,6 +70,7 @@ interface SkuGroup {
   key: string
   sku: string | null
   item_name: string
+  brand: string
   category: string | null
   unit: string
   totalQuantity: number
@@ -107,6 +108,7 @@ function groupItems(items: WarehouseItem[]): BrandGroup[] {
         key,
         sku: item.sku,
         item_name: item.item_name,
+        brand: item.brand,
         category: item.category,
         unit: item.unit,
         totalQuantity: item.quantity,
@@ -161,6 +163,11 @@ export function WarehouseTable({ items, locations }: WarehouseTableProps) {
   const [dispatchBillNo, setDispatchBillNo] = useState("")
   const [dispatchNotes, setDispatchNotes] = useState("")
   const [dispatching, setDispatching] = useState(false)
+  const dispatchRequestId = useRef<string>("")
+  // Synchronous guard — setDispatching(true) alone can't block a second
+  // click that lands before React commits the re-render; this ref blocks
+  // it immediately, which is what actually prevents a double dispatch.
+  const dispatchInFlight = useRef(false)
 
   const selectedOrderOption = dispatchGroup?.orderOptions.find(
     (o) => (o.order_id ?? "__unlinked__") === dispatchOrderKey
@@ -190,9 +197,11 @@ export function WarehouseTable({ items, locations }: WarehouseTableProps) {
     setDispatchQty("")
     setDispatchBillNo("")
     setDispatchNotes("")
+    dispatchRequestId.current = crypto.randomUUID()
   }
 
   async function handleDispatch() {
+    if (dispatchInFlight.current) return
     if (!dispatchGroup || !dispatchGroup.sku) return
     if (!selectedOrderOption) {
       toast.error("Select which order this dispatch is for")
@@ -208,19 +217,24 @@ export function WarehouseTable({ items, locations }: WarehouseTableProps) {
       return
     }
     if (!dispatchBillNo.trim()) {
-      toast.error("Enter the bill number")
+      toast.error("Enter the invoice number")
       return
     }
 
+    dispatchInFlight.current = true
     setDispatching(true)
     const result = await dispatchWarehouseSku({
       sku: dispatchGroup.sku,
+      item_name: dispatchGroup.item_name,
+      brand: dispatchGroup.brand,
       quantity: qty,
       bill_no: dispatchBillNo.trim(),
       notes: dispatchNotes,
       order_id: selectedOrderOption.order_id,
+      request_id: dispatchRequestId.current,
     })
     setDispatching(false)
+    dispatchInFlight.current = false
 
     if ("error" in result && result.error) {
       toast.error(friendlyError(result.error))
@@ -378,7 +392,10 @@ export function WarehouseTable({ items, locations }: WarehouseTableProps) {
           </DialogHeader>
           {dispatchGroup && (
             <div className="space-y-4">
-              <p className="text-xs text-muted-foreground font-mono">{dispatchGroup.sku}</p>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span className="font-mono">{dispatchGroup.sku}</span>
+                <Badge variant="secondary" className="text-xs">{dispatchGroup.brand}</Badge>
+              </div>
               <div className="space-y-1.5">
                 <Label>Dispatching for Order *</Label>
                 <Select value={dispatchOrderKey} onValueChange={setDispatchOrderKey}>
@@ -411,7 +428,7 @@ export function WarehouseTable({ items, locations }: WarehouseTableProps) {
                 </p>
               </div>
               <div className="space-y-1.5">
-                <Label>Bill No. *</Label>
+                <Label>Invoice Number *</Label>
                 <Input
                   value={dispatchBillNo}
                   onChange={(e) => setDispatchBillNo(e.target.value)}

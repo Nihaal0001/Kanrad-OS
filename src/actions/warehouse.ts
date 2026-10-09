@@ -63,6 +63,31 @@ export async function getWarehouseItems(filters?: { status?: string; location?: 
   )()
 }
 
+export const getWarehouseDispatches = unstable_cache(
+  async () => {
+    const supabase = createAdminClient()
+    const { data, error } = await supabase
+      .from("warehouse_dispatches")
+      .select(`
+        id, brand, item_name, quantity, bill_no, dispatched_at, notes,
+        warehouse_item:warehouse_items(sku),
+        order:orders(order_number)
+      `)
+      .order("dispatched_at", { ascending: false })
+      .order("created_at", { ascending: false })
+
+    if (error) throw new Error(error.message)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (data ?? []).map((d: any) => ({
+      ...d,
+      warehouse_item: Array.isArray(d.warehouse_item) ? d.warehouse_item[0] ?? null : d.warehouse_item,
+      order: Array.isArray(d.order) ? d.order[0] ?? null : d.order,
+    }))
+  },
+  ["warehouse-dispatches"],
+  { tags: ["warehouse_items"], revalidate: 60 }
+)
+
 export const getWarehouseLocations = unstable_cache(
   async (): Promise<string[]> => {
     const supabase = createAdminClient()
@@ -101,6 +126,13 @@ function addDays(dateStr: string, days: number): string {
  * creates a sales invoice for that customer + bill number (adding a line
  * item to it), so it shows up in Finance → Receivables. Unlinked stock still
  * dispatches, it just can't be invoiced.
+ *
+ * Idempotent per request_id: the very first thing this does is insert
+ * request_id into warehouse_dispatch_requests. A duplicate submission
+ * (double-click before the button disables, a retried request, two tabs)
+ * hits the primary key and returns early as a no-op, before any stock is
+ * touched — otherwise a single intended dispatch of 50 could read+write the
+ * same stock twice and send out 100.
  */
 export async function dispatchWarehouseSku(formData: WarehouseSkuDispatchFormData) {
   const validated = warehouseSkuDispatchSchema.parse(formData)
@@ -109,6 +141,14 @@ export async function dispatchWarehouseSku(formData: WarehouseSkuDispatchFormDat
   if (!user) return { error: "Not authenticated" }
 
   const admin = createAdminClient()
+
+  const { error: dedupeError } = await admin
+    .from("warehouse_dispatch_requests")
+    .insert({ id: validated.request_id })
+  if (dedupeError) {
+    if (dedupeError.code === "23505") return { success: true }
+    return { error: dedupeError.message }
+  }
 
   let rowsQuery = admin
     .from("warehouse_items")
@@ -157,6 +197,8 @@ export async function dispatchWarehouseSku(formData: WarehouseSkuDispatchFormDat
       order_id: row.order_id ?? null,
       quantity: consume,
       bill_no: validated.bill_no,
+      brand: validated.brand,
+      item_name: validated.item_name,
       notes: validated.notes || null,
       created_by: user.id,
     })
