@@ -117,15 +117,17 @@ function addDays(dateStr: string, days: number): string {
 }
 
 /**
- * Dispatch a quantity of a SKU straight out of the warehouse under a bill
- * number, for a specific customer order the dispatcher explicitly picks
- * (stock for one SKU can come from several orders' production runs — order_id
- * null means dispatching from unlinked/manually-added stock instead). Consumes
- * the oldest stock first among that order's rows, logs a warehouse_dispatches
- * row per row consumed, and — when linked to a customer order — finds or
- * creates a sales invoice for that customer + bill number (adding a line
- * item to it), so it shows up in Finance → Receivables. Unlinked stock still
- * dispatches, it just can't be invoiced.
+ * Dispatch a quantity of a SKU straight out of the warehouse, drawing FIFO
+ * (oldest entry_date first) across ALL in-warehouse stock for that SKU —
+ * which can span several orders' production runs, or unlinked/manual stock,
+ * in one dispatch. Logs a warehouse_dispatches row per warehouse row
+ * consumed, flips any order whose stock just hit zero to "dispatched", and
+ * — for whatever portion is attributable to a customer order — finds or
+ * creates one sales invoice per bill number (adding a line item per order),
+ * so a single invoice can cover several orders dispatched together.
+ * Unlinked stock still dispatches, it just can't be invoiced (no customer to
+ * bill), which is why the invoice number is only required when the dispatch
+ * actually touches order-linked stock.
  *
  * Idempotent per request_id: the very first thing this does is insert
  * request_id into warehouse_dispatch_requests. A duplicate submission
@@ -136,6 +138,7 @@ function addDays(dateStr: string, days: number): string {
  */
 export async function dispatchWarehouseSku(formData: WarehouseSkuDispatchFormData) {
   const validated = warehouseSkuDispatchSchema.parse(formData)
+  const billNo = validated.bill_no?.trim() || null
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: "Not authenticated" }
@@ -162,7 +165,7 @@ export async function dispatchWarehouseSku(formData: WarehouseSkuDispatchFormDat
     return { error: dedupeError.message }
   }
 
-  let rowsQuery = admin
+  const { data: rows, error: rowsError } = await admin
     .from("warehouse_items")
     .select("id, item_name, sku, quantity, order_id")
     .eq("sku", validated.sku)
@@ -170,35 +173,43 @@ export async function dispatchWarehouseSku(formData: WarehouseSkuDispatchFormDat
     .gt("quantity", 0)
     .order("entry_date", { ascending: true })
 
-  rowsQuery = validated.order_id
-    ? rowsQuery.eq("order_id", validated.order_id)
-    : rowsQuery.is("order_id", null)
-
-  const { data: rows, error: rowsError } = await rowsQuery
-
   if (rowsError) return { error: rowsError.message }
 
   const available = (rows ?? []).reduce((s, r) => s + r.quantity, 0)
   if (validated.quantity > available) {
-    return { error: `Cannot dispatch more than the ${available} available for this order.` }
+    return { error: `Cannot dispatch more than the ${available} available.` }
   }
 
+  // Build the consumption plan before writing anything, so the invoice
+  // number requirement can be checked up front rather than partway through.
   let remaining = validated.quantity
+  const plan: { row: NonNullable<typeof rows>[number]; consume: number }[] = []
+  for (const row of rows ?? []) {
+    if (remaining <= 0) break
+    const consume = Math.min(remaining, row.quantity)
+    plan.push({ row, consume })
+    remaining -= consume
+  }
+
+  const touchesOrder = plan.some((p) => p.row.order_id)
+  if (touchesOrder && !billNo) {
+    return { error: "Invoice number is required — this dispatch includes stock linked to a customer order." }
+  }
+
   const today = new Date().toISOString().split("T")[0]
   // Consumed quantity per order, so each order gets exactly one invoice line
   // even if its stock is split across several warehouse rows.
   const consumedByOrder = new Map<string, number>()
 
-  for (const row of rows ?? []) {
-    if (remaining <= 0) break
-    const consume = Math.min(remaining, row.quantity)
+  for (const { row, consume } of plan) {
     const newQty = Math.round((row.quantity - consume) * 1000) / 1000
+    const nowFullyDispatched = newQty <= 0
 
     const { error: updateError } = await admin
       .from("warehouse_items")
       .update({
         quantity: newQty,
-        ...(newQty <= 0 ? { status: "dispatched", exit_date: today } : {}),
+        ...(nowFullyDispatched ? { status: "dispatched", exit_date: today } : {}),
         updated_at: new Date().toISOString(),
       })
       .eq("id", row.id)
@@ -208,7 +219,7 @@ export async function dispatchWarehouseSku(formData: WarehouseSkuDispatchFormDat
       warehouse_item_id: row.id,
       order_id: row.order_id ?? null,
       quantity: consume,
-      bill_no: validated.bill_no,
+      bill_no: billNo,
       brand: validated.brand,
       item_name: validated.item_name,
       notes: validated.notes || null,
@@ -218,12 +229,21 @@ export async function dispatchWarehouseSku(formData: WarehouseSkuDispatchFormDat
 
     if (row.order_id) {
       consumedByOrder.set(row.order_id, (consumedByOrder.get(row.order_id) ?? 0) + consume)
+
+      // That order's entire warehouse stock (one row per order, enforced by
+      // a unique constraint) just hit zero — reflect that on the order
+      // itself so "Completed" orders don't sit there forever once
+      // everything has actually shipped.
+      if (nowFullyDispatched) {
+        await admin.from("orders").update({ status: "dispatched" }).eq("id", row.order_id).neq("status", "cancelled")
+      }
     }
-    remaining -= consume
   }
 
-  // Invoice whatever portion is attributable to a customer order.
+  // Invoice whatever portion is attributable to a customer order — may now
+  // span several orders dispatched together under one bill number.
   for (const [orderId, qty] of consumedByOrder) {
+    if (!billNo) continue
     const { data: order } = await admin
       .from("orders")
       .select("id, order_number, customer_id, gst_rate")
@@ -250,7 +270,7 @@ export async function dispatchWarehouseSku(formData: WarehouseSkuDispatchFormDat
       .from("invoices")
       .select("id")
       .eq("customer_id", customer.id)
-      .eq("bill_no", validated.bill_no)
+      .eq("bill_no", billNo)
       .neq("status", "cancelled")
       .maybeSingle()
 
@@ -268,8 +288,8 @@ export async function dispatchWarehouseSku(formData: WarehouseSkuDispatchFormDat
           issue_date: today,
           due_date: addDays(today, customer.payment_terms ?? 30),
           status: "sent",
-          bill_no: validated.bill_no,
-          notes: `Dispatch bill ${validated.bill_no} — order ${order.order_number}`,
+          bill_no: billNo,
+          notes: `Dispatch bill ${billNo} — order ${order.order_number}`,
         })
         .select("id")
         .single()
@@ -277,8 +297,7 @@ export async function dispatchWarehouseSku(formData: WarehouseSkuDispatchFormDat
       invoiceId = newInvoice.id
     }
 
-    const rowForSku = (rows ?? []).find((r) => r.order_id === orderId)
-    const description = rowForSku?.sku ? `${rowForSku.item_name} (${rowForSku.sku})` : rowForSku?.item_name ?? validated.sku
+    const description = validated.sku ? `${validated.item_name} (${validated.sku})` : validated.item_name
 
     await admin.from("invoice_items").insert({
       invoice_id: invoiceId,
@@ -294,12 +313,18 @@ export async function dispatchWarehouseSku(formData: WarehouseSkuDispatchFormDat
   revalidatePath("/finance/invoices")
   revalidatePath("/finance/receivables")
   revalidatePath("/history")
+  revalidatePath("/orders")
 
   await logAudit({
     entityType: "warehouse_dispatch",
     entityLabel: validated.sku,
     action: "created",
-    newValues: { sku: validated.sku, quantity: validated.quantity, bill_no: validated.bill_no, order_id: validated.order_id },
+    newValues: {
+      sku: validated.sku,
+      quantity: validated.quantity,
+      bill_no: billNo,
+      order_ids: [...consumedByOrder.keys()],
+    },
   })
 
   return { success: true }
