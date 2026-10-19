@@ -9,7 +9,12 @@ import { EmptyState } from "@/components/shared/empty-state"
 import { Button } from "@/components/ui/button"
 import { MaterialsTable } from "@/components/inventory/materials-table"
 
-export default async function InventoryPage() {
+interface Props {
+  searchParams: Promise<{ filter?: string }>
+}
+
+export default async function InventoryPage({ searchParams }: Props) {
+  const { filter } = await searchParams
   const [materials, categories] = await Promise.all([
     getMaterials(),
     getCategories(),
@@ -37,7 +42,7 @@ export default async function InventoryPage() {
           action={{ label: "Go to Item Master", href: "/master-inventory" }}
         />
       ) : (
-        <MaterialsTable materials={materials} categories={categories} />
+        <MaterialsTable materials={materials} categories={categories} initialShowLowStock={filter === "low_stock"} />
       )}
     </>
   )

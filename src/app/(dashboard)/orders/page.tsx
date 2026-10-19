@@ -1,7 +1,7 @@
 export const revalidate = 60
 
 import Link from "next/link"
-import { ShoppingBag } from "lucide-react"
+import { Camera, ShoppingBag } from "lucide-react"
 
 import { getOrders } from "@/actions/orders"
 import { getCustomers } from "@/actions/customers"
@@ -12,7 +12,12 @@ import { Button } from "@/components/ui/button"
 import { OrdersTable } from "@/components/orders/orders-table"
 import { CreateOrderSheet } from "@/components/orders/create-order-sheet"
 
-export default async function OrdersPage() {
+interface Props {
+  searchParams: Promise<{ status?: string }>
+}
+
+export default async function OrdersPage({ searchParams }: Props) {
+  const { status } = await searchParams
   const [orders, customers, products] = await Promise.all([
     getOrders(),
     getCustomers(),
@@ -28,6 +33,12 @@ export default async function OrdersPage() {
         <Button variant="outline" asChild>
           <Link href="/customers">Manage Customers</Link>
         </Button>
+        <Button variant="outline" asChild>
+          <Link href="/orders/from-photo">
+            <Camera className="h-4 w-4" />
+            Order from Photo
+          </Link>
+        </Button>
         <CreateOrderSheet
           customers={customers.map((c) => ({ id: c.id, name: c.name, company: c.company }))}
           products={products.map((p) => ({ id: p.id, name: p.product_name, sku: p.product_sku, materialCost: p.materialCost }))}
@@ -41,7 +52,7 @@ export default async function OrdersPage() {
           description="Create your first order to get started tracking production."
         />
       ) : (
-        <OrdersTable orders={orders} />
+        <OrdersTable orders={orders} initialStatusFilter={status} />
       )}
     </>
   )

@@ -33,13 +33,14 @@ import { StockLevelBar } from "@/components/inventory/stock-level-bar"
 interface MaterialsTableProps {
   materials: MaterialWithCategory[]
   categories: Array<{ id: string; name: string }>
+  initialShowLowStock?: boolean
 }
 
-export function MaterialsTable({ materials, categories }: MaterialsTableProps) {
+export function MaterialsTable({ materials, categories, initialShowLowStock = false }: MaterialsTableProps) {
   const router = useRouter()
   const [search, setSearch] = useState("")
   const [categoryFilter, setCategoryFilter] = useState<string>("all")
-  const [showLowStock, setShowLowStock] = useState(false)
+  const [showLowStock, setShowLowStock] = useState(initialShowLowStock)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [confirmId, setConfirmId] = useState<string | null>(null)
   const [sortCol, setSortCol] = useState<"sku" | "name">("sku")

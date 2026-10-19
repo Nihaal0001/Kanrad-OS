@@ -41,12 +41,15 @@ const STATUS_FILTERS = [
 
 interface OrdersTableProps {
   orders: OrderWithCustomer[]
+  initialStatusFilter?: string
 }
 
-export function OrdersTable({ orders }: OrdersTableProps) {
+export function OrdersTable({ orders, initialStatusFilter = "all" }: OrdersTableProps) {
   const router = useRouter()
   const [search, setSearch] = useState("")
-  const [statusFilter, setStatusFilter] = useState<string>("all")
+  const [statusFilter, setStatusFilter] = useState<string>(
+    STATUS_FILTERS.some((f) => f.value === initialStatusFilter) ? initialStatusFilter : "all"
+  )
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [confirmId, setConfirmId] = useState<string | null>(null)
 
