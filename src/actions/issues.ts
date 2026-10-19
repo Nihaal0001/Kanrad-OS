@@ -43,6 +43,9 @@ export async function createIssue(formData: IssueFormData) {
   } = await supabase.auth.getUser()
   if (!user) return { error: "Not authenticated" }
 
+  // created_by references profiles(id), not the auth user id directly.
+  const { data: profile } = await supabase.from("profiles").select("id").eq("auth_id", user.id).maybeSingle()
+
   const { data, error } = await supabase
     .from("issues")
     .insert({
@@ -50,7 +53,7 @@ export async function createIssue(formData: IssueFormData) {
       issue_type: validated.issue_type,
       description: validated.description,
       severity: validated.severity,
-      created_by: user.id,
+      created_by: profile?.id ?? null,
     })
     .select()
     .single()

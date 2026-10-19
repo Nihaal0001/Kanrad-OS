@@ -142,6 +142,18 @@ export async function dispatchWarehouseSku(formData: WarehouseSkuDispatchFormDat
 
   const admin = createAdminClient()
 
+  // created_by references profiles(id), not the auth user id directly —
+  // user.id is the auth.users id, which only coincidentally equals a
+  // profile's own id. Resolving it wrong caused an intermittent foreign key
+  // violation on this insert for any user whose profile id differs from
+  // their auth id.
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("id")
+    .eq("auth_id", user.id)
+    .maybeSingle()
+  const createdBy = profile?.id ?? null
+
   const { error: dedupeError } = await admin
     .from("warehouse_dispatch_requests")
     .insert({ id: validated.request_id })
@@ -200,7 +212,7 @@ export async function dispatchWarehouseSku(formData: WarehouseSkuDispatchFormDat
       brand: validated.brand,
       item_name: validated.item_name,
       notes: validated.notes || null,
-      created_by: user.id,
+      created_by: createdBy,
     })
     if (dispatchError) return { error: dispatchError.message }
 

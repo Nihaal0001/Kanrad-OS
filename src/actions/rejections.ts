@@ -59,6 +59,9 @@ export async function createRejection(formData: RejectionFormData) {
   } = await supabase.auth.getUser()
   if (!user) return { error: "Not authenticated" }
 
+  // created_by references profiles(id), not the auth user id directly.
+  const { data: profile } = await supabase.from("profiles").select("id").eq("auth_id", user.id).maybeSingle()
+
   const { data, error } = await supabase
     .from("rejections")
     .insert({
@@ -67,7 +70,7 @@ export async function createRejection(formData: RejectionFormData) {
       quantity: validated.quantity,
       reason: validated.reason,
       notes: validated.notes || null,
-      created_by: user.id,
+      created_by: profile?.id ?? null,
     })
     .select()
     .single()

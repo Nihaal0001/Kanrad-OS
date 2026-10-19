@@ -8,6 +8,28 @@ import { Send, ChevronDown, ChevronRight, PackageOpen } from "lucide-react"
 import { dispatchWarehouseSku } from "@/actions/warehouse"
 import { formatDate, friendlyError } from "@/lib/utils"
 import { formatCartons } from "@/lib/master-cartons"
+
+/**
+ * crypto.randomUUID() throws (or is undefined) outside a secure context and
+ * on some older browsers/WebViews — common on warehouse-floor tablets. If it
+ * throws during dispatch-dialog open, the request id ref silently keeps its
+ * PREVIOUS value instead of getting a fresh one, so the next dispatch's
+ * server call collides with the prior one's id and gets treated as a
+ * duplicate no-op — a real dispatch that silently does nothing. Fall back to
+ * a manual UUID v4 so id generation never throws.
+ */
+function generateRequestId(): string {
+  try {
+    if (typeof crypto !== "undefined" && crypto.randomUUID) return crypto.randomUUID()
+  } catch {
+    // fall through to manual generation
+  }
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0
+    const v = c === "x" ? r : (r & 0x3) | 0x8
+    return v.toString(16)
+  })
+}
 import { StatusBadge } from "@/components/shared/status-badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -197,7 +219,7 @@ export function WarehouseTable({ items, locations }: WarehouseTableProps) {
     setDispatchQty("")
     setDispatchBillNo("")
     setDispatchNotes("")
-    dispatchRequestId.current = crypto.randomUUID()
+    dispatchRequestId.current = generateRequestId()
   }
 
   async function handleDispatch() {
@@ -223,26 +245,41 @@ export function WarehouseTable({ items, locations }: WarehouseTableProps) {
 
     dispatchInFlight.current = true
     setDispatching(true)
-    const result = await dispatchWarehouseSku({
-      sku: dispatchGroup.sku,
-      item_name: dispatchGroup.item_name,
-      brand: dispatchGroup.brand,
-      quantity: qty,
-      bill_no: dispatchBillNo.trim(),
-      notes: dispatchNotes,
-      order_id: selectedOrderOption.order_id,
-      request_id: dispatchRequestId.current,
-    })
-    setDispatching(false)
-    dispatchInFlight.current = false
+    try {
+      const result = await dispatchWarehouseSku({
+        sku: dispatchGroup.sku,
+        item_name: dispatchGroup.item_name,
+        brand: dispatchGroup.brand,
+        quantity: qty,
+        bill_no: dispatchBillNo.trim(),
+        notes: dispatchNotes,
+        order_id: selectedOrderOption.order_id,
+        request_id: dispatchRequestId.current,
+      })
 
-    if ("error" in result && result.error) {
-      toast.error(friendlyError(result.error))
-      return
+      if ("error" in result && result.error) {
+        toast.error(friendlyError(result.error))
+        // A fresh id for the next attempt: if this one failed after the
+        // dedupe insert already landed (just before the error), reusing the
+        // same id on retry would hit that dedupe row and report a false
+        // "success" without actually redoing the failed work.
+        dispatchRequestId.current = generateRequestId()
+        return
+      }
+      toast.success(`Dispatched ${qty} ${dispatchGroup.unit} of ${dispatchGroup.item_name}`)
+      setDispatchGroup(null)
+      router.refresh()
+    } catch (err) {
+      // A thrown error (bad input, network hiccup, unexpected server error)
+      // used to vanish silently here — no toast, button stuck on
+      // "Dispatching…" — which is exactly what made a failed dispatch look
+      // like nothing happened at all.
+      toast.error(friendlyError(err instanceof Error ? err.message : "Dispatch failed. Please try again."))
+      dispatchRequestId.current = generateRequestId()
+    } finally {
+      setDispatching(false)
+      dispatchInFlight.current = false
     }
-    toast.success(`Dispatched ${qty} ${dispatchGroup.unit} of ${dispatchGroup.item_name}`)
-    setDispatchGroup(null)
-    router.refresh()
   }
 
   return (

@@ -40,13 +40,16 @@ export async function createProductionTarget(formData: ProductionTargetFormData)
   } = await supabase.auth.getUser()
   if (!user) return { error: "Not authenticated" }
 
+  // created_by references profiles(id), not the auth user id directly.
+  const { data: profile } = await supabase.from("profiles").select("id").eq("auth_id", user.id).maybeSingle()
+
   const { data, error } = await supabase
     .from("production_targets")
     .insert({
       product_name: validated.product_name,
       daily_target_qty: validated.daily_target_qty,
       target_date: validated.target_date,
-      created_by: user.id,
+      created_by: profile?.id ?? null,
     })
     .select()
     .single()
