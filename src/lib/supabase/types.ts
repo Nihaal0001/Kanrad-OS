@@ -29,6 +29,8 @@ export type Order = {
   dispatch_date: string | null
   expected_delivery_date: string | null
   customer_id: string | null
+  source_photo_path?: string | null
+  source_photo_hash?: string | null
   created_at: string
   updated_at: string
 }

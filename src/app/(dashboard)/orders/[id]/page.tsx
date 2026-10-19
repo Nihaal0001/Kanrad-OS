@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation"
 import Link from "next/link"
-import { Pencil } from "lucide-react"
+import { Image as ImageIcon, Pencil } from "lucide-react"
 
 import { getOrder } from "@/actions/orders"
 import { hasOrderCosting } from "@/actions/finance"
@@ -94,6 +94,14 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
           { label: order.order_number || "Order" },
         ]}
       >
+        {order.source_photo_path && (
+          <Button variant="outline" size="sm" asChild>
+            <a href={`/api/order-photo/${order.id}`} target="_blank" rel="noopener noreferrer">
+              <ImageIcon className="mr-2 h-4 w-4" />
+              Source photo
+            </a>
+          </Button>
+        )}
         <SharePortalButton orderId={order.id} token={portalToken} />
         <Link href={`/orders/${order.id}/edit`}>
           <Button variant="outline" size="sm">
