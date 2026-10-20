@@ -7,6 +7,8 @@ import {
   ShieldCheck,
   ShoppingCart,
   ArrowRight,
+  ArrowUpRight,
+  Scale,
 } from "lucide-react"
 import Link from "next/link"
 
@@ -42,6 +44,7 @@ export default async function FinanceDashboardPage() {
 
   const { stats, outstanding } = tally
   const { inventoryValue, auditReadiness } = dashboard
+  const netPosition = inventoryValue + outstanding.incoming - outstanding.outgoing
 
   // Tally aging when synced; ERP aging as fallback for real (non-sample) gaps
   const hasTallyAging = Object.values(tally.receivablesAging).some((v) => v > 0) || Object.values(tally.payablesAging).some((v) => v > 0)
@@ -58,8 +61,8 @@ export default async function FinanceDashboardPage() {
 
       <TallySourceBadge isSample={tally.isSample} lastSyncedAt={tally.lastSyncedAt} />
 
-      {/* Top Stats — last 12 months from Tally vouchers */}
-      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4 mb-6">
+      {/* Sales side: what we billed, what came in, what is still owed to us */}
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-3 mb-4">
         <StatCard
           title="Revenue"
           value={fmt(stats.revenue12m)}
@@ -68,27 +71,62 @@ export default async function FinanceDashboardPage() {
           href="/finance/invoices"
         />
         <StatCard
-          title="Money Received"
+          title="Received"
           value={fmt(stats.received12m)}
-          description={`Receipts · ${fmt(outstanding.incoming)} still due`}
+          description="Money received, last 12 months"
           icon={TrendingUp}
-          href="/finance/outstanding"
+          href="/finance/cash-flow"
         />
+        <StatCard
+          title="Outstanding"
+          value={fmt(outstanding.incoming)}
+          description="Receivable — all unpaid customer bills"
+          icon={Wallet}
+          href="/finance/receivables"
+        />
+      </div>
+
+      {/* Purchase side: what we bought, what we paid, what we still owe */}
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-3 mb-4">
         <StatCard
           title="Purchases"
           value={fmt(stats.purchases12m)}
-          description={`Last 12 months · ${fmt(outstanding.outgoing)} payable`}
+          description="Last 12 months"
           icon={Receipt}
           href="/finance/purchases"
         />
         <StatCard
-          title="Net Cash"
-          value={fmt(stats.netCash12m)}
-          description="Received − paid, 12 months"
-          icon={Wallet}
+          title="Paid"
+          value={fmt(stats.paid12m)}
+          description="Payments made, last 12 months"
+          icon={ArrowUpRight}
           href="/finance/cash-flow"
         />
+        <StatCard
+          title="Payable"
+          value={fmt(outstanding.outgoing)}
+          description="All unpaid supplier bills"
+          icon={Scale}
+          href="/finance/payables"
+        />
       </div>
+
+      {/* Net position: stock + receivable − payable */}
+      <Card className="mb-6">
+        <CardContent className="p-5 sm:p-6">
+          <p className="text-sm font-medium text-muted-foreground">Net Position</p>
+          <p className={`text-3xl font-bold tabular-nums ${netPosition < 0 ? "text-red-600" : "text-emerald-600"}`}>
+            {fmt(netPosition)}
+          </p>
+          <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+            <Link href="/inventory" className="hover:underline">Stock value {fmt(inventoryValue)}</Link>
+            <span>+</span>
+            <Link href="/finance/receivables" className="hover:underline">Receivable {fmt(outstanding.incoming)}</Link>
+            <span>−</span>
+            <Link href="/finance/payables" className="hover:underline">Payable {fmt(outstanding.outgoing)}</Link>
+          </p>
+        </CardContent>
+      </Card>
 
       {/* Money movement */}
       <div className="grid gap-4 grid-cols-1 lg:grid-cols-2 mb-6">

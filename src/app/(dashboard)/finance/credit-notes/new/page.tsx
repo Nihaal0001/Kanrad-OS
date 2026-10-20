@@ -14,7 +14,7 @@ export default async function NewCreditNotePage({ searchParams }: Props) {
   const { data: invoices } = await supabase
     .from("invoices")
     .select("id, invoice_number, customer_name, total_amount")
-    .in("status", ["sent", "paid", "partially_paid"])
+    .in("status", ["sent", "paid", "partially_paid", "overdue"])
     .order("issue_date", { ascending: false })
 
   return (

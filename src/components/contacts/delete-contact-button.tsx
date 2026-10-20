@@ -5,16 +5,7 @@ import { useRouter } from "next/navigation"
 import { Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
+import { ConfirmDialog } from "@/components/shared/confirm-dialog"
 import { deleteCustomer } from "@/actions/customers"
 import { deleteSupplier } from "@/actions/suppliers"
 
@@ -43,28 +34,19 @@ export function DeleteContactButton({ id, mode, name }: DeleteContactButtonProps
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="text-destructive hover:text-destructive">
-          <Trash2 className="h-4 w-4" />
-        </Button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Remove {mode === "customer" ? "Customer" : "Supplier"}</DialogTitle>
-          <DialogDescription>
-            Remove <strong>{name}</strong> from your directory? They will be soft-deleted and can be restored via the database.
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <DialogClose asChild>
-            <Button variant="outline">Cancel</Button>
-          </DialogClose>
-          <Button variant="destructive" onClick={handleDelete} disabled={isPending}>
-            {isPending ? "Removing..." : "Remove"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <>
+      <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" onClick={() => setOpen(true)}>
+        <Trash2 className="h-4 w-4" />
+      </Button>
+      <ConfirmDialog
+        open={open}
+        onOpenChange={setOpen}
+        title={`Remove ${mode === "customer" ? "Customer" : "Supplier"}`}
+        description={`Remove ${name} from your directory? They will be soft-deleted and can be restored via the database.`}
+        confirmLabel="Remove"
+        onConfirm={handleDelete}
+        loading={isPending}
+      />
+    </>
   )
 }

@@ -72,7 +72,7 @@ export async function getPayables() {
   const { data: invoices, error } = await supabase
     .from("purchase_invoices")
     .select("*, purchase_order:purchase_orders(po_number)")
-    .in("status", ["received", "partially_paid"])
+    .in("status", ["received", "partially_paid", "overdue"])
     .order("due_date", { ascending: true, nullsFirst: false })
 
   if (error) throw new Error(error.message)

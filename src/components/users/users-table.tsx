@@ -10,6 +10,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { ConfirmDialog } from "@/components/shared/confirm-dialog"
 
 const TAB_LABEL = new Map(PAGE_TABS.map((t) => [t.key, t.label]))
 
@@ -21,6 +22,7 @@ interface UsersTableProps {
 function UserRow({ user, currentUserId }: { user: UserRow; currentUserId: string }) {
   const [isPending, startTransition] = useTransition()
   const [editing, setEditing] = useState(false)
+  const [confirmDeactivate, setConfirmDeactivate] = useState(false)
   const isSelf = user.id === currentUserId
   const isAdmin = user.role === "admin"
 
@@ -44,6 +46,7 @@ function UserRow({ user, currentUserId }: { user: UserRow; currentUserId: string
   }
 
   function handleToggleActive() {
+    setConfirmDeactivate(false)
     startTransition(async () => {
       const result = await toggleUserActive(user.id, !user.is_active)
       if (result && "error" in result) {
@@ -75,7 +78,7 @@ function UserRow({ user, currentUserId }: { user: UserRow; currentUserId: string
               {user.is_active ? "Active" : "Inactive"}
             </Badge>
             {!isSelf && (
-              <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground" onClick={handleToggleActive} disabled={isPending}>
+              <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground" onClick={() => (user.is_active ? setConfirmDeactivate(true) : handleToggleActive())} disabled={isPending}>
                 {user.is_active ? "Deactivate" : "Activate"}
               </Button>
             )}
@@ -143,6 +146,15 @@ function UserRow({ user, currentUserId }: { user: UserRow; currentUserId: string
           </div>
         )}
       </CardContent>
+      <ConfirmDialog
+        open={confirmDeactivate}
+        onOpenChange={setConfirmDeactivate}
+        title="Deactivate User"
+        description={`${user.full_name} will lose access to the ERP until you activate them again. Continue?`}
+        confirmLabel="Deactivate"
+        onConfirm={handleToggleActive}
+        loading={isPending}
+      />
     </Card>
   )
 }

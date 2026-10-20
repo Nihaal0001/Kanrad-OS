@@ -7,6 +7,7 @@ import { MoreHorizontal, Search, Eye, Pencil, Trash2, AlertTriangle, ArrowUp, Ar
 
 import type { MaterialWithCategory } from "@/lib/supabase/types"
 import { cn, friendlyError, formatCurrency } from "@/lib/utils"
+import { stockValue } from "@/lib/costing"
 import { calculateCircleWeight, kgToPieces } from "@/lib/circle-calc"
 import { deleteMaterial } from "@/actions/inventory"
 import { toast } from "sonner"
@@ -17,6 +18,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
@@ -224,6 +226,7 @@ export function MaterialsTable({ materials, categories, initialShowLowStock = fa
                 <TableHead className="text-right">Min</TableHead>
                 <TableHead>Unit</TableHead>
                 <TableHead className="text-right">Avg Cost</TableHead>
+                <TableHead className="text-right">Stock Value</TableHead>
                 <TableHead className="w-[50px]">
                   <span className="sr-only">Actions</span>
                 </TableHead>
@@ -284,6 +287,9 @@ export function MaterialsTable({ materials, categories, initialShowLowStock = fa
                       ? formatCurrency(material.cost_per_unit)
                       : "—"}
                   </TableCell>
+                  <TableCell className="text-right tabular-nums font-semibold">
+                    {stockValue(material) > 0 ? formatCurrency(stockValue(material)) : "—"}
+                  </TableCell>
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -325,6 +331,17 @@ export function MaterialsTable({ materials, categories, initialShowLowStock = fa
                 </TableRow>
               ))}
             </TableBody>
+            <TableFooter>
+              <TableRow>
+                <TableCell colSpan={9} className="text-right text-sm font-medium">
+                  Stock value {filteredMaterials.length === materials.length ? "(all materials)" : "(filtered)"}
+                </TableCell>
+                <TableCell className="text-right tabular-nums font-bold">
+                  {formatCurrency(filteredMaterials.reduce((sum, m) => sum + stockValue(m), 0))}
+                </TableCell>
+                <TableCell />
+              </TableRow>
+            </TableFooter>
           </Table>
         </div>
       )}

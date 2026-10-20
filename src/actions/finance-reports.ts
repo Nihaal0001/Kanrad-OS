@@ -1,6 +1,7 @@
 "use server"
 
 import { createClient } from "@/lib/supabase/server"
+import { stockValue } from "@/lib/costing"
 
 // ===== PO Pipeline (ERP-side; POs only reach Tally once invoiced) =====
 
@@ -138,7 +139,7 @@ export async function getFinanceDashboard() {
 
   // Inventory valuation
   const inventoryValue = materials.reduce(
-    (s, m) => s + (m.current_stock ?? 0) * (m.cost_per_unit ?? 0),
+    (s, m) => s + stockValue({ current_stock: m.current_stock ?? 0, cost_per_unit: m.cost_per_unit ?? 0 }),
     0
   )
 

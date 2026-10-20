@@ -99,7 +99,7 @@ export default async function PurchaseInvoiceDetailPage({ params }: Props) {
             </form>
           )}
 
-          {(invoice.status === "received" || invoice.status === "partially_paid") && outstanding > 0 && (
+          {(invoice.status === "received" || invoice.status === "partially_paid" || invoice.status === "overdue") && outstanding > 0 && (
             <PurchasePaymentForm
               purchaseInvoiceId={id}
               invoiceNumber={invoice.invoice_number || ""}

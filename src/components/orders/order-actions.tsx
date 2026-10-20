@@ -14,16 +14,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
+import { ConfirmDialog } from "@/components/shared/confirm-dialog"
 import { Copy, FileDown, Printer, Trash2, Calculator } from "lucide-react"
 import Link from "next/link"
 
@@ -46,6 +37,7 @@ export function OrderActions({ order, hasCosting }: OrderActionsProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
+  const [deleteOpen, setDeleteOpen] = useState(false)
 
   const transitions = statusTransitions[order.status] ?? []
 
@@ -80,6 +72,7 @@ export function OrderActions({ order, hasCosting }: OrderActionsProps) {
     startTransition(async () => {
       const result = await deleteOrder(order.id)
       if (result && "error" in result && result.error) {
+        setDeleteOpen(false)
         setError(result.error)
         toast.error(result.error)
       } else {
@@ -161,40 +154,26 @@ export function OrderActions({ order, hasCosting }: OrderActionsProps) {
         )}
 
         {(order.status === "draft" || order.status === "cancelled") && (
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button
-              variant="destructive"
-              className="w-full"
-              disabled={isPending}
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              Delete Order
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Delete Order</DialogTitle>
-              <DialogDescription>
-                Are you sure you want to delete order{" "}
-                <strong>{order.order_number}</strong>? This action cannot be
-                undone.
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <DialogClose asChild>
-                <Button variant="outline">Cancel</Button>
-              </DialogClose>
-              <Button
-                variant="destructive"
-                onClick={handleDelete}
-                disabled={isPending}
-              >
-                {isPending ? "Deleting..." : "Delete"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <>
+          <Button
+            variant="destructive"
+            className="w-full"
+            disabled={isPending}
+            onClick={() => setDeleteOpen(true)}
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            Delete Order
+          </Button>
+          <ConfirmDialog
+            open={deleteOpen}
+            onOpenChange={setDeleteOpen}
+            title="Delete Order"
+            description={`Are you sure you want to delete order ${order.order_number}? This action cannot be undone.`}
+            confirmLabel="Delete"
+            onConfirm={handleDelete}
+            loading={isPending}
+          />
+        </>
         )}
       </CardContent>
     </Card>

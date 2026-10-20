@@ -44,7 +44,7 @@ export const getReceivables = unstable_cache(
     const { data: invoices, error } = await supabase
       .from("invoices")
       .select("*")
-      .in("status", ["sent", "partially_paid"])
+      .in("status", ["sent", "partially_paid", "overdue"])
       .order("due_date", { ascending: true, nullsFirst: false })
 
     if (error) throw new Error(error.message)
@@ -480,7 +480,7 @@ export async function getOrderCosting(orderId: string) {
     .from("invoices")
     .select("total_amount, amount_paid, status")
     .eq("order_id", orderId)
-    .in("status", ["sent", "paid", "partially_paid"])
+    .in("status", ["sent", "paid", "partially_paid", "overdue"])
 
   const totalRevenue = (invoices ?? []).reduce(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

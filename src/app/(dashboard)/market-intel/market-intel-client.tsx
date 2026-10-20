@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { logCommodityPrice, createMarketNews, deleteMarketNews } from "@/actions/analytics"
 import { fetchMarketNews } from "@/actions/fetch-news"
 import { cn } from "@/lib/utils"
+import { ConfirmDialog } from "@/components/shared/confirm-dialog"
 import type { CommodityHistory, BomCostImpact, TopStory } from "@/actions/market-intel"
 import type { MarketBrief } from "@/lib/market/brief"
 import { AiBriefCard } from "@/components/market-intel/ai-brief-card"
@@ -62,6 +63,7 @@ export function MarketIntelClient({ commodities, history, impact, brief, topStor
   const [newsForm, setNewsForm] = useState({ title: "", summary: "", url: "", category: "general", source: "", published_at: new Date().toISOString().split("T")[0] })
   const [newsOpen, setNewsOpen] = useState(false)
   const [newsError, setNewsError] = useState("")
+  const [newsToDelete, setNewsToDelete] = useState<string | null>(null)
 
   function openLogPrice(commodityId = "") {
     const defaultUnit = commodities.find(c => c.id === commodityId)?.defaultUnit ?? "MT"
@@ -107,7 +109,13 @@ export function MarketIntelClient({ commodities, history, impact, brief, topStor
   }
 
   function handleDeleteNews(id: string) {
-    startTransition(async () => { await deleteMarketNews(id) })
+    setNewsToDelete(id)
+  }
+
+  function confirmDeleteNews() {
+    const id = newsToDelete
+    setNewsToDelete(null)
+    if (id) startTransition(async () => { await deleteMarketNews(id) })
   }
 
   const forecastable = commodities.filter(c => c.latest_price).map(c => ({ id: c.id, name: c.name }))
@@ -172,7 +180,18 @@ export function MarketIntelClient({ commodities, history, impact, brief, topStor
       )}
 
       {tab === "news" && (
-        <NewsSection news={news} topStories={topStories} onDelete={handleDeleteNews} isPending={isPending} />
+        <>
+          <NewsSection news={news} topStories={topStories} onDelete={handleDeleteNews} isPending={isPending} />
+          <ConfirmDialog
+            open={newsToDelete !== null}
+            onOpenChange={(open) => { if (!open) setNewsToDelete(null) }}
+            title="Delete News Item"
+            description="Delete this news item? This action cannot be undone."
+            confirmLabel="Delete"
+            onConfirm={confirmDeleteNews}
+            loading={isPending}
+          />
+        </>
       )}
 
       {/* Log Price Modal */}

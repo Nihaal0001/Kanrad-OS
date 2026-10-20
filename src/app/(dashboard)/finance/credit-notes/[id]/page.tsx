@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation"
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
-import { getCreditNote, updateCreditNoteStatus, deleteCreditNote } from "@/actions/credit-notes"
+import { getCreditNote, updateCreditNoteStatus } from "@/actions/credit-notes"
+import { DeleteCreditNoteButton } from "@/components/finance/delete-credit-note-button"
 import { PageHeader } from "@/components/shared/page-header"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -48,11 +49,6 @@ export default async function CreditNoteDetailPage({ params }: Props) {
     await updateCreditNoteStatus(id, "cancelled")
   }
 
-  async function remove() {
-    "use server"
-    await deleteCreditNote(id)
-  }
-
   return (
     <>
       <PageHeader
@@ -81,11 +77,7 @@ export default async function CreditNoteDetailPage({ params }: Props) {
             </form>
           )}
           {cn.status === "draft" && (
-            <form action={remove}>
-              <Button type="submit" size="sm" variant="ghost" className="text-destructive hover:text-destructive">
-                Delete
-              </Button>
-            </form>
+            <DeleteCreditNoteButton id={id} number={cn.credit_note_number || "this credit note"} />
           )}
         </div>
       </PageHeader>
