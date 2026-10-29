@@ -132,7 +132,7 @@ export function StockAdjustmentForm({ material }: StockAdjustmentFormProps) {
                 type="number"
                 min={0.01}
                 step="0.01"
-                {...form.register("quantity", { valueAsNumber: true })}
+                {...form.register("quantity", { setValueAs: (v) => (v === "" || v == null ? 0 : Number(v)) })}
               />
               {form.formState.errors.quantity && (
                 <p className="text-sm text-destructive">

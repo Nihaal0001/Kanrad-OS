@@ -192,8 +192,15 @@ export async function getOpenPOsForOrderMaterials(orderId: string) {
   return byMaterial
 }
 
+function materialError(error: { code?: string; message: string }) {
+  if (error.code === "23505") return "A material with this SKU already exists — use a different SKU."
+  return error.message
+}
+
 export async function createMaterial(formData: MaterialFormData) {
-  const validated = materialSchema.parse(formData)
+  const parsed = materialSchema.safeParse(formData)
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid material details" }
+  const validated = parsed.data
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
@@ -215,7 +222,7 @@ export async function createMaterial(formData: MaterialFormData) {
     .select()
     .single()
 
-  if (error) return { error: error.message }
+  if (error) return { error: materialError(error) }
 
   revalidateTag("materials", {})
   revalidatePath("/inventory")
@@ -232,7 +239,9 @@ export async function createMaterial(formData: MaterialFormData) {
 }
 
 export async function updateMaterial(id: string, formData: MaterialFormData) {
-  const validated = materialSchema.parse(formData)
+  const parsed = materialSchema.safeParse(formData)
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid material details" }
+  const validated = parsed.data
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
@@ -254,7 +263,7 @@ export async function updateMaterial(id: string, formData: MaterialFormData) {
     .select()
     .single()
 
-  if (error) return { error: error.message }
+  if (error) return { error: materialError(error) }
 
   revalidateTag("materials", {})
   revalidatePath("/inventory")
@@ -434,7 +443,9 @@ export async function createStockTransaction(formData: StockAdjustmentFormData) 
   const { supabase } = auth
   const admin = createAdminClient()
 
-  const validated = stockAdjustmentSchema.parse(formData)
+  const parsed = stockAdjustmentSchema.safeParse(formData)
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid adjustment" }
+  const validated = parsed.data
 
   const isOutbound = validated.type === "production_out"
   const quantity = isOutbound ? -Math.abs(validated.quantity) : Math.abs(validated.quantity)
@@ -673,7 +684,7 @@ export async function updatePurchaseOrderStatus(id: string, status: string) {
 
 export async function receivePurchaseOrderItem(
   itemId: string,
-  quantityReceived: number,
+  _clientQuantityReceived: number,
   poId: string,
   receivedNow: number,
   orderId?: string | null,
@@ -681,12 +692,44 @@ export async function receivePurchaseOrderItem(
 ) {
   const supabase = await createClient()
   const admin = createAdminClient()
+  let quantityReceived: number
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: "Not authenticated" }
 
+  if (!Number.isFinite(receivedNow) || receivedNow < 0) {
+    return { error: "Enter a valid quantity to receive." }
+  }
   if (receivedNow > 0 && !billNo?.trim()) {
     return { error: "Enter the supplier's bill number before receiving stock." }
+  }
+
+  // Never trust the browser's running total (stale tab / double click): re-read from the database.
+  const { data: current, error: currentError } = await supabase
+    .from("purchase_order_items")
+    .select("quantity_ordered, quantity_received, purchase_order_id")
+    .eq("id", itemId)
+    .single()
+  if (currentError || !current) return { error: currentError?.message ?? "Purchase order item not found." }
+  if (current.purchase_order_id !== poId) return { error: "This item does not belong to that purchase order." }
+
+  if (receivedNow > 0) {
+    const { data: poState } = await supabase
+      .from("purchase_orders")
+      .select("status, approval_status")
+      .eq("id", poId)
+      .single()
+    if (poState?.status === "cancelled") return { error: "This purchase order is cancelled." }
+    if (poState?.approval_status && poState.approval_status !== "approved") {
+      return { error: "This purchase order has not been approved yet." }
+    }
+    const pending = Number(current.quantity_ordered) - Number(current.quantity_received)
+    if (receivedNow > pending + 1e-9) {
+      return { error: `Only ${pending} is still pending on this item — refresh the page and try again.` }
+    }
+    quantityReceived = Number(current.quantity_received) + receivedNow
+  } else {
+    quantityReceived = Number(current.quantity_received)
   }
 
   // Update the received quantity
@@ -699,6 +742,14 @@ export async function receivePurchaseOrderItem(
 
   if (itemError) return { error: itemError.message }
 
+  // Put the received quantity back if a later step fails, so the PO never claims stock that wasn't booked.
+  const undoReceived = async () => {
+    await admin
+      .from("purchase_order_items")
+      .update({ quantity_received: current.quantity_received })
+      .eq("id", itemId)
+  }
+
   // Attribute this receipt to a linked customer order, if the caller specified one.
   if (receivedNow > 0) {
     const { error: receiptError } = await supabase.from("purchase_order_receipts").insert({
@@ -707,7 +758,10 @@ export async function receivePurchaseOrderItem(
       quantity: receivedNow,
       bill_no: billNo!.trim(),
     })
-    if (receiptError) return { error: receiptError.message }
+    if (receiptError) {
+      await undoReceived()
+      return { error: receiptError.message }
+    }
   }
 
   if (receivedNow > 0) {
@@ -734,21 +788,27 @@ export async function receivePurchaseOrderItem(
         reference_id: poId,
         notes: `Received from PO`,
       })
-    if (txnError) return { error: txnError.message }
+    if (txnError) {
+      await admin.from("purchase_order_receipts").delete().eq("purchase_order_item_id", itemId).eq("bill_no", billNo!.trim()).eq("quantity", receivedNow)
+      await undoReceived()
+      return { error: txnError.message }
+    }
 
     // 2. FIFO batch record
-    await admin.from("stock_batches").insert({
+    const { error: batchError } = await admin.from("stock_batches").insert({
       material_id: item.material_id,
       quantity_remaining: receivedNow,
       unit_cost: unitPrice,
       purchase_order_id: poId,
     })
+    if (batchError) console.error("[receive] stock batch insert failed:", batchError.message)
 
     // 3. Update weighted average cost on the material
-    await admin
+    const { error: costError } = await admin
       .from("materials")
       .update({ cost_per_unit: Math.round(newAvgCost * 100) / 100 })
       .eq("id", item.material_id)
+    if (costError) console.error("[receive] cost update failed:", costError.message)
 
     // 4. Record this receipt against a payable — find-or-create a purchase
     // invoice for this supplier + bill number (regardless of which PO —

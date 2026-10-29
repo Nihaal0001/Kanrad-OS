@@ -219,7 +219,7 @@ export function MaterialForm({ material, categories }: MaterialFormProps) {
                 type="number"
                 min={0}
                 step="0.01"
-                {...form.register("min_stock_level", { valueAsNumber: true })}
+                {...form.register("min_stock_level", { setValueAs: (v) => (v === "" || v == null ? 0 : Number(v)) })}
               />
               <p className="text-xs text-muted-foreground">
                 Alert will show when stock falls below this level

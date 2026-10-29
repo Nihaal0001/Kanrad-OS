@@ -76,14 +76,18 @@ export function AddMaterialSheet({ categories }: Props) {
 
   function onSubmit(data: MaterialFormData) {
     startTransition(async () => {
-      const result = await createMaterial(data)
-      if (result && "error" in result && result.error) {
-        toast.error(result.error)
-        return
+      try {
+        const result = await createMaterial(data)
+        if (result && "error" in result && result.error) {
+          toast.error(result.error)
+          return
+        }
+        toast.success("Material added")
+        setOpen(false)
+        router.refresh()
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Something went wrong — please try again")
       }
-      toast.success("Material added")
-      setOpen(false)
-      router.refresh()
     })
   }
 
@@ -169,8 +173,11 @@ export function AddMaterialSheet({ categories }: Props) {
                   min={0}
                   step="0.01"
                   placeholder="0"
-                  {...form.register("min_stock_level", { valueAsNumber: true })}
+                  {...form.register("min_stock_level", { setValueAs: (v) => (v === "" || v == null ? 0 : Number(v)) })}
                 />
+                {form.formState.errors.min_stock_level && (
+                  <p className="text-xs text-destructive">{form.formState.errors.min_stock_level.message}</p>
+                )}
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
