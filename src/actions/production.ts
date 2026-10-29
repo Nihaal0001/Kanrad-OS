@@ -520,7 +520,17 @@ export async function logDailyProduction(data: {
           if (returnError) {
             console.error("[production] material return failed:", mat.name, returnError.message)
             consumptionFailures.push(mat.name)
+            return
           }
+          // Keep FIFO batches in step with the ledger: the returned quantity
+          // goes back in as a batch at the material's current average cost.
+          const { data: costRow } = await admin.from("materials").select("cost_per_unit").eq("id", mat.id).single()
+          const { error: batchError } = await admin.from("stock_batches").insert({
+            material_id: mat.id,
+            quantity_remaining: back,
+            unit_cost: costRow?.cost_per_unit ?? 0,
+          })
+          if (batchError) console.error("[production] returned batch insert failed:", mat.name, batchError.message)
         })
       )
       revalidateTag("materials", {})
