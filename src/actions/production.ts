@@ -384,7 +384,7 @@ export async function logDailyProduction(data: {
   quantity_produced: number
   quantity_rejected: number
   notes?: string
-}): Promise<{ error?: string } | { success: boolean }> {
+}): Promise<{ error?: string } | { success: boolean; warning?: string }> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: "Not authenticated" }
@@ -485,6 +485,7 @@ export async function logDailyProduction(data: {
     },
   })
 
+  const consumptionFailures: string[] = []
   if (order) {
     const { data: logs } = await supabase
       .from("production_daily_logs")
@@ -496,6 +497,36 @@ export async function logDailyProduction(data: {
     // Deduct raw materials for the pieces made in *this* log, FIFO — oldest
     // purchased batch consumed first, same rule as manual stock adjustments.
     // Sufficiency was already checked above before the log was written.
+    if (bomItems && deltaProduced < 0) {
+      // The day's log was edited down: put the un-made pieces' material back,
+      // otherwise stock stays deducted for pieces that were never produced.
+      await Promise.all(
+        bomItems.map(async (bi) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const mat = Array.isArray(bi.material) ? bi.material[0] : bi.material as any
+          if (!mat) return
+          const back = Math.round(
+            bi.qty_required * (1 + (bi.wastage_pct ?? 0) / 100) * -deltaProduced * 10000
+          ) / 10000
+          if (back <= 0) return
+          const { error: returnError } = await admin.from("stock_transactions").insert({
+            material_id: mat.id,
+            type: "return",
+            quantity: back,
+            reference_type: "order",
+            reference_id: data.order_id,
+            notes: `Returned — ${order.order_number} production log for ${data.log_date} reduced`,
+          })
+          if (returnError) {
+            console.error("[production] material return failed:", mat.name, returnError.message)
+            consumptionFailures.push(mat.name)
+          }
+        })
+      )
+      revalidateTag("materials", {})
+      revalidateTag("stock_transactions", {})
+    }
+
     if (bomItems && deltaProduced > 0) {
       // Each BOM material consumes its own stock_transactions row and its
       // own stock_batches — materials are independent of each other, so
@@ -513,7 +544,7 @@ export async function logDailyProduction(data: {
           ) / 10000
           if (needed <= 0) return
 
-          await admin.from("stock_transactions").insert({
+          const { error: consumeError } = await admin.from("stock_transactions").insert({
             material_id: mat.id,
             type: "production_out",
             quantity: -needed,
@@ -521,6 +552,11 @@ export async function logDailyProduction(data: {
             reference_id: data.order_id,
             notes: `Auto-consumed for ${order.order_number} — ${data.log_date}`,
           })
+          if (consumeError) {
+            console.error("[production] material consumption failed:", mat.name, consumeError.message)
+            consumptionFailures.push(mat.name)
+            return
+          }
 
           let remaining = needed
           const { data: batches } = await admin
@@ -561,7 +597,7 @@ export async function logDailyProduction(data: {
       { onConflict: "order_id" }
     )
 
-    if (["confirmed", "in_production"].includes(order.status)) {
+    if (["confirmed", "in_production", "completed"].includes(order.status)) {
       const nextStatus =
         order.total_quantity > 0 && totalProduced >= order.total_quantity
           ? "completed"
@@ -590,6 +626,12 @@ export async function logDailyProduction(data: {
   revalidatePath(`/production/${data.order_id}`)
   revalidateTag("production", {})
   revalidatePath("/production")
+  if (consumptionFailures.length) {
+    return {
+      success: true,
+      warning: `Production saved, but stock could not be updated for: ${consumptionFailures.join(", ")}. Check Inventory and adjust manually.`,
+    }
+  }
   return { success: true }
 }
 

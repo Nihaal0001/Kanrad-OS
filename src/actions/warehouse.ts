@@ -317,12 +317,15 @@ export async function dispatchWarehouseSku(formData: WarehouseSkuDispatchFormDat
 
     const description = validated.sku ? `${validated.item_name} (${validated.sku})` : validated.item_name
 
-    await admin.from("invoice_items").insert({
+    const { error: itemError } = await admin.from("invoice_items").insert({
       invoice_id: invoiceId,
       description,
       quantity: qty,
       unit_price: avgUnitPrice,
     })
+    if (itemError) {
+      return { error: `Dispatched, but the invoice line could not be added (${itemError.message}). Add it manually on invoice ${billNo}.` }
+    }
   }
 
   revalidateTag("warehouse_items", {})

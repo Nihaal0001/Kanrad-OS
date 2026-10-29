@@ -315,11 +315,27 @@ export const getPayments = unstable_cache(
 )
 
 export async function createPayment(formData: PaymentFormData) {
-  const validated = paymentSchema.parse(formData)
+  const parsed = paymentSchema.safeParse(formData)
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid payment" }
+  const validated = parsed.data
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: "Not authenticated" }
+
+  // Reject payments larger than what is still owed (or against a cancelled invoice).
+  const { data: inv } = await supabase
+    .from("invoices")
+    .select("total_amount, amount_paid, status")
+    .eq("id", validated.invoice_id)
+    .single()
+  if (!inv) return { error: "Invoice not found" }
+  if (inv.status === "cancelled") return { error: "This invoice is cancelled." }
+  const owed = Math.round((Number(inv.total_amount) - Number(inv.amount_paid)) * 100) / 100
+  if (owed <= 0) return { error: "Nothing is due on this invoice (balance is ₹0.00) — check that it has line items." }
+  if (validated.amount > owed + 0.005) {
+    return { error: `Payment exceeds the balance due (₹${owed.toFixed(2)}).` }
+  }
 
   const { data, error } = await supabase
     .from("payments")

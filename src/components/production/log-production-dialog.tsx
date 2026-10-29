@@ -78,7 +78,8 @@ export function LogProductionDialog({ orders, preselectedOrderId, preselectedTot
         notes: notes.trim() || undefined,
       })
       if (result && "error" in result) { toast.error(result.error); return }
-      toast.success("Production logged")
+      if (result && "warning" in result && result.warning) toast.warning(result.warning)
+      else toast.success("Production logged")
       setOpen(false)
       router.refresh()
     })

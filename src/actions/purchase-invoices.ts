@@ -417,11 +417,25 @@ export async function deletePurchaseInvoice(id: string) {
 // ===== Purchase Payments =====
 
 export async function createPurchasePayment(formData: PurchasePaymentFormData) {
-  const validated = purchasePaymentSchema.parse(formData)
+  const parsed = purchasePaymentSchema.safeParse(formData)
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid payment" }
+  const validated = parsed.data
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: "Not authenticated" }
+
+  const { data: inv } = await supabase
+    .from("purchase_invoices")
+    .select("total_amount, amount_paid, status")
+    .eq("id", validated.purchase_invoice_id)
+    .single()
+  if (!inv) return { error: "Purchase invoice not found" }
+  if (inv.status === "cancelled") return { error: "This invoice is cancelled." }
+  const owed = Math.round((Number(inv.total_amount) - Number(inv.amount_paid)) * 100) / 100
+  if (validated.amount > owed + 0.005) {
+    return { error: `Payment exceeds the balance due (₹${owed.toFixed(2)}).` }
+  }
 
   const { data, error } = await supabase
     .from("purchase_payments")
