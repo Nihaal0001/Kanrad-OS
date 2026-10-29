@@ -497,42 +497,54 @@ export async function logDailyProduction(data: {
     // purchased batch consumed first, same rule as manual stock adjustments.
     // Sufficiency was already checked above before the log was written.
     if (bomItems && deltaProduced > 0) {
-      for (const bi of bomItems) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const mat = Array.isArray(bi.material) ? bi.material[0] : bi.material as any
-        if (!mat) continue
-        const needed = Math.round(
-          bi.qty_required * (1 + (bi.wastage_pct ?? 0) / 100) * deltaProduced * 10000
-        ) / 10000
-        if (needed <= 0) continue
+      // Each BOM material consumes its own stock_transactions row and its
+      // own stock_batches — materials are independent of each other, so
+      // they run concurrently. Within one material, batches must stay FIFO
+      // for the "remaining" bookkeeping, but once that consumption plan is
+      // computed (cheap, in-memory) the actual row updates no longer depend
+      // on each other and can fire together too.
+      await Promise.all(
+        bomItems.map(async (bi) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const mat = Array.isArray(bi.material) ? bi.material[0] : bi.material as any
+          if (!mat) return
+          const needed = Math.round(
+            bi.qty_required * (1 + (bi.wastage_pct ?? 0) / 100) * deltaProduced * 10000
+          ) / 10000
+          if (needed <= 0) return
 
-        await admin.from("stock_transactions").insert({
-          material_id: mat.id,
-          type: "production_out",
-          quantity: -needed,
-          reference_type: "order",
-          reference_id: data.order_id,
-          notes: `Auto-consumed for ${order.order_number} — ${data.log_date}`,
-        })
+          await admin.from("stock_transactions").insert({
+            material_id: mat.id,
+            type: "production_out",
+            quantity: -needed,
+            reference_type: "order",
+            reference_id: data.order_id,
+            notes: `Auto-consumed for ${order.order_number} — ${data.log_date}`,
+          })
 
-        let remaining = needed
-        const { data: batches } = await admin
-          .from("stock_batches")
-          .select("id, quantity_remaining")
-          .eq("material_id", mat.id)
-          .gt("quantity_remaining", 0)
-          .order("received_at", { ascending: true })
-
-        for (const batch of batches ?? []) {
-          if (remaining <= 0) break
-          const consume = Math.min(remaining, batch.quantity_remaining)
-          await admin
+          let remaining = needed
+          const { data: batches } = await admin
             .from("stock_batches")
-            .update({ quantity_remaining: batch.quantity_remaining - consume })
-            .eq("id", batch.id)
-          remaining -= consume
-        }
-      }
+            .select("id, quantity_remaining")
+            .eq("material_id", mat.id)
+            .gt("quantity_remaining", 0)
+            .order("received_at", { ascending: true })
+
+          const batchPlan: { id: string; newQty: number }[] = []
+          for (const batch of batches ?? []) {
+            if (remaining <= 0) break
+            const consume = Math.min(remaining, batch.quantity_remaining)
+            batchPlan.push({ id: batch.id, newQty: batch.quantity_remaining - consume })
+            remaining -= consume
+          }
+
+          await Promise.all(
+            batchPlan.map((b) =>
+              admin.from("stock_batches").update({ quantity_remaining: b.newQty }).eq("id", b.id)
+            )
+          )
+        })
+      )
 
       revalidateTag("materials", {})
       revalidateTag("stock_transactions", {})

@@ -237,134 +237,142 @@ export async function uploadFinanceImportBatch(formData: FormData) {
     return { error: batchError?.message ?? "Failed to create import batch" }
   }
 
-  for (const file of files) {
-    const storagePath = `${batch.id}/${Date.now()}-${cleanFileName(file.name)}`
-    const fileBuffer = Buffer.from(await file.arrayBuffer())
+  // Each file's upload + AI extraction + review-row insert is fully
+  // independent of every other file (separate storage path, separate
+  // finance_import_items row) — running them one at a time serialized a
+  // 10-file batch into 10 sequential Gemini round-trips. Promise.all lets
+  // the uploads and extractions overlap instead.
+  const batchId = batch.id
+  await Promise.all(
+    files.map(async (file) => {
+      const storagePath = `${batchId}/${Date.now()}-${cleanFileName(file.name)}`
+      const fileBuffer = Buffer.from(await file.arrayBuffer())
 
-    const { error: uploadError } = await admin
-      .storage
-      .from(FINANCE_DOC_BUCKET)
-      .upload(storagePath, fileBuffer, {
-        contentType: file.type,
-        upsert: false,
-      })
+      const { error: uploadError } = await admin
+        .storage
+        .from(FINANCE_DOC_BUCKET)
+        .upload(storagePath, fileBuffer, {
+          contentType: file.type,
+          upsert: false,
+        })
 
-    if (uploadError) {
-      await admin.from("finance_import_items").insert({
-        batch_id: batch.id,
-        created_by: auth.profile.id,
-        target_type: parsedTargetHint ?? "expense",
-        status: "failed",
-        file_name: file.name,
-        file_type: file.type,
-        storage_path: storagePath,
-        extraction_error: uploadError.message,
-      })
-      continue
-    }
-
-    const fileUrl = admin.storage.from(FINANCE_DOC_BUCKET).getPublicUrl(storagePath).data.publicUrl
-
-    try {
-      const extracted = await extractFinanceDocument(file, context)
-      const warnings = [...extracted.warnings]
-
-      if (parsedTargetHint && extracted.target_type !== parsedTargetHint) {
-        warnings.push(`Gemini classified this as ${extracted.target_type.replace("_", " ")}, but the upload flow was opened from ${parsedTargetHint.replace("_", " ")}.`)
+      if (uploadError) {
+        await admin.from("finance_import_items").insert({
+          batch_id: batchId,
+          created_by: auth.profile.id,
+          target_type: parsedTargetHint ?? "expense",
+          status: "failed",
+          file_name: file.name,
+          file_type: file.type,
+          storage_path: storagePath,
+          extraction_error: uploadError.message,
+        })
+        return
       }
 
-      let reviewData: FinanceImportBatchItem
-      if (extracted.target_type === "purchase_invoice") {
-        const supplierSuggestions = rankSuggestions(
-          extracted.purchase_invoice?.supplier_name_hint || extracted.purchase_invoice?.supplier_name || "",
-          context.suppliers.map((supplier) => ({
-            id: supplier.id,
-            label: supplier.name,
-          }))
-        )
+      const fileUrl = admin.storage.from(FINANCE_DOC_BUCKET).getPublicUrl(storagePath).data.publicUrl
 
-        const purchaseOrderSuggestions = rankSuggestions(
-          extracted.purchase_invoice?.purchase_order_hint || extracted.purchase_invoice?.invoice_number || "",
-          context.purchaseOrders.map((po) => ({
-            id: po.id,
-            label: `${po.po_number} — ${po.supplier_name}`,
-          }))
-        )
+      try {
+        const extracted = await extractFinanceDocument(file, context)
+        const warnings = [...extracted.warnings]
 
-        if (extracted.purchase_invoice?.invoice_number) {
-          const { data: duplicates } = await auth.supabase
-            .from("purchase_invoices")
-            .select("id")
-            .eq("invoice_number", extracted.purchase_invoice.invoice_number)
-            .limit(1)
-
-          if (duplicates?.length) {
-            warnings.push("Possible duplicate purchase invoice number found.")
-          }
+        if (parsedTargetHint && extracted.target_type !== parsedTargetHint) {
+          warnings.push(`Gemini classified this as ${extracted.target_type.replace("_", " ")}, but the upload flow was opened from ${parsedTargetHint.replace("_", " ")}.`)
         }
 
-        reviewData = buildPurchaseDraft({
-          extracted,
-          fileUrl,
-          storagePath,
-          supplierSuggestions,
-          purchaseOrderSuggestions,
-          warnings,
+        let reviewData: FinanceImportBatchItem
+        if (extracted.target_type === "purchase_invoice") {
+          const supplierSuggestions = rankSuggestions(
+            extracted.purchase_invoice?.supplier_name_hint || extracted.purchase_invoice?.supplier_name || "",
+            context.suppliers.map((supplier) => ({
+              id: supplier.id,
+              label: supplier.name,
+            }))
+          )
+
+          const purchaseOrderSuggestions = rankSuggestions(
+            extracted.purchase_invoice?.purchase_order_hint || extracted.purchase_invoice?.invoice_number || "",
+            context.purchaseOrders.map((po) => ({
+              id: po.id,
+              label: `${po.po_number} — ${po.supplier_name}`,
+            }))
+          )
+
+          if (extracted.purchase_invoice?.invoice_number) {
+            const { data: duplicates } = await auth.supabase
+              .from("purchase_invoices")
+              .select("id")
+              .eq("invoice_number", extracted.purchase_invoice.invoice_number)
+              .limit(1)
+
+            if (duplicates?.length) {
+              warnings.push("Possible duplicate purchase invoice number found.")
+            }
+          }
+
+          reviewData = buildPurchaseDraft({
+            extracted,
+            fileUrl,
+            storagePath,
+            supplierSuggestions,
+            purchaseOrderSuggestions,
+            warnings,
+          })
+        } else {
+          const categorySuggestions = rankSuggestions(
+            extracted.expense?.category_name_hint || extracted.expense?.description || "",
+            context.expenseCategories.map((category) => ({
+              id: category.id,
+              label: category.name,
+            }))
+          )
+
+          const orderSuggestions = rankSuggestions(
+            extracted.expense?.order_number_hint || "",
+            context.orders.map((order) => ({
+              id: order.id,
+              label: `${order.order_number} — ${order.product_variant}`,
+            }))
+          )
+
+          reviewData = buildExpenseDraft({
+            extracted,
+            fileUrl,
+            categorySuggestions,
+            orderSuggestions,
+            warnings,
+          })
+        }
+
+        await admin.from("finance_import_items").insert({
+          batch_id: batchId,
+          created_by: auth.profile.id,
+          target_type: reviewData.target_type,
+          status: "pending",
+          file_name: file.name,
+          file_type: file.type,
+          storage_path: storagePath,
+          file_url: fileUrl,
+          extraction_confidence: extracted.confidence,
+          extraction_warnings: warnings,
+          extracted_data: extracted,
+          review_data: reviewData,
         })
-      } else {
-        const categorySuggestions = rankSuggestions(
-          extracted.expense?.category_name_hint || extracted.expense?.description || "",
-          context.expenseCategories.map((category) => ({
-            id: category.id,
-            label: category.name,
-          }))
-        )
-
-        const orderSuggestions = rankSuggestions(
-          extracted.expense?.order_number_hint || "",
-          context.orders.map((order) => ({
-            id: order.id,
-            label: `${order.order_number} — ${order.product_variant}`,
-          }))
-        )
-
-        reviewData = buildExpenseDraft({
-          extracted,
-          fileUrl,
-          categorySuggestions,
-          orderSuggestions,
-          warnings,
+      } catch (error) {
+        await admin.from("finance_import_items").insert({
+          batch_id: batchId,
+          created_by: auth.profile.id,
+          target_type: parsedTargetHint ?? "expense",
+          status: "failed",
+          file_name: file.name,
+          file_type: file.type,
+          storage_path: storagePath,
+          file_url: fileUrl,
+          extraction_error: error instanceof Error ? error.message : "Extraction failed",
         })
       }
-
-      await admin.from("finance_import_items").insert({
-        batch_id: batch.id,
-        created_by: auth.profile.id,
-        target_type: reviewData.target_type,
-        status: "pending",
-        file_name: file.name,
-        file_type: file.type,
-        storage_path: storagePath,
-        file_url: fileUrl,
-        extraction_confidence: extracted.confidence,
-        extraction_warnings: warnings,
-        extracted_data: extracted,
-        review_data: reviewData,
-      })
-    } catch (error) {
-      await admin.from("finance_import_items").insert({
-        batch_id: batch.id,
-        created_by: auth.profile.id,
-        target_type: parsedTargetHint ?? "expense",
-        status: "failed",
-        file_name: file.name,
-        file_type: file.type,
-        storage_path: storagePath,
-        file_url: fileUrl,
-        extraction_error: error instanceof Error ? error.message : "Extraction failed",
-      })
-    }
-  }
+    })
+  )
 
   await refreshBatchStatus(admin, batch.id)
   revalidatePath("/finance/import")
@@ -523,12 +531,10 @@ export async function submitFinanceImportBatch(batchId: string) {
     return { error: "No reviewed items are ready for submission" }
   }
 
-  for (const itemId of pendingIds) {
-    const result = await submitFinanceImportItem(itemId)
-    if ("error" in result && result.error) {
-      continue
-    }
-  }
+  // Each item's submission creates its own purchase invoice/expense and
+  // updates only its own row — independent across items, safe to run
+  // concurrently instead of one at a time.
+  await Promise.all(pendingIds.map((itemId) => submitFinanceImportItem(itemId)))
 
   revalidatePath("/finance/import")
   revalidatePath("/finance/purchases")

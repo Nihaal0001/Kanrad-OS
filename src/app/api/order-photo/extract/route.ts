@@ -42,8 +42,11 @@ export async function POST(req: Request) {
   const hash = createHash("sha256").update(bytes).digest("hex")
   const admin = createAdminClient()
 
-  // Same file uploaded before → warn up front (authoritative re-check happens on create)
-  const [{ data: dupes }, products, customers] = await Promise.all([
+  // Same file uploaded before → warn up front (authoritative re-check happens on create).
+  // extractOrderSheet (the ~24s-capped Gemini call) doesn't depend on any of
+  // these, so it runs alongside them instead of after — the DB reads are
+  // essentially free once overlapped with the AI call's latency.
+  const [{ data: dupes }, products, customers, extractedResult] = await Promise.all([
     admin
       .from("orders")
       .select("id, order_number, status")
@@ -52,20 +55,23 @@ export async function POST(req: Request) {
       .limit(1),
     getProducts(),
     getCustomers(),
+    extractOrderSheet(bytes, file.type).then(
+      (value) => ({ ok: true as const, value }),
+      (error) => ({ ok: false as const, error })
+    ),
   ])
   const duplicate = dupes?.[0] ? { orderId: dupes[0].id as string, orderNumber: dupes[0].order_number as string } : null
 
   const catalog = products.map((p) => ({ id: p.id as string, name: p.product_name as string, sku: p.product_sku as string, materialCost: Number(p.materialCost) || 0 }))
 
-  let extracted
-  try {
-    extracted = await extractOrderSheet(bytes, file.type)
-  } catch (err) {
+  if (!extractedResult.ok) {
+    const err = extractedResult.error
     return NextResponse.json(
       { error: err instanceof Error ? `Could not read the sheet: ${err.message}` : "Could not read the sheet." },
       { status: 502 }
     )
   }
+  const extracted = extractedResult.value
 
   // Nothing readable → stop and ask for a better photo rather than show an empty review
   if (extracted.lines.length === 0) {

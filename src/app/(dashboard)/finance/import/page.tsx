@@ -1,3 +1,9 @@
+// uploadFinanceImportBatch can run several Gemini extractions concurrently
+// (one per uploaded file, up to 10) with no per-call timeout — give the
+// route's Server Actions more than the platform default so a slower batch
+// doesn't get cut off mid-import.
+export const maxDuration = 120
+
 import { getExpenseCategories } from "@/actions/expenses"
 import { getFinanceImportBatch } from "@/actions/finance-import"
 import { getPurchaseOrdersForInvoice } from "@/actions/purchase-invoices"

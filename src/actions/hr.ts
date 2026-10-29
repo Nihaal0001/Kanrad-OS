@@ -41,12 +41,14 @@ export async function setWorkerSalaries(updates: { id: string; monthly_salary: n
   if (!user) return { error: "Not authenticated" }
 
   const admin = createAdminClient()
-  let updated = 0
-  for (const u of updates) {
-    const salary = Number.isFinite(u.monthly_salary) && u.monthly_salary >= 0 ? u.monthly_salary : 0
-    const { error } = await admin.from("profiles").update({ monthly_salary: salary }).eq("id", u.id)
-    if (!error) updated++
-  }
+  // Each row is a different worker — independent updates, safe to fire together.
+  const results = await Promise.all(
+    updates.map((u) => {
+      const salary = Number.isFinite(u.monthly_salary) && u.monthly_salary >= 0 ? u.monthly_salary : 0
+      return admin.from("profiles").update({ monthly_salary: salary }).eq("id", u.id)
+    })
+  )
+  const updated = results.filter((r) => !r.error).length
 
   revalidateTag("workers", {})
   revalidatePath("/hr/payroll")
@@ -65,17 +67,19 @@ export async function setWorkerDetails(
   if (!user) return { error: "Not authenticated" }
 
   const admin = createAdminClient()
-  let updated = 0
-  for (const u of updates) {
-    const full_name = u.full_name.trim()
-    if (!full_name) continue
-    const tea_allowance = Number.isFinite(u.tea_allowance) && u.tea_allowance >= 0 ? u.tea_allowance : 0
-    const { error } = await admin
-      .from("profiles")
-      .update({ full_name, gender: u.gender, tea_allowance })
-      .eq("id", u.id)
-    if (!error) updated++
-  }
+  // Each row is a different worker — independent updates, safe to fire together.
+  const results = await Promise.all(
+    updates.map((u) => {
+      const full_name = u.full_name.trim()
+      if (!full_name) return Promise.resolve({ error: { message: "empty name" } })
+      const tea_allowance = Number.isFinite(u.tea_allowance) && u.tea_allowance >= 0 ? u.tea_allowance : 0
+      return admin
+        .from("profiles")
+        .update({ full_name, gender: u.gender, tea_allowance })
+        .eq("id", u.id)
+    })
+  )
+  const updated = results.filter((r) => !r.error).length
 
   revalidateTag("workers", {})
   revalidatePath("/hr/attendance")

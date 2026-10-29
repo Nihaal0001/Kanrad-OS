@@ -201,42 +201,60 @@ export async function dispatchWarehouseSku(formData: WarehouseSkuDispatchFormDat
   // even if its stock is split across several warehouse rows.
   const consumedByOrder = new Map<string, number>()
 
-  for (const { row, consume } of plan) {
-    const newQty = Math.round((row.quantity - consume) * 1000) / 1000
-    const nowFullyDispatched = newQty <= 0
+  // Each plan row targets a different warehouse_items id, so the update +
+  // dispatch-log-insert (+ order status flip) for one row never depends on
+  // another row's result — running them one at a time multiplied a
+  // multi-row dispatch into that many sequential round trips for no reason.
+  const rowResults = await Promise.all(
+    plan.map(
+      async ({
+        row,
+        consume,
+      }): Promise<{ ok: true; orderId: string | null; consume: number } | { ok: false; error: string }> => {
+        const newQty = Math.round((row.quantity - consume) * 1000) / 1000
+        const nowFullyDispatched = newQty <= 0
 
-    const { error: updateError } = await admin
-      .from("warehouse_items")
-      .update({
-        quantity: newQty,
-        ...(nowFullyDispatched ? { status: "dispatched", exit_date: today } : {}),
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", row.id)
-    if (updateError) return { error: updateError.message }
+        const { error: updateError } = await admin
+          .from("warehouse_items")
+          .update({
+            quantity: newQty,
+            ...(nowFullyDispatched ? { status: "dispatched", exit_date: today } : {}),
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", row.id)
+        if (updateError) return { ok: false, error: updateError.message }
 
-    const { error: dispatchError } = await admin.from("warehouse_dispatches").insert({
-      warehouse_item_id: row.id,
-      order_id: row.order_id ?? null,
-      quantity: consume,
-      bill_no: billNo,
-      brand: validated.brand,
-      item_name: validated.item_name,
-      notes: validated.notes || null,
-      created_by: createdBy,
-    })
-    if (dispatchError) return { error: dispatchError.message }
+        const { error: dispatchError } = await admin.from("warehouse_dispatches").insert({
+          warehouse_item_id: row.id,
+          order_id: row.order_id ?? null,
+          quantity: consume,
+          bill_no: billNo,
+          brand: validated.brand,
+          item_name: validated.item_name,
+          notes: validated.notes || null,
+          created_by: createdBy,
+        })
+        if (dispatchError) return { ok: false, error: dispatchError.message }
 
-    if (row.order_id) {
-      consumedByOrder.set(row.order_id, (consumedByOrder.get(row.order_id) ?? 0) + consume)
+        // That order's entire warehouse stock (one row per order, enforced
+        // by a unique constraint) just hit zero — reflect that on the order
+        // itself so "Completed" orders don't sit there forever once
+        // everything has actually shipped.
+        if (row.order_id && nowFullyDispatched) {
+          await admin.from("orders").update({ status: "dispatched" }).eq("id", row.order_id).neq("status", "cancelled")
+        }
 
-      // That order's entire warehouse stock (one row per order, enforced by
-      // a unique constraint) just hit zero — reflect that on the order
-      // itself so "Completed" orders don't sit there forever once
-      // everything has actually shipped.
-      if (nowFullyDispatched) {
-        await admin.from("orders").update({ status: "dispatched" }).eq("id", row.order_id).neq("status", "cancelled")
+        return { ok: true, orderId: row.order_id, consume }
       }
+    )
+  )
+
+  const failedRow = rowResults.find((r) => !r.ok)
+  if (failedRow && !failedRow.ok) return { error: failedRow.error }
+
+  for (const r of rowResults) {
+    if (r.ok && r.orderId) {
+      consumedByOrder.set(r.orderId, (consumedByOrder.get(r.orderId) ?? 0) + r.consume)
     }
   }
 
