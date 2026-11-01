@@ -6,6 +6,8 @@ export const materialSchema = z.object({
   category_id: z.string().optional().or(z.literal("")),
   unit: z.string().min(1, "Unit is required"),
   min_stock_level: z.number().min(0, "Cannot be negative"),
+  // Opening stock when adding a material (booked as a stock entry, not a column on materials)
+  opening_stock: z.number().min(0, "Cannot be negative").optional(),
   cost_per_unit: z.number().min(0, "Cannot be negative"),
   supplier_name: z.string().max(200).optional().or(z.literal("")),
   supplier_contact: z.string().max(200).optional().or(z.literal("")),

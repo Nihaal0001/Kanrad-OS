@@ -207,7 +207,15 @@ export async function createMaterial(formData: MaterialFormData) {
   if (!user) return { error: "Not authenticated" }
 
   // Strip the UI-only is_circle flag; clear circle fields if not a circle
-  const { is_circle, ...rest } = validated
+  const { is_circle, opening_stock, ...rest } = validated
+  const openingStock = opening_stock && opening_stock > 0 ? opening_stock : 0
+
+  // Setting stock directly is an admin action (same rule as stock adjustments)
+  if (openingStock > 0) {
+    const { data: profile } = await supabase
+      .from("profiles").select("role").eq("auth_id", user.id).maybeSingle()
+    if (profile?.role !== "admin") return { error: "Only an admin can set the opening stock." }
+  }
   const circleFields = is_circle
     ? { diameter_mm: rest.diameter_mm ?? null, thickness_mm: rest.thickness_mm ?? null, circle_type: rest.circle_type ?? null }
     : { diameter_mm: null, thickness_mm: null, circle_type: null }
@@ -224,7 +232,31 @@ export async function createMaterial(formData: MaterialFormData) {
 
   if (error) return { error: materialError(error) }
 
+  // Opening stock goes in through the ledger (a trigger updates current_stock),
+  // plus a FIFO batch so production can consume it.
+  let warning: string | undefined
+  if (openingStock > 0) {
+    const { error: txnError } = await supabase.from("stock_transactions").insert({
+      material_id: data.id,
+      type: "adjustment",
+      quantity: openingStock,
+      reference_type: "manual",
+      notes: "Opening stock",
+    })
+    if (txnError) {
+      warning = `Material added, but the opening stock could not be saved: ${txnError.message}`
+    } else {
+      const { error: batchError } = await createAdminClient().from("stock_batches").insert({
+        material_id: data.id,
+        quantity_remaining: openingStock,
+        unit_cost: Number(cleaned.cost_per_unit) || 0,
+      })
+      if (batchError) console.error("[createMaterial] opening batch failed:", batchError.message)
+    }
+  }
+
   revalidateTag("materials", {})
+  revalidateTag("stock_transactions", {})
   revalidatePath("/inventory")
 
   await logAudit({
@@ -232,10 +264,10 @@ export async function createMaterial(formData: MaterialFormData) {
     entityId: data.id,
     entityLabel: data.name,
     action: "created",
-    newValues: cleaned,
+    newValues: { ...cleaned, ...(openingStock > 0 ? { opening_stock: openingStock } : {}) },
   })
 
-  return { data }
+  return { data, warning }
 }
 
 export async function updateMaterial(id: string, formData: MaterialFormData) {
@@ -247,7 +279,8 @@ export async function updateMaterial(id: string, formData: MaterialFormData) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: "Not authenticated" }
 
-  const { is_circle, ...rest } = validated
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { is_circle, opening_stock: _ignoredOpeningStock, ...rest } = validated
   const circleFields = is_circle
     ? { diameter_mm: rest.diameter_mm ?? null, thickness_mm: rest.thickness_mm ?? null, circle_type: rest.circle_type ?? null }
     : { diameter_mm: null, thickness_mm: null, circle_type: null }

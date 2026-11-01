@@ -49,6 +49,7 @@ export function AddMaterialSheet({ categories }: Props) {
       category_id: "",
       unit: "pcs",
       min_stock_level: 0,
+      opening_stock: 0,
       cost_per_unit: 0,
       supplier_name: "",
       supplier_contact: "",
@@ -82,7 +83,8 @@ export function AddMaterialSheet({ categories }: Props) {
           toast.error(result.error)
           return
         }
-        toast.success("Material added")
+        if (result && "warning" in result && result.warning) toast.warning(result.warning)
+        else toast.success("Material added")
         setOpen(false)
         router.refresh()
       } catch (err) {
@@ -164,6 +166,23 @@ export function AddMaterialSheet({ categories }: Props) {
                     )}
                   />
                 </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Current Stock</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  placeholder="0"
+                  {...form.register("opening_stock", { setValueAs: (v) => (v === "" || v == null ? 0 : Number(v)) })}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Quantity you have on hand right now. Recorded as an &quot;Opening stock&quot; entry (admin only).
+                </p>
+                {form.formState.errors.opening_stock && (
+                  <p className="text-xs text-destructive">{form.formState.errors.opening_stock.message}</p>
+                )}
               </div>
 
               <div className="space-y-1.5">

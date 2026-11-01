@@ -62,6 +62,7 @@ export function MaterialForm({ material, categories }: MaterialFormProps) {
       category_id: material?.category_id ?? "",
       unit: material?.unit ?? "meters",
       min_stock_level: material?.min_stock_level ?? 0,
+      opening_stock: 0,
       cost_per_unit: material?.cost_per_unit ?? 0,
       supplier_name: material?.supplier_name ?? "",
       supplier_contact: material?.supplier_contact ?? "",
@@ -103,7 +104,8 @@ export function MaterialForm({ material, categories }: MaterialFormProps) {
           return
         }
         if (result && "data" in result && result.data) {
-          toast.success("Material created")
+          if ("warning" in result && result.warning) toast.warning(result.warning)
+          else toast.success("Material created")
           router.push(`/inventory/${result.data.id}`)
         }
       }
@@ -209,6 +211,27 @@ export function MaterialForm({ material, categories }: MaterialFormProps) {
               </Select>
             </div>
           </div>
+
+          {/* Opening stock — only when creating; edits go through Stock Adjustment */}
+          {!isEditing && (
+            <div className="space-y-2 sm:max-w-[calc(50%-0.5rem)]">
+              <Label htmlFor="opening_stock">Current Stock</Label>
+              <Input
+                id="opening_stock"
+                type="number"
+                min={0}
+                step="0.01"
+                placeholder="0"
+                {...form.register("opening_stock", { setValueAs: (v) => (v === "" || v == null ? 0 : Number(v)) })}
+              />
+              <p className="text-xs text-muted-foreground">
+                Quantity on hand right now. Recorded as an &quot;Opening stock&quot; entry (admin only).
+              </p>
+              {form.formState.errors.opening_stock && (
+                <p className="text-sm text-destructive">{form.formState.errors.opening_stock.message}</p>
+              )}
+            </div>
+          )}
 
           {/* Min stock level */}
           <div className="grid gap-4 sm:grid-cols-2">
