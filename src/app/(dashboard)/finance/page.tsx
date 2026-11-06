@@ -1,3 +1,5 @@
+import nextDynamic from "next/dynamic"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   IndianRupee,
   TrendingUp,
@@ -17,9 +19,15 @@ import { getPOPipeline } from "@/actions/finance-reports"
 import { getTallyFinanceDashboard } from "@/actions/tally"
 import { PageHeader } from "@/components/shared/page-header"
 import { StatCard } from "@/components/shared/stat-card"
-import { CashFlowChart } from "@/components/finance/cash-flow-chart"
-import { TradeTrendChart } from "@/components/finance/trade-trend-chart"
-import { ExpenseBreakdownChart } from "@/components/finance/expense-breakdown-chart"
+const CashFlowChart = nextDynamic(() => import("@/components/finance/cash-flow-chart").then((m) => m.CashFlowChart), {
+  loading: () => <Skeleton className="h-72 w-full rounded-xl" />,
+})
+const TradeTrendChart = nextDynamic(() => import("@/components/finance/trade-trend-chart").then((m) => m.TradeTrendChart), {
+  loading: () => <Skeleton className="h-72 w-full rounded-xl" />,
+})
+const ExpenseBreakdownChart = nextDynamic(() => import("@/components/finance/expense-breakdown-chart").then((m) => m.ExpenseBreakdownChart), {
+  loading: () => <Skeleton className="h-72 w-full rounded-xl" />,
+})
 import { TopPartiesCard } from "@/components/finance/top-parties-card"
 import { TallySourceBadge } from "@/components/finance/tally-source-badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"

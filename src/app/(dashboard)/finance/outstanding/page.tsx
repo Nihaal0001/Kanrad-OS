@@ -1,9 +1,13 @@
+import nextDynamic from "next/dynamic"
+import { Skeleton } from "@/components/ui/skeleton"
 import { ArrowDownLeft, ArrowUpRight, Scale, Info } from "lucide-react"
 
 import { getCashflowOutstanding } from "@/actions/tally"
 import { PageHeader } from "@/components/shared/page-header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { OutstandingChart } from "@/components/finance/outstanding-chart"
+const OutstandingChart = nextDynamic(() => import("@/components/finance/outstanding-chart").then((m) => m.OutstandingChart), {
+  loading: () => <Skeleton className="h-72 w-full rounded-xl" />,
+})
 import { OutstandingTable } from "@/components/finance/outstanding-table"
 import { formatCurrency, formatDateRelative, cn } from "@/lib/utils"
 

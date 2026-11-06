@@ -931,6 +931,7 @@ export async function receivePurchaseOrderItem(
   revalidateTag("materials", {})
   revalidateTag("dashboard", {})
   revalidateTag("purchase_orders", {})
+  revalidateTag("finance", {})
   revalidatePath("/inventory/purchase-orders")
   revalidatePath(`/inventory/purchase-orders/${poId}`)
   revalidatePath("/inventory")

@@ -1,9 +1,13 @@
+import nextDynamic from "next/dynamic"
+import { Skeleton } from "@/components/ui/skeleton"
 import { TrendingUp, TrendingDown, ArrowLeftRight } from "lucide-react"
 
 import { getCashFlowStatement } from "@/actions/finance-reports"
 import { PageHeader } from "@/components/shared/page-header"
 import { StatCard } from "@/components/shared/stat-card"
-import { CashFlowChart } from "@/components/finance/cash-flow-chart"
+const CashFlowChart = nextDynamic(() => import("@/components/finance/cash-flow-chart").then((m) => m.CashFlowChart), {
+  loading: () => <Skeleton className="h-72 w-full rounded-xl" />,
+})
 import { CashFlowTable } from "@/components/finance/cash-flow-table"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 

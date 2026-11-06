@@ -231,6 +231,7 @@ export async function createPurchaseInvoice(formData: PurchaseInvoiceFormData) {
 
   if (itemsErr) return { error: itemsErr.message }
 
+  revalidateTag("finance", {})
   revalidatePath("/finance/purchases")
   await logAudit({
     entityType: "purchase_invoice",
@@ -301,6 +302,7 @@ export async function createImportedPurchaseInvoice(
 
   if (itemsErr) return { error: itemsErr.message }
 
+  revalidateTag("finance", {})
   revalidatePath("/finance/purchases")
   await logAudit({
     entityType: "purchase_invoice",
@@ -339,6 +341,7 @@ export async function updatePurchaseInvoiceStatus(id: string, status: string) {
 
   if (error) return { error: error.message }
 
+  revalidateTag("finance", {})
   revalidatePath("/finance/purchases")
   revalidatePath(`/finance/purchases/${id}`)
   await logAudit({ entityType: "purchase_invoice", entityId: id, action: "status_changed", newValues: { status } })
@@ -402,6 +405,7 @@ export async function deletePurchaseInvoice(id: string) {
   const { error } = await supabase.from("purchase_invoices").delete().eq("id", id)
   if (error) return { error: error.message }
 
+  revalidateTag("finance", {})
   revalidatePath("/finance/purchases")
   revalidatePath("/finance/cash-flow")
   revalidatePath("/finance/journal")
@@ -453,6 +457,7 @@ export async function createPurchasePayment(formData: PurchasePaymentFormData) {
   if (error) return { error: error.message }
 
   revalidateTag("purchase_invoices", {})
+  revalidateTag("finance", {})
   revalidatePath("/finance/purchases")
   revalidatePath("/finance/payables")
   revalidatePath("/finance/cash-flow")
@@ -482,6 +487,7 @@ export async function deletePurchasePayment(id: string) {
   if (error) return { error: error.message }
 
   revalidateTag("purchase_invoices", {})
+  revalidateTag("finance", {})
   revalidatePath("/finance/purchases")
   revalidatePath("/finance/payables")
   revalidatePath("/finance/cash-flow")

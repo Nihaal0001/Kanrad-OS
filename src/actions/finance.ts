@@ -133,6 +133,7 @@ export async function createInvoice(formData: InvoiceFormData) {
 
   revalidateTag("invoices", {})
   revalidateTag("orders", {})
+  revalidateTag("finance", {})
   revalidatePath("/finance/invoices")
   await logAudit({ entityType: "invoice", entityId: invoice.id, entityLabel: invoice.invoice_number, action: "created" })
   return { data: invoice }
@@ -157,6 +158,7 @@ export async function updateInvoiceStatus(id: string, status: string) {
 
   if (error) return { error: error.message }
 
+  revalidateTag("finance", {})
   revalidatePath("/finance/invoices")
   revalidatePath(`/finance/invoices/${id}`)
   await logAudit({ entityType: "invoice", entityId: id, action: "status_changed", newValues: { status } })
@@ -220,6 +222,7 @@ export async function deleteInvoice(id: string) {
   const { error } = await supabase.from("invoices").delete().eq("id", id)
   if (error) return { error: error.message }
 
+  revalidateTag("finance", {})
   revalidatePath("/finance/invoices")
   revalidatePath("/finance/payments")
   revalidatePath("/finance/cash-flow")
@@ -354,6 +357,7 @@ export async function createPayment(formData: PaymentFormData) {
 
   revalidateTag("payments", {})
   revalidateTag("invoices", {})
+  revalidateTag("finance", {})
   revalidatePath("/finance/payments")
   revalidatePath("/finance/invoices")
   revalidatePath("/finance/receivables")
@@ -375,6 +379,7 @@ export async function deletePayment(id: string) {
 
   revalidateTag("payments", {})
   revalidateTag("invoices", {})
+  revalidateTag("finance", {})
   revalidatePath("/finance/payments")
   revalidatePath("/finance/invoices")
   revalidatePath("/finance/cash-flow")
@@ -634,6 +639,7 @@ export async function upsertOrderCosting(orderId: string, formData: CostingFormD
   if (error) return { error: error.message }
 
   revalidateTag("order_costings", {})
+  revalidateTag("finance", {})
   revalidatePath("/finance/costing")
   revalidatePath(`/finance/costing/${orderId}`)
   revalidatePath(`/orders/${orderId}`)

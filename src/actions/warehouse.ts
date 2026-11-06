@@ -330,6 +330,7 @@ export async function dispatchWarehouseSku(formData: WarehouseSkuDispatchFormDat
 
   revalidateTag("warehouse_items", {})
   revalidateTag("invoices", {})
+  revalidateTag("finance", {})
   revalidatePath("/warehouse")
   revalidatePath("/finance/invoices")
   revalidatePath("/finance/receivables")

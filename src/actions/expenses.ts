@@ -46,6 +46,7 @@ export async function createExpenseCategory(formData: ExpenseCategoryFormData) {
 
   revalidateTag("expenses", {})
   revalidateTag("expense_categories", {})
+  revalidateTag("finance", {})
   revalidatePath("/finance/expenses")
   await logAudit({ entityType: "expense_category", entityId: data.id, entityLabel: data.name, action: "created" })
   return { data }
@@ -75,6 +76,7 @@ export async function deleteExpenseCategory(id: string) {
 
   revalidateTag("expenses", {})
   revalidateTag("expense_categories", {})
+  revalidateTag("finance", {})
   revalidatePath("/finance/expenses")
   await logAudit({ entityType: "expense_category", entityId: id, action: "deleted" })
   return { success: true }
@@ -138,6 +140,7 @@ export async function createExpense(formData: ExpenseFormData) {
 
   revalidateTag("expenses", {})
   revalidateTag("expense_categories", {})
+  revalidateTag("finance", {})
   revalidatePath("/finance/expenses")
   revalidatePath("/finance/cash-flow")
   revalidatePath("/finance")
@@ -185,6 +188,7 @@ export async function createImportedExpense(
 
   revalidateTag("expenses", {})
   revalidateTag("expense_categories", {})
+  revalidateTag("finance", {})
   revalidatePath("/finance/expenses")
   revalidatePath("/finance/cash-flow")
   revalidatePath("/finance")
@@ -227,6 +231,7 @@ export async function updateExpense(id: string, formData: ExpenseFormData) {
 
   revalidateTag("expenses", {})
   revalidateTag("expense_categories", {})
+  revalidateTag("finance", {})
   revalidatePath("/finance/expenses")
   revalidatePath("/finance/cash-flow")
   revalidatePath("/finance")
@@ -255,6 +260,7 @@ export async function deleteExpense(id: string) {
 
   revalidateTag("expenses", {})
   revalidateTag("expense_categories", {})
+  revalidateTag("finance", {})
   revalidatePath("/finance/expenses")
   revalidatePath("/finance/cash-flow")
   revalidatePath("/finance")

@@ -1,12 +1,27 @@
 "use server"
 
-import { createClient } from "@/lib/supabase/server"
+import { unstable_cache } from "next/cache"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { stockValue } from "@/lib/costing"
+
+// Every mutation that touches these tables already invalidates one of these tags;
+// the 60s TTL is the safety fallback.
+const FIN_TAGS = [
+  "finance",
+  "invoices",
+  "payments",
+  "expenses",
+  "expense_categories",
+  "purchase_invoices",
+  "purchase_orders",
+  "order_costings",
+  "materials",
+]
 
 // ===== PO Pipeline (ERP-side; POs only reach Tally once invoiced) =====
 
-export async function getPOPipeline() {
-  const supabase = await createClient()
+async function _getPOPipeline() {
+  const supabase = createAdminClient()
 
   const { data } = await supabase
     .from("purchase_orders")
@@ -30,8 +45,8 @@ export async function getPOPipeline() {
 
 // ===== Finance Dashboard =====
 
-export async function getFinanceDashboard() {
-  const supabase = await createClient()
+async function _getFinanceDashboard() {
+  const supabase = createAdminClient()
 
   const now = new Date()
   const thisMonthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`
@@ -182,8 +197,8 @@ function computeAging(
 
 // ===== Cash Flow Statement (last 12 months, detailed) =====
 
-export async function getCashFlowStatement() {
-  const supabase = await createClient()
+async function _getCashFlowStatement() {
+  const supabase = createAdminClient()
 
   const now = new Date()
   // Cover the full 12-month window with 3 bulk queries instead of 36 sequential ones
@@ -252,14 +267,14 @@ export async function getCashFlowStatement() {
 
 // ===== Cash Flow Month Detail =====
 
-export async function getCashFlowMonthDetail(monthKey: string) {
+async function _getCashFlowMonthDetail(monthKey: string) {
   // monthKey: "YYYY-MM"
   const [year, mon] = monthKey.split("-").map(Number)
   const start = `${monthKey}-01`
   const nextD = new Date(year, mon, 1)
   const end = `${nextD.getFullYear()}-${String(nextD.getMonth() + 1).padStart(2, "0")}-01`
 
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const [paymentsRes, expensesRes, purchasePaymentsRes] = await Promise.all([
     supabase
@@ -307,41 +322,43 @@ export async function getCashFlowMonthDetail(monthKey: string) {
 
 // ===== Cash Flow (last 6 months, for dashboard chart) =====
 
-export async function getCashFlowData() {
-  const supabase = await createClient()
-  const months: { month: string; inflow: number; outflow: number }[] = []
+async function _getCashFlowData() {
+  const supabase = createAdminClient()
 
-  for (let i = 5; i >= 0; i--) {
-    const d = new Date()
-    d.setMonth(d.getMonth() - i)
-    const year = d.getFullYear()
-    const month = d.getMonth() + 1
-    const start = `${year}-${String(month).padStart(2, "0")}-01`
-    const nextD = new Date(year, month, 1)
-    const end = `${nextD.getFullYear()}-${String(nextD.getMonth() + 1).padStart(2, "0")}-01`
-    const label = d.toLocaleString("en-IN", { month: "short", year: "2-digit" })
+  // Fire all 6 months x 3 queries at once instead of 6 sequential rounds
+  const months = await Promise.all(
+    Array.from({ length: 6 }, (_, k) => 5 - k).map(async (i) => {
+      const d = new Date()
+      d.setMonth(d.getMonth() - i)
+      const year = d.getFullYear()
+      const month = d.getMonth() + 1
+      const start = `${year}-${String(month).padStart(2, "0")}-01`
+      const nextD = new Date(year, month, 1)
+      const end = `${nextD.getFullYear()}-${String(nextD.getMonth() + 1).padStart(2, "0")}-01`
+      const label = d.toLocaleString("en-IN", { month: "short", year: "2-digit" })
 
-    const [paymentsIn, expensesOut, purchasePaymentsOut] = await Promise.all([
-      supabase.from("payments").select("amount").gte("payment_date", start).lt("payment_date", end),
-      supabase.from("expenses").select("amount").gte("expense_date", start).lt("expense_date", end),
-      supabase.from("purchase_payments").select("amount").gte("payment_date", start).lt("payment_date", end),
-    ])
+      const [paymentsIn, expensesOut, purchasePaymentsOut] = await Promise.all([
+        supabase.from("payments").select("amount").gte("payment_date", start).lt("payment_date", end),
+        supabase.from("expenses").select("amount").gte("expense_date", start).lt("expense_date", end),
+        supabase.from("purchase_payments").select("amount").gte("payment_date", start).lt("payment_date", end),
+      ])
 
-    const inflow = (paymentsIn.data ?? []).reduce((s, p) => s + (p.amount ?? 0), 0)
-    const outflow =
-      (expensesOut.data ?? []).reduce((s, e) => s + (e.amount ?? 0), 0) +
-      (purchasePaymentsOut.data ?? []).reduce((s, p) => s + (p.amount ?? 0), 0)
+      const inflow = (paymentsIn.data ?? []).reduce((s, p) => s + (p.amount ?? 0), 0)
+      const outflow =
+        (expensesOut.data ?? []).reduce((s, e) => s + (e.amount ?? 0), 0) +
+        (purchasePaymentsOut.data ?? []).reduce((s, p) => s + (p.amount ?? 0), 0)
 
-    months.push({ month: label, inflow, outflow })
-  }
+      return { month: label, inflow, outflow }
+    })
+  )
 
   return months
 }
 
 // ===== Receivables Aging Detail =====
 
-export async function getReceivablesAging() {
-  const supabase = await createClient()
+async function _getReceivablesAging() {
+  const supabase = createAdminClient()
   const { data } = await supabase
     .from("invoices")
     .select("id, invoice_number, customer_name, total_amount, amount_paid, due_date, status")
@@ -362,8 +379,8 @@ export async function getReceivablesAging() {
 
 // ===== Payables Aging Detail =====
 
-export async function getPayablesAging() {
-  const supabase = await createClient()
+async function _getPayablesAging() {
+  const supabase = createAdminClient()
   const { data } = await supabase
     .from("purchase_invoices")
     .select("id, invoice_number, supplier_name, total_amount, amount_paid, due_date, status")
@@ -383,8 +400,8 @@ export async function getPayablesAging() {
 
 // ===== GST Summary =====
 
-export async function getGSTSummary(start: string, end: string) {
-  const supabase = await createClient()
+async function _getGSTSummary(start: string, end: string) {
+  const supabase = createAdminClient()
 
   const [salesRes, purchasesRes] = await Promise.all([
     supabase
@@ -424,8 +441,8 @@ export async function getGSTSummary(start: string, end: string) {
 
 // ===== P&L =====
 
-export async function getProfitLoss(start: string, end: string) {
-  const supabase = await createClient()
+async function _getProfitLoss(start: string, end: string) {
+  const supabase = createAdminClient()
 
   const [revenueRes, expensesRes, costingsRes] = await Promise.all([
     supabase
@@ -469,3 +486,50 @@ export async function getProfitLoss(start: string, end: string) {
     netProfit: grossProfit - totalExpenses,
   }
 }
+
+// ===== Cached exports =====
+
+export const getPOPipeline = unstable_cache(_getPOPipeline, ["finance-reports-getPOPipeline"], {
+  tags: FIN_TAGS,
+  revalidate: 60,
+})
+
+export const getFinanceDashboard = unstable_cache(_getFinanceDashboard, ["finance-reports-getFinanceDashboard"], {
+  tags: FIN_TAGS,
+  revalidate: 60,
+})
+
+export const getCashFlowStatement = unstable_cache(_getCashFlowStatement, ["finance-reports-getCashFlowStatement"], {
+  tags: FIN_TAGS,
+  revalidate: 60,
+})
+
+export const getCashFlowMonthDetail = unstable_cache(_getCashFlowMonthDetail, ["finance-reports-getCashFlowMonthDetail"], {
+  tags: FIN_TAGS,
+  revalidate: 60,
+})
+
+export const getCashFlowData = unstable_cache(_getCashFlowData, ["finance-reports-getCashFlowData"], {
+  tags: FIN_TAGS,
+  revalidate: 60,
+})
+
+export const getReceivablesAging = unstable_cache(_getReceivablesAging, ["finance-reports-getReceivablesAging"], {
+  tags: FIN_TAGS,
+  revalidate: 60,
+})
+
+export const getPayablesAging = unstable_cache(_getPayablesAging, ["finance-reports-getPayablesAging"], {
+  tags: FIN_TAGS,
+  revalidate: 60,
+})
+
+export const getGSTSummary = unstable_cache(_getGSTSummary, ["finance-reports-getGSTSummary"], {
+  tags: FIN_TAGS,
+  revalidate: 60,
+})
+
+export const getProfitLoss = unstable_cache(_getProfitLoss, ["finance-reports-getProfitLoss"], {
+  tags: FIN_TAGS,
+  revalidate: 60,
+})

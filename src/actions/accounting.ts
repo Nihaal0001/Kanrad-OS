@@ -1,6 +1,6 @@
 "use server"
 
-import { revalidatePath } from "next/cache"
+import { revalidatePath, revalidateTag } from "next/cache"
 
 import { createClient } from "@/lib/supabase/server"
 import { logAudit } from "@/actions/audit"
@@ -104,6 +104,7 @@ export async function deleteJournalEntry(id: string) {
   const { error } = await supabase.from("journal_entries").delete().eq("id", id)
   if (error) return { error: error.message }
 
+  revalidateTag("finance", {})
   revalidatePath("/finance/journal")
   revalidatePath("/finance/ledger")
   revalidatePath("/finance/trial-balance")

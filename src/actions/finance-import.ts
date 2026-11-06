@@ -1,6 +1,6 @@
 "use server"
 
-import { revalidatePath } from "next/cache"
+import { revalidatePath, revalidateTag } from "next/cache"
 
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -375,6 +375,7 @@ export async function uploadFinanceImportBatch(formData: FormData) {
   )
 
   await refreshBatchStatus(admin, batch.id)
+  revalidateTag("finance", {})
   revalidatePath("/finance/import")
   revalidatePath("/finance/purchases")
   revalidatePath("/finance/expenses")
@@ -434,6 +435,7 @@ export async function updateFinanceImportItem(
   }
 
   await refreshBatchStatus(admin, item.batch_id)
+  revalidateTag("finance", {})
   revalidatePath("/finance/import")
   return { success: true }
 }
@@ -500,11 +502,13 @@ export async function submitFinanceImportItem(itemId: string) {
       .eq("id", itemId)
 
     await refreshBatchStatus(admin, item.batch_id)
+    revalidateTag("finance", {})
     revalidatePath("/finance/import")
     return { error: error instanceof Error ? error.message : "Submission failed" }
   }
 
   await refreshBatchStatus(admin, item.batch_id)
+  revalidateTag("finance", {})
   revalidatePath("/finance/import")
   revalidatePath("/finance/purchases")
   revalidatePath("/finance/expenses")
@@ -536,6 +540,7 @@ export async function submitFinanceImportBatch(batchId: string) {
   // concurrently instead of one at a time.
   await Promise.all(pendingIds.map((itemId) => submitFinanceImportItem(itemId)))
 
+  revalidateTag("finance", {})
   revalidatePath("/finance/import")
   revalidatePath("/finance/purchases")
   revalidatePath("/finance/expenses")

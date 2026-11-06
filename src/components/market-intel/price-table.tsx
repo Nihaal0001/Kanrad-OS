@@ -1,5 +1,8 @@
 "use client"
 
+import nextDynamic from "next/dynamic"
+import { Skeleton } from "@/components/ui/skeleton"
+
 import { useState } from "react"
 import { Plus, ChevronDown, ChevronUp, Info } from "lucide-react"
 import { useTheme } from "next-themes"
@@ -7,7 +10,10 @@ import { Button } from "@/components/ui/button"
 import { formatDate } from "@/lib/utils"
 import { cn } from "@/lib/utils"
 import type { CommodityHistory } from "@/actions/market-intel"
-import { PriceHistoryChart } from "./price-history-chart"
+const PriceHistoryChart = nextDynamic(() => import("./price-history-chart").then((m) => m.PriceHistoryChart), {
+  ssr: false,
+  loading: () => <Skeleton className="h-72 w-full rounded-xl" />,
+})
 
 interface PriceTableProps {
   history: CommodityHistory[]

@@ -1,5 +1,8 @@
 "use client"
 
+import nextDynamic from "next/dynamic"
+import { Skeleton } from "@/components/ui/skeleton"
+
 import { useState, useTransition } from "react"
 import { Plus, IndianRupee, Newspaper, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -14,8 +17,14 @@ import type { CommodityHistory, BomCostImpact, TopStory } from "@/actions/market
 import type { MarketBrief } from "@/lib/market/brief"
 import { AiBriefCard } from "@/components/market-intel/ai-brief-card"
 import { PriceTable } from "@/components/market-intel/price-table"
-import { BomImpactCard } from "@/components/market-intel/bom-impact-card"
-import { ForecastCard } from "@/components/market-intel/forecast-card"
+const BomImpactCard = nextDynamic(() => import("@/components/market-intel/bom-impact-card").then((m) => m.BomImpactCard), {
+  ssr: false,
+  loading: () => <Skeleton className="h-72 w-full rounded-xl" />,
+})
+const ForecastCard = nextDynamic(() => import("@/components/market-intel/forecast-card").then((m) => m.ForecastCard), {
+  ssr: false,
+  loading: () => <Skeleton className="h-72 w-full rounded-xl" />,
+})
 import { NewsSection, NEWS_CATEGORIES, type News } from "@/components/market-intel/news-section"
 
 const COMMON_UNITS = ["kg", "MT", "tonne", "piece", "litre", "sq ft", "metre", "roll"]

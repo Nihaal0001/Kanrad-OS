@@ -1,5 +1,8 @@
 "use client"
 
+import nextDynamic from "next/dynamic"
+import { Skeleton } from "@/components/ui/skeleton"
+
 import { useState } from "react"
 import { BarChart, Bar, Cell, ComposedChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts"
 import { useTheme } from "next-themes"
@@ -7,7 +10,10 @@ import { TrendingUp, TrendingDown, Minus, AlertTriangle, Package, Download } fro
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { TallySourceBadge } from "@/components/finance/tally-source-badge"
-import { ForecastCard } from "@/components/market-intel/forecast-card"
+const ForecastCard = nextDynamic(() => import("@/components/market-intel/forecast-card").then((m) => m.ForecastCard), {
+  ssr: false,
+  loading: () => <Skeleton className="h-72 w-full rounded-xl" />,
+})
 import { downloadCSV } from "@/lib/export"
 import { cn } from "@/lib/utils"
 import type { SalesForecast } from "@/actions/analytics"
