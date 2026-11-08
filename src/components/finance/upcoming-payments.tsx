@@ -1,14 +1,16 @@
 "use client"
 
+import { useMemo, useState } from "react"
 import Link from "next/link"
-import { ArrowDownLeft, ArrowUpRight, Scale } from "lucide-react"
+import { ArrowDownLeft, ArrowUpRight, CalendarDays, ChevronLeft, ChevronRight, List, Scale } from "lucide-react"
 
 import type { UpcomingPayment } from "@/actions/upcoming-payments"
 import { addDaysISO } from "@/lib/payment-terms"
 import { formatCurrency, formatDate, cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Button } from "@/components/ui/button"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 function daysBetween(from: string, to: string): number {
   return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86400000)
@@ -93,11 +95,203 @@ function Schedule({ items, today }: { items: UpcomingPayment[]; today: string })
   )
 }
 
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+
+function formatCompact(n: number): string {
+  return `₹${new Intl.NumberFormat("en-IN", { notation: "compact", maximumFractionDigits: 1 }).format(n)}`
+}
+
+function shiftMonth(ym: string, delta: number): string {
+  const d = new Date(`${ym}-01T00:00:00Z`)
+  d.setUTCMonth(d.getUTCMonth() + delta)
+  return d.toISOString().slice(0, 7)
+}
+
+function monthTitle(ym: string): string {
+  return new Intl.DateTimeFormat("en-IN", { month: "long", year: "numeric", timeZone: "UTC" }).format(
+    new Date(`${ym}-01T00:00:00Z`)
+  )
+}
+
+function totals(rows: UpcomingPayment[]) {
+  let inc = 0
+  let out = 0
+  for (const p of rows) {
+    if (p.direction === "incoming") inc += p.amount
+    else out += p.amount
+  }
+  return { inc, out }
+}
+
+function CalendarView({ items, today }: { items: UpcomingPayment[]; today: string }) {
+  const [month, setMonth] = useState(today.slice(0, 7))
+  const [selected, setSelected] = useState(today)
+
+  const byDay = useMemo(() => {
+    const map = new Map<string, UpcomingPayment[]>()
+    for (const p of items) {
+      const list = map.get(p.due_date) ?? []
+      list.push(p)
+      map.set(p.due_date, list)
+    }
+    return map
+  }, [items])
+
+  // Grid starts on the Sunday on/before the 1st and always covers whole weeks
+  const first = new Date(`${month}-01T00:00:00Z`)
+  const gridStart = addDaysISO(`${month}-01`, -first.getUTCDay())
+  const daysInMonth = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0)).getUTCDate()
+  const weeks = Math.ceil((first.getUTCDay() + daysInMonth) / 7)
+  const cells = Array.from({ length: weeks * 7 }, (_, i) => addDaysISO(gridStart, i))
+
+  const monthRows = items.filter((p) => p.due_date.startsWith(month))
+  const monthTotals = totals(monthRows)
+  const dayRows = byDay.get(selected) ?? []
+  const dayTotals = totals(dayRows)
+  const overdue = items.filter((p) => p.due_date < today)
+
+  return (
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-1">
+            <Button variant="outline" size="icon" onClick={() => setMonth(shiftMonth(month, -1))} aria-label="Previous month">
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <h3 className="min-w-40 text-center text-base font-semibold">{monthTitle(month)}</h3>
+            <Button variant="outline" size="icon" onClick={() => setMonth(shiftMonth(month, 1))} aria-label="Next month">
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setMonth(today.slice(0, 7))
+                setSelected(today)
+              }}
+            >
+              Today
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            This month:{" "}
+            <span className="font-medium text-orange-600">pay {formatCurrency(monthTotals.out)}</span>
+            {" · "}
+            <span className="font-medium text-emerald-600">receive {formatCurrency(monthTotals.inc)}</span>
+          </p>
+        </div>
+
+        {overdue.length > 0 && (
+          <p className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+            {overdue.length} item{overdue.length > 1 ? "s are" : " is"} past due — they sit on their original due dates in earlier months.
+          </p>
+        )}
+
+        <div className="overflow-hidden rounded-xl border border-border bg-card">
+          <div className="grid grid-cols-7 border-b border-border bg-muted/40">
+            {WEEKDAYS.map((d) => (
+              <div key={d} className="px-1 py-2 text-center text-[11px] font-semibold uppercase text-muted-foreground">
+                {d}
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-7">
+            {cells.map((date) => {
+              const rows = byDay.get(date) ?? []
+              const t = totals(rows)
+              const inMonth = date.startsWith(month)
+              const isToday = date === today
+              const isSelected = date === selected
+              return (
+                <button
+                  key={date}
+                  type="button"
+                  onClick={() => setSelected(date)}
+                  className={cn(
+                    "flex min-h-[72px] flex-col items-stretch gap-0.5 border-b border-r border-border p-1 text-left transition-colors hover:bg-muted/50 sm:min-h-[92px] sm:p-1.5",
+                    !inMonth && "bg-muted/20 text-muted-foreground/60",
+                    isSelected && "bg-primary/10 ring-1 ring-inset ring-primary",
+                    rows.length > 0 && date < today && "bg-destructive/5"
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "flex h-5 w-5 items-center justify-center rounded-full text-xs",
+                      isToday && "bg-primary font-semibold text-primary-foreground"
+                    )}
+                  >
+                    {Number(date.slice(8))}
+                  </span>
+                  {t.out > 0 && (
+                    <span className="truncate text-[10px] font-semibold leading-tight text-orange-600 sm:text-xs">
+                      −{formatCompact(t.out)}
+                    </span>
+                  )}
+                  {t.inc > 0 && (
+                    <span className="truncate text-[10px] font-semibold leading-tight text-emerald-600 sm:text-xs">
+                      +{formatCompact(t.inc)}
+                    </span>
+                  )}
+                  {rows.length > 0 && (
+                    <span className="hidden text-[10px] text-muted-foreground sm:block">
+                      {rows.length} item{rows.length > 1 ? "s" : ""}
+                    </span>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      </div>
+
+      <aside className="space-y-3 lg:sticky lg:top-4 lg:self-start">
+        <div>
+          <h3 className="text-base font-semibold">{formatDate(selected)}</h3>
+          <p className="text-xs text-muted-foreground">{dueLabel(daysBetween(today, selected))}</p>
+        </div>
+        <div className="grid grid-cols-3 gap-2 text-center">
+          <div className="rounded-lg border border-border bg-card p-2">
+            <p className="text-[11px] text-muted-foreground">To pay</p>
+            <p className="text-sm font-semibold text-orange-600">{formatCurrency(dayTotals.out)}</p>
+          </div>
+          <div className="rounded-lg border border-border bg-card p-2">
+            <p className="text-[11px] text-muted-foreground">To receive</p>
+            <p className="text-sm font-semibold text-emerald-600">{formatCurrency(dayTotals.inc)}</p>
+          </div>
+          <div className="rounded-lg border border-border bg-card p-2">
+            <p className="text-[11px] text-muted-foreground">Net</p>
+            <p className={cn("text-sm font-semibold", dayTotals.inc - dayTotals.out < 0 && "text-destructive")}>
+              {formatCurrency(dayTotals.inc - dayTotals.out)}
+            </p>
+          </div>
+        </div>
+        {dayRows.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-border py-8 text-center text-sm text-muted-foreground">
+            No payments on this day.
+          </p>
+        ) : (
+          <div className="divide-y divide-border rounded-xl border border-border bg-card">
+            {[...dayRows]
+              .sort((a, b) => (a.direction === b.direction ? b.amount - a.amount : a.direction === "outgoing" ? -1 : 1))
+              .map((p) => (
+                <Row key={`${p.direction}-${p.id}`} p={p} today={today} />
+              ))}
+          </div>
+        )}
+      </aside>
+    </div>
+  )
+}
+
 export function UpcomingPayments({ payments, today }: { payments: UpcomingPayment[]; today: string }) {
+  const [filter, setFilter] = useState<"all" | "incoming" | "outgoing">("all")
+  const [view, setView] = useState<"list" | "calendar">("calendar")
+
   const incoming = payments.filter((p) => p.direction === "incoming")
   const outgoing = payments.filter((p) => p.direction === "outgoing")
   const sum = (rows: UpcomingPayment[]) => rows.reduce((s, p) => s + p.amount, 0)
   const net = sum(incoming) - sum(outgoing)
+  const shown = filter === "all" ? payments : filter === "incoming" ? incoming : outgoing
 
   return (
     <div className="space-y-6">
@@ -136,22 +330,25 @@ export function UpcomingPayments({ payments, today }: { payments: UpcomingPaymen
         </Card>
       </div>
 
-      <Tabs defaultValue="all">
-        <TabsList>
-          <TabsTrigger value="all">All ({payments.length})</TabsTrigger>
-          <TabsTrigger value="incoming">Incoming ({incoming.length})</TabsTrigger>
-          <TabsTrigger value="outgoing">Outgoing ({outgoing.length})</TabsTrigger>
-        </TabsList>
-        <TabsContent value="all" className="mt-4">
-          <Schedule items={payments} today={today} />
-        </TabsContent>
-        <TabsContent value="incoming" className="mt-4">
-          <Schedule items={incoming} today={today} />
-        </TabsContent>
-        <TabsContent value="outgoing" className="mt-4">
-          <Schedule items={outgoing} today={today} />
-        </TabsContent>
-      </Tabs>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Tabs value={filter} onValueChange={(v) => setFilter(v as typeof filter)}>
+          <TabsList>
+            <TabsTrigger value="all">All ({payments.length})</TabsTrigger>
+            <TabsTrigger value="incoming">Incoming ({incoming.length})</TabsTrigger>
+            <TabsTrigger value="outgoing">Outgoing ({outgoing.length})</TabsTrigger>
+          </TabsList>
+        </Tabs>
+        <div className="inline-flex rounded-lg border border-border p-0.5">
+          <Button variant={view === "calendar" ? "secondary" : "ghost"} size="sm" onClick={() => setView("calendar")}>
+            <CalendarDays className="mr-1.5 h-4 w-4" /> Calendar
+          </Button>
+          <Button variant={view === "list" ? "secondary" : "ghost"} size="sm" onClick={() => setView("list")}>
+            <List className="mr-1.5 h-4 w-4" /> List
+          </Button>
+        </div>
+      </div>
+
+      {view === "calendar" ? <CalendarView items={shown} today={today} /> : <Schedule items={shown} today={today} />}
     </div>
   )
 }
