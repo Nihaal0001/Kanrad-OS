@@ -231,7 +231,13 @@ export function BomForm({ product, materials }: BomFormProps) {
         }
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Something went wrong")
+      const msg = err instanceof Error ? err.message : ""
+      // Connection dropped: the product may or may not have been saved
+      toast.error(
+        /load failed|failed to fetch|network/i.test(msg) || !msg
+          ? "Connection dropped. Check the Products list to see if it saved before trying again."
+          : msg
+      )
     } finally {
       setLoading(false)
     }

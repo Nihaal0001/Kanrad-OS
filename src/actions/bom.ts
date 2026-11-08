@@ -87,22 +87,18 @@ export async function createProduct(formData: BomFormData) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: "Not authenticated" }
 
-  // Check for duplicate SKU
-  const { data: existing } = await supabase
-    .from("bom_headers")
-    .select("id")
-    .eq("product_sku", validated.product_sku)
-    .eq("is_active", true)
-    .maybeSingle()
+  // Duplicate-SKU check and profile lookup are independent — run together
+  const [{ data: existing }, { data: profile }] = await Promise.all([
+    supabase
+      .from("bom_headers")
+      .select("id")
+      .eq("product_sku", validated.product_sku)
+      .eq("is_active", true)
+      .maybeSingle(),
+    supabase.from("profiles").select("id").eq("auth_id", user.id).maybeSingle(),
+  ])
 
   if (existing) return { error: "A product with this SKU already exists" }
-
-  // Get profile id
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("id")
-    .eq("auth_id", user.id)
-    .maybeSingle()
 
   // Insert BOM header
   const { data: bom, error: bomErr } = await supabase
@@ -131,7 +127,11 @@ export async function createProduct(formData: BomFormData) {
   }))
 
   const { error: itemsErr } = await supabase.from("bom_items").insert(items)
-  if (itemsErr) return { error: itemsErr.message }
+  if (itemsErr) {
+    // Don't leave a header with no items behind (it would block a retry with "SKU already exists")
+    await supabase.from("bom_headers").delete().eq("id", bom.id)
+    return { error: itemsErr.message }
+  }
 
   revalidateTag("bom", {})
   revalidatePath("/products")
@@ -151,14 +151,20 @@ export async function updateProduct(id: string, formData: BomFormData) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: "Not authenticated" }
 
-  // Check for duplicate SKU (exclude self)
-  const { data: existing } = await supabase
-    .from("bom_headers")
-    .select("id")
-    .eq("product_sku", validated.product_sku)
-    .eq("is_active", true)
-    .neq("id", id)
-    .maybeSingle()
+  // Duplicate-SKU check (exclude self) and a snapshot of the current items, in parallel
+  const [{ data: existing }, { data: oldItems }] = await Promise.all([
+    supabase
+      .from("bom_headers")
+      .select("id")
+      .eq("product_sku", validated.product_sku)
+      .eq("is_active", true)
+      .neq("id", id)
+      .maybeSingle(),
+    supabase
+      .from("bom_items")
+      .select("bom_id, material_id, qty_required, unit, wastage_pct, notes")
+      .eq("bom_id", id),
+  ])
 
   if (existing) return { error: "A product with this SKU already exists" }
 
@@ -194,7 +200,11 @@ export async function updateProduct(id: string, formData: BomFormData) {
   }))
 
   const { error: itemsErr } = await supabase.from("bom_items").insert(items)
-  if (itemsErr) return { error: itemsErr.message }
+  if (itemsErr) {
+    // Put the previous items back so a failed save never loses the BOM
+    if (oldItems && oldItems.length > 0) await supabase.from("bom_items").insert(oldItems)
+    return { error: itemsErr.message }
+  }
 
   revalidateTag("bom", {})
   revalidatePath("/products")

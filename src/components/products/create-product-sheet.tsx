@@ -88,14 +88,20 @@ export function CreateProductSheet({ materials }: Props) {
 
   function onSubmit(data: BomFormData) {
     startTransition(async () => {
-      const result = await createProduct(data)
-      if (result && "error" in result && result.error) {
-        toast.error(result.error)
-        return
+      try {
+        const result = await createProduct(data)
+        if (result && "error" in result && result.error) {
+          toast.error(result.error)
+          return
+        }
+        toast.success("Product created")
+        setOpen(false)
+        router.refresh()
+      } catch {
+        // Connection dropped: the product may or may not have been saved
+        toast.error("Connection dropped. Check the Products list to see if it saved before trying again.")
+        router.refresh()
       }
-      toast.success("Product created")
-      setOpen(false)
-      router.refresh()
     })
   }
 

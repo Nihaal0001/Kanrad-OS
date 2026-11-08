@@ -1,5 +1,6 @@
 "use server"
 
+import { after } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import type { AuditAction } from "@/lib/validators/audit"
 
@@ -25,32 +26,49 @@ export async function logAudit({
   oldValues?: Record<string, unknown>
   newValues?: Record<string, unknown>
 }) {
+  // The audit write runs after the response is sent, so it never adds database
+  // round trips (user lookup, profile lookup, insert) to the user's save.
+  let supabase: Awaited<ReturnType<typeof createClient>>
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-
-    let changedByName: string | null = null
-    if (user) {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("full_name")
-        .eq("auth_id", user.id)
-        .maybeSingle()
-      changedByName = profile?.full_name ?? user.email ?? null
-    }
-
-    await supabase.from("audit_logs").insert({
-      entity_type: entityType,
-      entity_id: entityId ?? null,
-      entity_label: entityLabel ?? null,
-      action,
-      old_values: oldValues ?? null,
-      new_values: newValues ?? null,
-      changed_by: user?.id ?? null,
-      changed_by_name: changedByName,
-    })
+    supabase = await createClient()
   } catch {
-    // Audit errors are silent — never block main operations
+    return
+  }
+
+  const write = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+
+      let changedByName: string | null = null
+      if (user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("full_name")
+          .eq("auth_id", user.id)
+          .maybeSingle()
+        changedByName = profile?.full_name ?? user.email ?? null
+      }
+
+      await supabase.from("audit_logs").insert({
+        entity_type: entityType,
+        entity_id: entityId ?? null,
+        entity_label: entityLabel ?? null,
+        action,
+        old_values: oldValues ?? null,
+        new_values: newValues ?? null,
+        changed_by: user?.id ?? null,
+        changed_by_name: changedByName,
+      })
+    } catch {
+      // Audit errors are silent — never block main operations
+    }
+  }
+
+  try {
+    after(write)
+  } catch {
+    // Not inside a request scope — write inline
+    await write()
   }
 }
 
