@@ -231,14 +231,10 @@ export function PurchaseInvoiceForm({ purchaseOrders, orgGstin }: PurchaseInvoic
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="due_date">Due Date</Label>
-            <Controller
-              control={control}
-              name="due_date"
-              render={({ field }) => (
-                <DatePicker value={field.value ?? ""} onChange={field.onChange} />
-              )}
-            />
+            <Label>Payment Due</Label>
+            <p className="flex h-9 items-center rounded-md border border-border bg-muted/40 px-3 text-sm text-muted-foreground">
+              Auto-set to 45 days from today (entry date)
+            </p>
           </div>
 
           <div className="space-y-1.5">

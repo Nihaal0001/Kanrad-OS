@@ -1,5 +1,6 @@
 "use server"
 
+import { billDueDateFromToday, todayIST } from "@/lib/payment-terms"
 import { revalidatePath, revalidateTag, unstable_cache } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -865,18 +866,7 @@ export async function receivePurchaseOrderItem(
 
     let invoiceId: string | null = existingInvoice?.id ?? null
     if (!invoiceId) {
-      let payableDays = 50
-      if (poRow?.supplier_id) {
-        const { data: supplier } = await admin
-          .from("suppliers")
-          .select("payment_terms")
-          .eq("id", poRow.supplier_id)
-          .maybeSingle()
-        if (supplier?.payment_terms) payableDays = supplier.payment_terms
-      }
-      const invoiceDate = new Date().toISOString().split("T")[0]
-      const due = new Date(invoiceDate)
-      due.setDate(due.getDate() + payableDays)
+      const invoiceDate = todayIST()
 
       const { data: newInvoice, error: invError } = await admin
         .from("purchase_invoices")
@@ -886,7 +876,7 @@ export async function receivePurchaseOrderItem(
           invoice_number: trimmedBillNo,
           tax_rate: poRow?.tax_rate ?? 0,
           invoice_date: invoiceDate,
-          due_date: due.toISOString().split("T")[0],
+          due_date: billDueDateFromToday(),
           status: "received",
         })
         .select("id")

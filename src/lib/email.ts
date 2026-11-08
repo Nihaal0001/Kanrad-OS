@@ -216,3 +216,49 @@ export async function sendPurchaseOrderCopy(opts: {
     attachments: [{ filename: `${opts.poNumber}.pdf`, content: opts.pdfBuffer }],
   })
 }
+
+export async function sendPaymentDueReminder(bills: {
+  invoice_number: string
+  supplier_name: string
+  due_date: string
+  outstanding: number
+}[]) {
+  if (!OWNER_EMAIL || bills.length === 0) return { success: false, error: "No recipient or no bills" }
+
+  const total = bills.reduce((s, b) => s + b.outstanding, 0)
+  const fmt = (n: number) => `₹${n.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`
+  const rows = bills
+    .map(
+      (b) =>
+        `<tr>
+          <td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;font-family:monospace">${esc(b.invoice_number)}</td>
+          <td style="padding:8px 12px;border-bottom:1px solid #f3f4f6">${esc(b.supplier_name)}</td>
+          <td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;font-weight:600">${esc(fmt(b.outstanding))}</td>
+        </tr>`
+    )
+    .join("")
+
+  const html = `
+    <div style="font-family:Inter,sans-serif;max-width:600px;margin:0 auto">
+      <div style="background:#c2622a;padding:24px 32px;border-radius:8px 8px 0 0">
+        <h1 style="color:#fff;margin:0;font-size:20px">Payment due today</h1>
+        <p style="color:#fde4d3;margin:4px 0 0;font-size:14px">KANRAD ERP — Finance</p>
+      </div>
+      <div style="background:#fff;padding:24px 32px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 8px 8px">
+        <p style="color:#374151;font-size:15px">${bills.length} supplier bill${bills.length > 1 ? "s are" : " is"} due for payment today — ${esc(fmt(total))} in total:</p>
+        <table style="width:100%;border-collapse:collapse;font-size:14px">
+          <thead>
+            <tr style="background:#f9f5f2">
+              <th style="padding:8px 12px;text-align:left;color:#6b7280;font-size:11px;text-transform:uppercase">Bill</th>
+              <th style="padding:8px 12px;text-align:left;color:#6b7280;font-size:11px;text-transform:uppercase">Supplier</th>
+              <th style="padding:8px 12px;text-align:left;color:#6b7280;font-size:11px;text-transform:uppercase">Amount due</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>
+  `
+
+  return sendEmail({ to: OWNER_EMAIL, subject: `[KANRAD ERP] Payment due today — ${bills.length} bill${bills.length > 1 ? "s" : ""} (${fmt(total)})`, html })
+}

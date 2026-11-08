@@ -8,6 +8,7 @@ import {
   Calculator,
   Clock,
   CalendarDays,
+  CalendarClock,
   RefreshCcw,
   Bell,
   Settings,
@@ -111,6 +112,7 @@ export const flatNavItems: NavItem[] = [
   { title: "Approvals",        href: "/inventory/approvals",       icon: ClipboardCheck,  permission: "inventory" },
   { title: "Costing",          href: "/finance/costing",           icon: Calculator,      permission: "finance" },
   { title: "Finance",          href: "/finance",                   icon: IndianRupee,     permission: "finance" },
+  { title: "Upcoming Payments", href: "/finance/upcoming",         icon: CalendarClock,   permission: "finance" },
   { title: "Receivables",      href: "/finance/receivables",       icon: Wallet2,         permission: "finance" },
   { title: "Payables",         href: "/finance/payables",          icon: Wallet,          permission: "finance" },
   { title: "Outstanding",      href: "/finance/outstanding",       icon: Scale,           permission: "finance" },
@@ -173,6 +175,7 @@ export const navigation: NavSection[] = [
     items: [
       { title: "Finance",     href: "/finance",             icon: IndianRupee, permission: "finance" },
       { title: "Costing",     href: "/finance/costing",     icon: Calculator,  permission: "finance" },
+      { title: "Upcoming",    href: "/finance/upcoming",    icon: CalendarClock, permission: "finance" },
       { title: "Receivables", href: "/finance/receivables", icon: Wallet2,     permission: "finance" },
       { title: "Payables",    href: "/finance/payables",    icon: Wallet,      permission: "finance" },
       { title: "Outstanding", href: "/finance/outstanding", icon: Scale,       permission: "finance" },

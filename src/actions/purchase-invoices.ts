@@ -1,5 +1,6 @@
 "use server"
 
+import { billDueDateFromToday } from "@/lib/payment-terms"
 import { revalidatePath, revalidateTag } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
 import { logAudit } from "@/actions/audit"
@@ -13,15 +14,6 @@ import {
 const VALID_PURCHASE_INVOICE_STATUSES = [
   "draft", "received", "paid", "partially_paid", "overdue", "cancelled",
 ] as const
-
-// Standard payment terms when the supplier record doesn't specify its own (net days).
-const DEFAULT_PAYABLE_DAYS = 50
-
-function addDays(dateStr: string, days: number): string {
-  const d = new Date(dateStr)
-  d.setDate(d.getDate() + days)
-  return d.toISOString().split("T")[0]
-}
 
 async function validateLinkedPurchaseOrder(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -176,27 +168,13 @@ export async function createPurchaseInvoice(formData: PurchaseInvoiceFormData) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: "Not authenticated" }
 
-  let supplierId: string | null = null
   if (validated.purchase_order_id) {
     const poCheck = await validateLinkedPurchaseOrder(supabase, validated.purchase_order_id)
     if ("error" in poCheck && poCheck.error) return { error: poCheck.error }
-    if ("data" in poCheck && poCheck.data) supplierId = poCheck.data.supplier_id
   }
 
-  // Payment due date — supplier's own payment terms if set, else the standard 50 days.
-  let dueDate = validated.due_date || null
-  if (!dueDate) {
-    let payableDays = DEFAULT_PAYABLE_DAYS
-    if (supplierId) {
-      const { data: supplier } = await supabase
-        .from("suppliers")
-        .select("payment_terms")
-        .eq("id", supplierId)
-        .maybeSingle()
-      if (supplier?.payment_terms) payableDays = supplier.payment_terms
-    }
-    dueDate = addDays(validated.invoice_date, payableDays)
-  }
+  // Due 45 days after the day the bill is entered here (also enforced by a DB trigger).
+  const dueDate = billDueDateFromToday()
 
   const { data: invoice, error: invErr } = await supabase
     .from("purchase_invoices")
@@ -278,7 +256,7 @@ export async function createImportedPurchaseInvoice(
       place_of_supply: validated.place_of_supply || null,
       is_igst: validated.is_igst ?? false,
       invoice_date: validated.invoice_date,
-      due_date: validated.due_date || null,
+      due_date: billDueDateFromToday(),
       notes: validated.notes || null,
       document_path: formData.document_path || null,
       document_url: formData.document_url || null,

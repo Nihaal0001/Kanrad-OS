@@ -12,7 +12,7 @@ export default async function PayablesPage() {
     <>
       <PageHeader
         title="Payables"
-        description="Money Kanrad owes suppliers — due 50 days (or the supplier's own terms) after each purchase invoice"
+        description="Money Kanrad owes suppliers — due 45 days after each bill is entered"
         breadcrumbs={[{ label: "Finance", href: "/finance" }, { label: "Payables" }]}
       />
 
