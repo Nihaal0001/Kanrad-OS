@@ -51,6 +51,8 @@ export const purchaseOrderSchema = z.object({
         material_id: z.string().min(1, "Material is required"),
         quantity_ordered: z.number().min(0.01, "Quantity must be greater than 0"),
         unit_price: z.number().min(0, "Price cannot be negative"),
+        // Weight per piece (kg) — required for IB circles, checked server-side
+        weight_kg: z.number().positive("Weight must be greater than 0").nullable().optional(),
       })
     )
     .min(1, "At least one item is required"),

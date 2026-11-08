@@ -610,6 +610,24 @@ export async function createPurchaseOrder(formData: PurchaseOrderFormData) {
 
   if (supplierError || !supplier) return { error: "Selected supplier was not found" }
 
+  // IB aluminium circles must come with their weight per piece and a price
+  const { data: matRows } = await supabase
+    .from("materials")
+    .select("id, name, circle_type, weight_kg")
+    .in("id", validated.items.map((i) => i.material_id))
+  const circleMats = new Map(
+    (matRows ?? [])
+      .filter((m) => m.circle_type)
+      .map((m) => [m.id, m as { id: string; name: string; circle_type: "ib" | "non_ib"; weight_kg: number | null }])
+  )
+  for (const item of validated.items) {
+    const mat = circleMats.get(item.material_id)
+    if (mat?.circle_type === "ib") {
+      if (!item.weight_kg || item.weight_kg <= 0) return { error: `Enter the weight (kg) of IB circle ${mat.name}` }
+      if (!item.unit_price || item.unit_price <= 0) return { error: `Enter the price of IB circle ${mat.name}` }
+    }
+  }
+
   const { items, order_ids, ...poData } = validated
   const cleaned = Object.fromEntries(
     Object.entries(poData).map(([k, v]) => [k, v === "" ? null : v])
@@ -628,12 +646,18 @@ export async function createPurchaseOrder(formData: PurchaseOrderFormData) {
 
   if (poError) return { error: poError.message }
 
-  const poItems = items.map((item) => ({
-    purchase_order_id: po.id,
-    material_id: item.material_id,
-    quantity_ordered: item.quantity_ordered,
-    unit_price: item.unit_price,
-  }))
+  const poItems = items.map((item) => {
+    const mat = circleMats.get(item.material_id)
+    // IB circle: the weight typed on the PO. Non-IB circle: the auto-calculated weight.
+    const weight = mat?.circle_type === "ib" ? item.weight_kg : mat?.circle_type === "non_ib" ? mat.weight_kg : null
+    return {
+      purchase_order_id: po.id,
+      material_id: item.material_id,
+      quantity_ordered: item.quantity_ordered,
+      unit_price: item.unit_price,
+      weight_kg: weight ?? null,
+    }
+  })
 
   const { error: itemsError } = await supabase
     .from("purchase_order_items")
@@ -650,12 +674,14 @@ export async function createPurchaseOrder(formData: PurchaseOrderFormData) {
     if (linkError) return { error: linkError.message }
   }
 
-  // BOM/product costing reads materials.cost_per_unit, so keep it pinned to
-  // the price of the last PO raised for each material.
-  for (const item of items) {
-    if (!item.material_id) continue
-    await supabase.from("materials").update({ cost_per_unit: item.unit_price }).eq("id", item.material_id)
-  }
+  // materials.cost_per_unit is the weighted-average cost and only changes when stock is
+  // received (see receivePurchaseOrderItem) — raising a PO must not overwrite it.
+  // An IB circle's weight is whatever the latest PO says; non-IB weight stays formula-driven.
+  await Promise.all(
+    items
+      .filter((item) => item.material_id && item.weight_kg && circleMats.get(item.material_id)?.circle_type === "ib")
+      .map((item) => supabase.from("materials").update({ weight_kg: item.weight_kg }).eq("id", item.material_id))
+  )
   revalidateTag("materials", {})
   revalidateTag("bom", {})
 

@@ -38,6 +38,8 @@ export interface POMaterialOption {
   unit: string
   cost_per_unit: number
   category_name?: string | null
+  circle_type?: "ib" | "non_ib" | null
+  weight_kg?: number | null
 }
 
 export interface POSupplierOption {
@@ -168,7 +170,7 @@ export function PurchaseOrderForm({ materials, suppliers }: PurchaseOrderFormPro
       terms_of_delivery: "",
       mode_of_payment: "",
       order_ids: [],
-      items: [{ material_id: "", quantity_ordered: 0, unit_price: 0 }],
+      items: [{ material_id: "", quantity_ordered: 0, unit_price: 0, weight_kg: null }],
     },
   })
 
@@ -330,8 +332,28 @@ export function PurchaseOrderForm({ materials, suppliers }: PurchaseOrderFormPro
                       const m = materialsMap[id]
                       form.setValue(`items.${index}.material_id`, id, { shouldValidate: true })
                       if (m) form.setValue(`items.${index}.unit_price`, m.cost_per_unit)
+                      form.setValue(`items.${index}.weight_kg`, m?.circle_type === "ib" ? m.weight_kg ?? null : null)
                     }}
                   />
+                  {mat?.circle_type === "ib" && (
+                    <div className="space-y-1 pt-1">
+                      <Label className="text-xs">IB circle — weight per piece (kg) *</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        step="0.0001"
+                        className="h-9"
+                        placeholder="e.g. 0.537"
+                        {...form.register(`items.${index}.weight_kg`, {
+                          setValueAs: (v) => (v === "" || v == null ? null : Number(v)),
+                        })}
+                      />
+                      <p className="text-xs text-muted-foreground">Enter this circle&apos;s weight and its price per unit.</p>
+                    </div>
+                  )}
+                  {mat?.circle_type === "non_ib" && mat.weight_kg != null && (
+                    <p className="text-xs text-muted-foreground">Weight: {mat.weight_kg} kg/pc (auto from size)</p>
+                  )}
                   {mat?.category_name && (
                     <p className="text-xs text-muted-foreground">Category: {mat.category_name}</p>
                   )}
@@ -391,7 +413,7 @@ export function PurchaseOrderForm({ materials, suppliers }: PurchaseOrderFormPro
             type="button"
             variant="outline"
             size="sm"
-            onClick={() => append({ material_id: "", quantity_ordered: 0, unit_price: 0 })}
+            onClick={() => append({ material_id: "", quantity_ordered: 0, unit_price: 0, weight_kg: null })}
           >
             <Plus className="h-4 w-4" />
             Add Material

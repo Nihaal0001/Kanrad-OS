@@ -236,6 +236,7 @@ export function ItemMasterTable({ materials, categories }: ItemMasterTableProps)
                 <TableHead>Name</TableHead>
                 <TableHead>Category</TableHead>
                 <TableHead>Unit</TableHead>
+                <TableHead className="text-right">Weight (kg/pc)</TableHead>
                 <TableHead>Supplier</TableHead>
                 <TableHead className="w-[50px]">
                   <span className="sr-only">Actions</span>
@@ -266,6 +267,9 @@ export function ItemMasterTable({ materials, categories }: ItemMasterTableProps)
                     )}
                   </TableCell>
                   <TableCell className="text-muted-foreground">{material.unit}</TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {material.weight_kg != null ? Number(material.weight_kg).toFixed(4) : "—"}
+                  </TableCell>
                   <TableCell>
                     {material.supplier_name ?? (
                       <span className="text-muted-foreground">—</span>

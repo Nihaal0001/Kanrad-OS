@@ -225,6 +225,7 @@ export function MaterialsTable({ materials, categories, initialShowLowStock = fa
                 <TableHead className="text-right">Stock (pcs)</TableHead>
                 <TableHead className="text-right">Min</TableHead>
                 <TableHead>Unit</TableHead>
+                <TableHead className="text-right">Weight (kg/pc)</TableHead>
                 <TableHead className="text-right">Avg Cost</TableHead>
                 <TableHead className="text-right">Stock Value</TableHead>
                 <TableHead className="w-[50px]">
@@ -282,6 +283,9 @@ export function MaterialsTable({ materials, categories, initialShowLowStock = fa
                   <TableCell className="text-muted-foreground">
                     {material.unit}
                   </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {material.weight_kg != null ? Number(material.weight_kg).toFixed(4) : "—"}
+                  </TableCell>
                   <TableCell className="text-right tabular-nums font-semibold">
                     {material.cost_per_unit > 0
                       ? formatCurrency(material.cost_per_unit)
@@ -333,7 +337,7 @@ export function MaterialsTable({ materials, categories, initialShowLowStock = fa
             </TableBody>
             <TableFooter>
               <TableRow>
-                <TableCell colSpan={9} className="text-right text-sm font-medium">
+                <TableCell colSpan={10} className="text-right text-sm font-medium">
                   Stock value {filteredMaterials.length === materials.length ? "(all materials)" : "(filtered)"}
                 </TableCell>
                 <TableCell className="text-right tabular-nums font-bold">
