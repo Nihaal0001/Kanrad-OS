@@ -55,8 +55,32 @@ const STATUS_FILTERS = [
   { value: "cancelled", label: "Cancelled" },
 ] as const
 
+type PurchaseOrderRow = PurchaseOrder & {
+  items?: {
+    quantity_ordered: number
+    quantity_received: number
+    material: { unit: string } | { unit: string }[] | null
+  }[]
+}
+
 interface PurchaseOrdersTableProps {
-  purchaseOrders: PurchaseOrder[]
+  purchaseOrders: PurchaseOrderRow[]
+}
+
+/** Received and still-to-receive quantity across a PO's lines (with the unit when they all share one). */
+function receiptSummary(po: PurchaseOrderRow) {
+  const items = po.items ?? []
+  const ordered = items.reduce((s, i) => s + (i.quantity_ordered ?? 0), 0)
+  const received = items.reduce((s, i) => s + (i.quantity_received ?? 0), 0)
+  const pending = Math.max(0, ordered - received)
+  const units = new Set(
+    items.map((i) => (Array.isArray(i.material) ? i.material[0]?.unit : i.material?.unit)).filter(Boolean)
+  )
+  return { received, pending, unit: units.size === 1 ? [...units][0] : "" }
+}
+
+function qty(n: number): string {
+  return n.toLocaleString("en-IN", { maximumFractionDigits: 2 })
 }
 
 export function PurchaseOrdersTable({ purchaseOrders }: PurchaseOrdersTableProps) {
@@ -153,6 +177,8 @@ export function PurchaseOrdersTable({ purchaseOrders }: PurchaseOrdersTableProps
                 <TableHead>Order Date</TableHead>
                 <TableHead>Expected</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
+                <TableHead className="text-right">Received</TableHead>
+                <TableHead className="text-right">Yet to Receive</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Approval</TableHead>
                 <TableHead className="w-[50px]">
@@ -183,6 +209,19 @@ export function PurchaseOrdersTable({ purchaseOrders }: PurchaseOrdersTableProps
                   <TableCell className="text-right tabular-nums">
                     {formatCurrency(po.total_amount)}
                   </TableCell>
+                  {(() => {
+                    const r = receiptSummary(po)
+                    return (
+                      <>
+                        <TableCell className="text-right tabular-nums text-emerald-600">
+                          {qty(r.received)} {r.unit}
+                        </TableCell>
+                        <TableCell className={cn("text-right tabular-nums", r.pending > 0 ? "text-amber-600 font-medium" : "text-muted-foreground")}>
+                          {r.pending > 0 ? `${qty(r.pending)} ${r.unit}` : "—"}
+                        </TableCell>
+                      </>
+                    )
+                  })()}
                   <TableCell>
                     <StatusBadge status={po.status} />
                   </TableCell>

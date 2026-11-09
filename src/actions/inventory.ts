@@ -539,7 +539,7 @@ export async function getPurchaseOrders(filters?: { status?: string; approval_st
       const supabase = createAdminClient()
       let query = supabase
         .from("purchase_orders")
-        .select("*")
+        .select("*, items:purchase_order_items(quantity_ordered, quantity_received, material:materials(unit))")
         .order("created_at", { ascending: false })
 
       if (filters?.status) query = query.eq("status", filters.status)
