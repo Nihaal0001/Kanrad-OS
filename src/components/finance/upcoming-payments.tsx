@@ -148,7 +148,6 @@ function CalendarView({ items, today }: { items: UpcomingPayment[]; today: strin
   const monthTotals = totals(monthRows)
   const dayRows = byDay.get(selected) ?? []
   const dayTotals = totals(dayRows)
-  const overdue = items.filter((p) => p.due_date < today)
 
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
@@ -175,17 +174,11 @@ function CalendarView({ items, today }: { items: UpcomingPayment[]; today: strin
           </div>
           <p className="text-xs text-muted-foreground">
             This month:{" "}
-            <span className="font-medium text-orange-600">pay {formatCurrency(monthTotals.out)}</span>
+            <span className="font-medium text-orange-600">Pay {formatCurrency(monthTotals.out)}</span>
             {" · "}
-            <span className="font-medium text-emerald-600">receive {formatCurrency(monthTotals.inc)}</span>
+            <span className="font-medium text-emerald-600">Receive {formatCurrency(monthTotals.inc)}</span>
           </p>
         </div>
-
-        {overdue.length > 0 && (
-          <p className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
-            {overdue.length} item{overdue.length > 1 ? "s are" : " is"} past due — they sit on their original due dates in earlier months.
-          </p>
-        )}
 
         <div className="overflow-hidden rounded-xl border border-border bg-card">
           <div className="grid grid-cols-7 border-b border-border bg-muted/40">

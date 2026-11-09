@@ -15,7 +15,6 @@ export default async function UpcomingPaymentsPage() {
     <>
       <PageHeader
         title="Payment Calendar"
-        description="Money coming in from customers and going out to suppliers, by due date"
         breadcrumbs={[{ label: "Finance", href: "/finance" }, { label: "Payment Calendar" }]}
       />
 
