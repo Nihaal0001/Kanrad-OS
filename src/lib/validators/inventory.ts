@@ -58,8 +58,6 @@ export const purchaseOrderSchema = z.object({
         // Circles are ordered in kg at a price per kg; quantity_ordered / unit_price then hold the pcs equivalent
         quantity_kg: z.number().positive("Kg must be greater than 0").nullable().optional(),
         price_per_kg: z.number().min(0, "Price cannot be negative").nullable().optional(),
-        // IB circles: price of the IB plate per piece, added to the aluminium price
-        ib_plate_price: z.number().min(0, "Price cannot be negative").nullable().optional(),
       })
     )
     .min(1, "At least one item is required"),
