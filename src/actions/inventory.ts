@@ -1,6 +1,7 @@
 "use server"
 
 import { billDueDateFromToday, todayIST } from "@/lib/payment-terms"
+import { bomQtyInStockUnit } from "@/lib/costing"
 import { revalidatePath, revalidateTag, unstable_cache } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -121,7 +122,7 @@ export async function getMaterialsForOrders(orderIds: string[]) {
 
   const { data: boms, error: bomError } = await supabase
     .from("bom_headers")
-    .select("product_name, bom_items(qty_required, wastage_pct, material:materials(*, category:material_categories(id, name)))")
+    .select("product_name, bom_items(qty_required, unit, wastage_pct, material:materials(*, category:material_categories(id, name)))")
     .in("product_name", productNames)
     .eq("is_active", true)
   if (bomError) throw new Error(bomError.message)
@@ -133,7 +134,8 @@ export async function getMaterialsForOrders(orderIds: string[]) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const mat = Array.isArray(item.material) ? item.material[0] : item.material as any
       if (!mat) continue
-      const perUnit = item.qty_required * (1 + (item.wastage_pct ?? 0) / 100)
+      // A circle counted in pcs is drawn from stock in kg (pcs × weight per piece)
+      const perUnit = bomQtyInStockUnit(item.qty_required, mat, item.unit) * (1 + (item.wastage_pct ?? 0) / 100)
       const required = perUnit * orderedQty
       const existing = byId.get(mat.id)
       const requiredQty = (existing?.requiredQty ?? 0) + required

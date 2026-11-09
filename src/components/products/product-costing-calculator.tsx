@@ -36,7 +36,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { CIRCLE_WEIGHT_FACTOR } from "@/lib/circle-calc"
-import { effectiveCostPerUnit } from "@/lib/costing"
+import { bomUnitCost } from "@/lib/costing"
 import { saveProductCosting } from "@/actions/bom"
 
 const ALU_CIRCLE_RE = /^alu\s*circle/i
@@ -143,7 +143,7 @@ export function ProductCostingCalculator({
           }
         }
 
-        const actualRate = effectiveCostPerUnit(mat)
+        const actualRate = bomUnitCost(mat, item.unit)
 
         const hasPrice = pricingMode === "market" && isCircle
           ? marketAluPriceNum > 0 && marketCost !== null
@@ -370,7 +370,7 @@ export function ProductCostingCalculator({
                                 return <span className="text-amber-500 font-medium">Enter alu price</span>
                               }
                               return line.hasPrice
-                                ? <span>₹{formatCurrency(effectiveCostPerUnit(line.material))}</span>
+                                ? <span>₹{formatCurrency(bomUnitCost(line.material, line.unit))}</span>
                                 : <span className="text-amber-500 font-medium">No price</span>
                             })()}
                           </p>

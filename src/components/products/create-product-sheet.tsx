@@ -1,5 +1,6 @@
 "use client"
 
+import { bomUnitCost, circlePieceWeightKg, defaultBomUnit } from "@/lib/costing"
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { useForm, useFieldArray } from "react-hook-form"
@@ -30,7 +31,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 
-type MaterialOption = Pick<Material, "id" | "name" | "sku" | "cost_per_unit" | "unit">
+type MaterialOption = Pick<Material, "id" | "name" | "sku" | "cost_per_unit" | "unit" | "weight_kg" | "circle_type" | "diameter_mm" | "thickness_mm">
 
 interface Props {
   materials: MaterialOption[]
@@ -72,7 +73,7 @@ export function CreateProductSheet({ materials }: Props) {
     const mat = materialsMap[item.material_id]
     if (!mat) return sum
     const effectiveQty = (item.qty_required || 0) * (1 + (item.wastage_pct || 0) / 100)
-    return sum + effectiveQty * mat.cost_per_unit
+    return sum + effectiveQty * bomUnitCost(mat, item.unit)
   }, 0)
 
   function handleOpen() {
@@ -170,7 +171,7 @@ export function CreateProductSheet({ materials }: Props) {
                   const item = watchedItems[index]
                   const mat = item ? materialsMap[item.material_id] : null
                   const effectiveQty = (item?.qty_required || 0) * (1 + (item?.wastage_pct || 0) / 100)
-                  const lineCost = mat ? effectiveQty * mat.cost_per_unit : 0
+                  const lineCost = mat ? effectiveQty * bomUnitCost(mat, item?.unit) : 0
 
                   return (
                     <div key={field.id} className="rounded-lg border p-3 space-y-3">
@@ -201,7 +202,7 @@ export function CreateProductSheet({ materials }: Props) {
                           onValueChange={(v) => {
                             form.setValue(`items.${index}.material_id`, v, { shouldValidate: true })
                             const m = materialsMap[v]
-                            if (m) form.setValue(`items.${index}.unit`, m.unit)
+                            if (m) form.setValue(`items.${index}.unit`, defaultBomUnit(m))
                           }}
                         >
                           <SelectTrigger>
@@ -214,7 +215,9 @@ export function CreateProductSheet({ materials }: Props) {
                                 {m.name}
                                 {m.cost_per_unit > 0 && (
                                   <span className="ml-2 text-xs text-muted-foreground">
-                                    ₹{m.cost_per_unit}/{m.unit}
+                                    {circlePieceWeightKg(m)
+                                      ? `₹${bomUnitCost(m, "pcs").toFixed(2)}/pc`
+                                      : `₹${m.cost_per_unit}/${m.unit}`}
                                   </span>
                                 )}
                               </SelectItem>

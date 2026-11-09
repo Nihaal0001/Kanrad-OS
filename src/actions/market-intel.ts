@@ -3,6 +3,7 @@
 import { unstable_cache, revalidateTag } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { bomUnitCost } from "@/lib/costing"
 import { generateMarketBrief, type MarketBrief } from "@/lib/market/brief"
 import { syncPcpsHistory } from "@/actions/fetch-commodity-prices"
 
@@ -182,7 +183,7 @@ export const getBomCostImpact = unstable_cache(
       for (const rawItem of (bom.items ?? []) as any[]) {
         const material = Array.isArray(rawItem.material) ? rawItem.material[0] : rawItem.material
         const category = Array.isArray(material?.category) ? material.category[0] : material?.category
-        const costPerUnit = Number(material?.cost_per_unit ?? 0)
+        const costPerUnit = material ? bomUnitCost(material, rawItem.unit) : 0
         const effectiveQty = Number(rawItem.qty_required) * (1 + Number(rawItem.wastage_pct ?? 0) / 100)
         const line = effectiveQty * costPerUnit
         costNow += line

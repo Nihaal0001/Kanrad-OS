@@ -8,6 +8,7 @@ import {
   type StageUpdateFormData,
 } from "@/lib/validators/production"
 import { logAudit } from "@/actions/audit"
+import { bomQtyInStockUnit } from "@/lib/costing"
 
 // ==================== Production Stages ====================
 
@@ -436,7 +437,7 @@ export async function logDailyProduction(data: {
   const { data: bomItems } = bom
     ? await admin
         .from("bom_items")
-        .select("qty_required, wastage_pct, material:materials(id, name, sku, current_stock, unit)")
+        .select("qty_required, unit, wastage_pct, material:materials(id, name, sku, current_stock, unit, weight_kg, circle_type, diameter_mm, thickness_mm, cost_per_unit)")
         .eq("bom_id", bom.id)
     : { data: null }
 
@@ -449,7 +450,7 @@ export async function logDailyProduction(data: {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const mat = Array.isArray(bi.material) ? bi.material[0] : bi.material as any
       if (!mat) continue
-      const needed = bi.qty_required * (1 + (bi.wastage_pct ?? 0) / 100) * deltaProduced
+      const needed = bomQtyInStockUnit(bi.qty_required, mat, bi.unit) * (1 + (bi.wastage_pct ?? 0) / 100) * deltaProduced
       if (needed > (mat.current_stock ?? 0)) {
         short.push(`${mat.name} (need ${Math.round(needed * 100) / 100} ${mat.unit}, have ${mat.current_stock ?? 0})`)
       }
@@ -506,7 +507,7 @@ export async function logDailyProduction(data: {
           const mat = Array.isArray(bi.material) ? bi.material[0] : bi.material as any
           if (!mat) return
           const back = Math.round(
-            bi.qty_required * (1 + (bi.wastage_pct ?? 0) / 100) * -deltaProduced * 10000
+            bomQtyInStockUnit(bi.qty_required, mat, bi.unit) * (1 + (bi.wastage_pct ?? 0) / 100) * -deltaProduced * 10000
           ) / 10000
           if (back <= 0) return
           const { error: returnError } = await admin.from("stock_transactions").insert({
@@ -550,7 +551,7 @@ export async function logDailyProduction(data: {
           const mat = Array.isArray(bi.material) ? bi.material[0] : bi.material as any
           if (!mat) return
           const needed = Math.round(
-            bi.qty_required * (1 + (bi.wastage_pct ?? 0) / 100) * deltaProduced * 10000
+            bomQtyInStockUnit(bi.qty_required, mat, bi.unit) * (1 + (bi.wastage_pct ?? 0) / 100) * deltaProduced * 10000
           ) / 10000
           if (needed <= 0) return
 

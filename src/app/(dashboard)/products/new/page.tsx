@@ -13,6 +13,10 @@ export default async function NewProductPage() {
       cost_per_unit: m.cost_per_unit,
       unit: m.unit,
       current_stock: m.current_stock,
+      weight_kg: m.weight_kg ?? null,
+      circle_type: m.circle_type ?? null,
+      diameter_mm: m.diameter_mm ?? null,
+      thickness_mm: m.thickness_mm ?? null,
       category_id: m.category_id ?? null,
       category_name: (m.category as { id: string; name: string } | null)?.name ?? null,
     }))

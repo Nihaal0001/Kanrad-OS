@@ -3,7 +3,7 @@ import Link from "next/link"
 import { ArrowLeft, Pencil, Calculator, Package, AlertTriangle } from "lucide-react"
 
 import { getProduct } from "@/actions/bom"
-import { effectiveCostPerUnit } from "@/lib/costing"
+import { bomUnitCost, bomQtyInStockUnit } from "@/lib/costing"
 import { PageHeader } from "@/components/shared/page-header"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -45,10 +45,10 @@ export default async function ProductDetailPage({ params }: Props) {
   // Calculate costs
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const bomLines = product.bom_items.map((item: any) => {
-    const costPerUnit = effectiveCostPerUnit(item.material)
+    const costPerUnit = bomUnitCost(item.material, item.unit)
     const effectiveQty = item.qty_required * (1 + (item.wastage_pct ?? 0) / 100)
     const lineCost = effectiveQty * costPerUnit
-    const lowStock = item.material ? item.material.current_stock < item.qty_required : false
+    const lowStock = item.material ? item.material.current_stock < bomQtyInStockUnit(item.qty_required, item.material, item.unit) : false
     return { ...item, effectiveQty, lineCost, lowStock }
   })
 
@@ -130,7 +130,7 @@ export default async function ProductDetailPage({ params }: Props) {
                         {line.wastage_pct > 0 ? `${line.wastage_pct}%` : "—"}
                       </TableCell>
                       <TableCell className="text-right tabular-nums">{line.effectiveQty.toFixed(4)}</TableCell>
-                      <TableCell className="text-right tabular-nums">₹{formatCurrency(effectiveCostPerUnit(line.material))}</TableCell>
+                      <TableCell className="text-right tabular-nums">₹{formatCurrency(bomUnitCost(line.material, line.unit))}</TableCell>
                       <TableCell className="text-right font-semibold tabular-nums">₹{formatCurrency(line.lineCost)}</TableCell>
                     </TableRow>
                   ))}

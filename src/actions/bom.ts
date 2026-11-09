@@ -10,7 +10,7 @@ import {
   type ProductCostingDefaultsFormData,
 } from "@/lib/validators/bom"
 import { logAudit } from "@/actions/audit"
-import { effectiveCostPerUnit } from "@/lib/costing"
+import { bomUnitCost } from "@/lib/costing"
 
 export const getProducts = unstable_cache(
   async () => {
@@ -21,7 +21,7 @@ export const getProducts = unstable_cache(
         *,
         bom_items(
           id, material_id, qty_required, unit, wastage_pct,
-          material:materials(id, name, sku, cost_per_unit, unit, current_stock, category:material_categories(name))
+          material:materials(id, name, sku, cost_per_unit, unit, current_stock, weight_kg, circle_type, diameter_mm, thickness_mm, category:material_categories(name))
         )
       `)
       .eq("is_active", true)
@@ -37,7 +37,7 @@ export const getProducts = unstable_cache(
         return { ...item, material: material ? { ...material, category_name: category?.name ?? null } : null }
       })
       const materialCost = items.reduce((sum: number, item: any) => {
-        const costPerUnit = effectiveCostPerUnit(item.material)
+        const costPerUnit = bomUnitCost(item.material, item.unit)
         const effective = item.qty_required * (1 + (item.wastage_pct ?? 0) / 100)
         return sum + effective * costPerUnit
       }, 0)
@@ -58,7 +58,7 @@ export async function getProduct(id: string) {
           *,
           bom_items(
             id, material_id, qty_required, unit, wastage_pct, notes,
-            material:materials(id, name, sku, cost_per_unit, unit, current_stock, category:material_categories(name))
+            material:materials(id, name, sku, cost_per_unit, unit, current_stock, weight_kg, circle_type, diameter_mm, thickness_mm, category:material_categories(name))
           )
         `)
         .eq("id", id)
@@ -272,7 +272,7 @@ export async function getProductByCostForOrder(bomId: string, quantity: number) 
       id, product_sku, product_name,
       bom_items(
         id, material_id, qty_required, unit, wastage_pct,
-        material:materials(id, name, cost_per_unit, unit)
+        material:materials(id, name, cost_per_unit, unit, weight_kg, circle_type, diameter_mm, thickness_mm)
       )
     `)
     .eq("id", bomId)
@@ -289,7 +289,7 @@ export async function getProductByCostForOrder(bomId: string, quantity: number) 
   let totalMaterialCost = 0
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const breakdown = items.map((item: any) => {
-    const costPerUnit = effectiveCostPerUnit(item.material)
+    const costPerUnit = bomUnitCost(item.material, item.unit)
     const effectiveQty = item.qty_required * (1 + (item.wastage_pct ?? 0) / 100)
     const lineCost = effectiveQty * costPerUnit * quantity
     totalMaterialCost += lineCost

@@ -11,6 +11,7 @@ import { bomSchema, type BomFormData } from "@/lib/validators/bom"
 import { createProduct, updateProduct } from "@/actions/bom"
 import type { BomDetail, Material } from "@/lib/supabase/types"
 import { cn } from "@/lib/utils"
+import { bomUnitCost, circlePieceWeightKg, defaultBomUnit } from "@/lib/costing"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -31,7 +32,7 @@ import {
 } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 
-type MaterialOption = Pick<Material, "id" | "name" | "sku" | "cost_per_unit" | "unit" | "current_stock"> & {
+type MaterialOption = Pick<Material, "id" | "name" | "sku" | "cost_per_unit" | "unit" | "current_stock" | "weight_kg" | "circle_type" | "diameter_mm" | "thickness_mm"> & {
   category_id?: string | null
   category_name?: string | null
 }
@@ -127,7 +128,7 @@ function MaterialCombobox({ materials, value, categoryFilter, onChange }: Materi
                 )}
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => {
-                  onChange(m.id, m.unit)
+                  onChange(m.id, defaultBomUnit(m))
                   setOpen(false)
                   setFocused(false)
                   setQuery("")
@@ -144,7 +145,9 @@ function MaterialCombobox({ materials, value, categoryFilter, onChange }: Materi
                     {m.name}
                   </span>
                   <span className="text-xs text-muted-foreground">
-                    ₹{m.cost_per_unit}/{m.unit}
+                    {circlePieceWeightKg(m)
+                      ? `₹${bomUnitCost(m, "pcs").toFixed(2)}/pc`
+                      : `₹${m.cost_per_unit}/${m.unit}`}
                     {m.category_name && <span className="ml-2">· {m.category_name}</span>}
                   </span>
                 </span>
@@ -205,7 +208,7 @@ export function BomForm({ product, materials }: BomFormProps) {
     const mat = materialsMap[item.material_id]
     if (!mat) return sum
     const effectiveQty = (item.qty_required || 0) * (1 + (item.wastage_pct || 0) / 100)
-    return sum + effectiveQty * mat.cost_per_unit
+    return sum + effectiveQty * bomUnitCost(mat, item.unit)
   }, 0)
 
   async function onSubmit(data: BomFormData) {
@@ -345,7 +348,7 @@ export function BomForm({ product, materials }: BomFormProps) {
             const item = watchedItems[index]
             const mat = item ? materialsMap[item.material_id] : null
             const effectiveQty = (item?.qty_required || 0) * (1 + (item?.wastage_pct || 0) / 100)
-            const lineCost = mat ? effectiveQty * mat.cost_per_unit : 0
+            const lineCost = mat ? effectiveQty * bomUnitCost(mat, item?.unit) : 0
             const categoryFilter = rowCategories[index] ?? ""
 
             return (
@@ -439,7 +442,10 @@ export function BomForm({ product, materials }: BomFormProps) {
                 {/* Price (from material master) */}
                 <div className="flex flex-col items-end justify-center h-9 text-sm tabular-nums text-muted-foreground">
                   <span className="sm:hidden text-xs self-start text-muted-foreground">Price</span>
-                  {mat ? `₹${formatCurrency(mat.cost_per_unit)}/${mat.unit}` : "—"}
+                  {mat ? `₹${formatCurrency(bomUnitCost(mat, item?.unit))}/${item?.unit || mat.unit}` : "—"}
+                  {mat?.circle_type === "ib" && !circlePieceWeightKg(mat) && (
+                    <span className="text-[10px] text-amber-600">Weight not set yet — add it on a PO</span>
+                  )}
                 </div>
 
                 {/* Line cost */}
