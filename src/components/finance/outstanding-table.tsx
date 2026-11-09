@@ -11,7 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import type { OutstandingBill } from "@/lib/tally/outstanding"
+import type { OutstandingBill } from "@/lib/finance-types"
 
 type Filter = "all" | "incoming" | "outgoing"
 type SortKey = "amount" | "due_date"

@@ -11,7 +11,7 @@ import {
   Legend,
 } from "recharts"
 import { useTheme } from "next-themes"
-import type { OutstandingBill } from "@/lib/tally/outstanding"
+import type { OutstandingBill } from "@/lib/finance-types"
 
 function bucketOf(due: string | null): "Overdue" | "Due Soon" | "Upcoming" {
   if (!due) return "Upcoming"

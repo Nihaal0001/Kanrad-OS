@@ -263,20 +263,16 @@ export const getDemandForecast = unstable_cache(
 )
 
 export type SalesForecast = {
-  isSample: boolean
   series: { month: string; label: string; revenue: number; ma3: number | null; projected?: boolean }[]
   kpis: { trailing12mRevenue: number; momGrowthPct: number | null; nextMonthProjection: number }
   trend: "up" | "down" | "stable"
 }
 
-/** Monthly net sales (Sales − Credit Notes) from Tally vouchers, 12 actual
- *  months + 3 regression-projected, with a 3-month moving average. Sample
- *  data (isSample) until the Tally connector's first voucher sync. */
+/** Monthly net sales (invoices − credit notes), 12 actual months + 3
+ *  regression-projected, with a 3-month moving average. */
 export const getSalesForecast = unstable_cache(
   async (): Promise<SalesForecast> => {
-    const { getVouchers } = await import("@/lib/tally/vouchers")
-    const { vouchers, isSample } = await getVouchers(12)
-
+    const supabase = createAdminClient()
     const now = new Date()
     const monthOrder: string[] = []
     const monthLabels = new Map<string, string>()
@@ -287,12 +283,30 @@ export const getSalesForecast = unstable_cache(
       monthLabels.set(key, d.toLocaleString("en-IN", { month: "short", year: "2-digit" }))
     }
 
+    const windowStart = `${monthOrder[0]}-01`
+    const [salesRes, creditRes] = await Promise.all([
+      supabase
+        .from("invoices")
+        .select("total_amount, issue_date")
+        .gte("issue_date", windowStart)
+        .not("status", "in", "(cancelled,draft)"),
+      supabase
+        .from("credit_notes")
+        .select("total_amount, issue_date")
+        .gte("issue_date", windowStart)
+        .eq("status", "issued"),
+    ])
+    if (salesRes.error) throw new Error(salesRes.error.message)
+    if (creditRes.error) throw new Error(creditRes.error.message)
+
     const revenueByMonth = new Map<string, number>(monthOrder.map((k) => [k, 0]))
-    for (const v of vouchers) {
-      const key = v.voucher_date.slice(0, 7)
-      if (!revenueByMonth.has(key)) continue
-      if (v.voucher_type === "Sales") revenueByMonth.set(key, revenueByMonth.get(key)! + v.amount)
-      else if (v.voucher_type === "Credit Note") revenueByMonth.set(key, revenueByMonth.get(key)! - v.amount)
+    for (const v of salesRes.data ?? []) {
+      const key = v.issue_date.slice(0, 7)
+      if (revenueByMonth.has(key)) revenueByMonth.set(key, revenueByMonth.get(key)! + (v.total_amount ?? 0))
+    }
+    for (const v of creditRes.data ?? []) {
+      const key = v.issue_date.slice(0, 7)
+      if (revenueByMonth.has(key)) revenueByMonth.set(key, revenueByMonth.get(key)! - (v.total_amount ?? 0))
     }
 
     const actuals = monthOrder.map((key) => ({
@@ -340,14 +354,13 @@ export const getSalesForecast = unstable_cache(
     const slopePct = yMean > 0 ? slope / yMean : 0
 
     return {
-      isSample,
       series: [...withMa, ...projections],
       kpis: { trailing12mRevenue, momGrowthPct, nextMonthProjection: projections[0]?.revenue ?? 0 },
       trend: slopePct > 0.02 ? "up" : slopePct < -0.02 ? "down" : "stable",
     }
   },
   ["sales-forecast"],
-  { tags: ["tally"], revalidate: 3600 }
+  { tags: ["finance", "invoices"], revalidate: 300 }
 )
 
 export const getInventoryForecast = unstable_cache(

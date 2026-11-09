@@ -38,7 +38,7 @@ export function ExpenseBreakdownChart({ data }: ExpenseBreakdownChartProps) {
   if (data.length === 0) {
     return (
       <div className="flex items-center justify-center h-[250px] text-sm text-muted-foreground">
-        No expense ledgers synced from Tally yet
+        No purchases or expenses recorded yet
       </div>
     )
   }

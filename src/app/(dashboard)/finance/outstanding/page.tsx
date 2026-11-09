@@ -1,8 +1,8 @@
 import nextDynamic from "next/dynamic"
 import { Skeleton } from "@/components/ui/skeleton"
-import { ArrowDownLeft, ArrowUpRight, Scale, Info } from "lucide-react"
+import { ArrowDownLeft, ArrowUpRight, Scale } from "lucide-react"
 
-import { getCashflowOutstanding } from "@/actions/tally"
+import { getCashflowOutstanding } from "@/actions/finance-overview"
 import { PageHeader } from "@/components/shared/page-header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 const OutstandingChart = nextDynamic(() => import("@/components/finance/outstanding-chart").then((m) => m.OutstandingChart), {
@@ -14,23 +14,16 @@ import { formatCurrency, formatDateRelative, cn } from "@/lib/utils"
 export const dynamic = "force-dynamic"
 
 export default async function OutstandingPage() {
-  const { bills, totals, isSample, asOf } = await getCashflowOutstanding()
+  const { bills, totals, asOf } = await getCashflowOutstanding()
   const net = totals.net
 
   return (
     <>
       <PageHeader
         title="Cashflow — Receivables & Payables"
-        description="Outstanding incoming and outgoing from Tally"
+        description="Unpaid customer invoices and supplier bills"
         breadcrumbs={[{ label: "Finance", href: "/finance" }, { label: "Outstanding" }]}
       />
-
-      {isSample && (
-        <div className="mb-5 flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-sm text-amber-700 dark:text-amber-400">
-          <Info className="h-4 w-4 shrink-0" />
-          Showing sample data. Run the Tally connector to pull your real receivables & payables.
-        </div>
-      )}
 
       {/* Summary cards */}
       <div className="mb-6 grid gap-4 sm:grid-cols-3">

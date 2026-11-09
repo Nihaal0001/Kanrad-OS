@@ -9,7 +9,6 @@ import { useTheme } from "next-themes"
 import { TrendingUp, TrendingDown, Minus, AlertTriangle, Package, Download } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { TallySourceBadge } from "@/components/finance/tally-source-badge"
 const ForecastCard = nextDynamic(() => import("@/components/market-intel/forecast-card").then((m) => m.ForecastCard), {
   ssr: false,
   loading: () => <Skeleton className="h-72 w-full rounded-xl" />,
@@ -136,8 +135,6 @@ export function ForecastingClient({ demand, inventory, sales, forecastCommoditie
       {/* Sales & Demand Tab */}
       {tab === "demand" && (
         <div className="space-y-6">
-          <TallySourceBadge isSample={sales.isSample} lastSyncedAt={null} />
-
           {/* Revenue KPI row */}
           <div className="grid gap-4 sm:grid-cols-3">
             <Card>

@@ -9,7 +9,6 @@ import {
   Clock,
   CalendarDays,
   CalendarClock,
-  RefreshCcw,
   Bell,
   Settings,
   Users,
@@ -116,7 +115,6 @@ export const flatNavItems: NavItem[] = [
   { title: "Receivables",      href: "/finance/receivables",       icon: Wallet2,         permission: "finance" },
   { title: "Payables",         href: "/finance/payables",          icon: Wallet,          permission: "finance" },
   { title: "Outstanding",      href: "/finance/outstanding",       icon: Scale,           permission: "finance" },
-  { title: "Tally Sync",       href: "/finance/tally",             icon: RefreshCcw,      permission: "finance" },
   { title: "Rejections",       href: "/rejections",                icon: XCircle,         permission: "production" },
   { title: "History",          href: "/history",                   icon: History,         permission: "settings" },
   { title: "Reach Out",        href: "/reach-out",                 icon: Send,            permission: "settings" },
@@ -179,7 +177,6 @@ export const navigation: NavSection[] = [
       { title: "Receivables", href: "/finance/receivables", icon: Wallet2,     permission: "finance" },
       { title: "Payables",    href: "/finance/payables",    icon: Wallet,      permission: "finance" },
       { title: "Outstanding", href: "/finance/outstanding", icon: Scale,       permission: "finance" },
-      { title: "Tally Sync",  href: "/finance/tally",       icon: RefreshCcw,  permission: "finance" },
     ],
   },
   {

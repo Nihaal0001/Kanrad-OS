@@ -18,7 +18,7 @@ const FIN_TAGS = [
   "materials",
 ]
 
-// ===== PO Pipeline (ERP-side; POs only reach Tally once invoiced) =====
+// ===== PO Pipeline (ERP-side) =====
 
 async function _getPOPipeline() {
   const supabase = createAdminClient()

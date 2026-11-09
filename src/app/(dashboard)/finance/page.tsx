@@ -16,7 +16,7 @@ import Link from "next/link"
 
 import { getFinanceDashboard } from "@/actions/finance-reports"
 import { getPOPipeline } from "@/actions/finance-reports"
-import { getTallyFinanceDashboard } from "@/actions/tally"
+import { getFinanceOverview } from "@/actions/finance-overview"
 import { PageHeader } from "@/components/shared/page-header"
 import { StatCard } from "@/components/shared/stat-card"
 const CashFlowChart = nextDynamic(() => import("@/components/finance/cash-flow-chart").then((m) => m.CashFlowChart), {
@@ -29,7 +29,6 @@ const ExpenseBreakdownChart = nextDynamic(() => import("@/components/finance/exp
   loading: () => <Skeleton className="h-72 w-full rounded-xl" />,
 })
 import { TopPartiesCard } from "@/components/finance/top-parties-card"
-import { TallySourceBadge } from "@/components/finance/tally-source-badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 export const dynamic = "force-dynamic"
@@ -44,30 +43,23 @@ function fmt(n: number) {
 }
 
 export default async function FinanceDashboardPage() {
-  const [tally, dashboard, poPipeline] = await Promise.all([
-    getTallyFinanceDashboard(),
+  const [overview, dashboard, poPipeline] = await Promise.all([
+    getFinanceOverview(),
     getFinanceDashboard(),
     getPOPipeline(),
   ])
 
-  const { stats, outstanding } = tally
+  const { stats, outstanding, receivablesAging, payablesAging } = overview
   const { inventoryValue, auditReadiness } = dashboard
   const netPosition = inventoryValue + outstanding.incoming - outstanding.outgoing
-
-  // Tally aging when synced; ERP aging as fallback for real (non-sample) gaps
-  const hasTallyAging = Object.values(tally.receivablesAging).some((v) => v > 0) || Object.values(tally.payablesAging).some((v) => v > 0)
-  const receivablesAging = hasTallyAging || tally.isSample ? tally.receivablesAging : dashboard.receivablesAging
-  const payablesAging = hasTallyAging || tally.isSample ? tally.payablesAging : dashboard.payablesAging
 
   return (
     <>
       <PageHeader
         title="Finance Overview"
-        description="Accounts from Tally — sales, purchases, expenses, and cash at a glance"
+        description="Sales, purchases, receivables, payables and cash at a glance"
         breadcrumbs={[{ label: "Finance" }]}
       />
-
-      <TallySourceBadge isSample={tally.isSample} lastSyncedAt={tally.lastSyncedAt} />
 
       {/* Sales side: what we billed, what came in, what is still owed to us */}
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-3 mb-4">
@@ -149,7 +141,7 @@ export default async function FinanceDashboardPage() {
             </Link>
           </CardHeader>
           <CardContent>
-            <CashFlowChart data={tally.monthlyFlow} />
+            <CashFlowChart data={overview.monthlyFlow} />
           </CardContent>
         </Card>
 
@@ -158,7 +150,7 @@ export default async function FinanceDashboardPage() {
             <CardTitle className="text-base">Sales vs Purchases</CardTitle>
           </CardHeader>
           <CardContent>
-            <TradeTrendChart data={tally.monthlyTrade} />
+            <TradeTrendChart data={overview.monthlyTrade} />
           </CardContent>
         </Card>
       </div>
@@ -168,23 +160,23 @@ export default async function FinanceDashboardPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Expenses by Group</CardTitle>
-            <p className="text-xs text-muted-foreground">Tally ledger groups</p>
+            <p className="text-xs text-muted-foreground">Purchases and expense categories, last 12 months</p>
           </CardHeader>
           <CardContent>
-            <ExpenseBreakdownChart data={tally.expenseBreakdown} />
+            <ExpenseBreakdownChart data={overview.expenseBreakdown} />
           </CardContent>
         </Card>
 
         <TopPartiesCard
           title="Top Customers"
           description="By money received, last 12 months"
-          entries={tally.topCustomers}
+          entries={overview.topCustomers}
           variant="incoming"
         />
         <TopPartiesCard
           title="Top Suppliers"
           description="By payments made, last 12 months"
-          entries={tally.topSuppliers}
+          entries={overview.topSuppliers}
           variant="outgoing"
         />
       </div>
