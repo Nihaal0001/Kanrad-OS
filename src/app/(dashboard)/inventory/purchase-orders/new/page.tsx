@@ -17,6 +17,8 @@ export default async function NewPurchaseOrderPage() {
     cost_per_unit: m.cost_per_unit,
     circle_type: m.circle_type,
     weight_kg: m.weight_kg,
+    diameter_mm: m.diameter_mm,
+    thickness_mm: m.thickness_mm,
     category_name: (m.category as { name: string } | null)?.name ?? null,
   }))
 

@@ -80,3 +80,33 @@ export function bomQtyInStockUnit(
 export function defaultBomUnit(m: CircleCostable | null | undefined): string {
   return circlePieceWeightKg(m) ? "pcs" : m?.unit ?? "kg"
 }
+
+// ── Circles stocked in pcs, ordered in kg ────────────────────────────────────
+// A circle's stock unit is pcs. On a purchase order it is ordered in kg at a price per kg;
+// the PO line stores the equivalent pieces (kg ÷ weight per piece) and price per piece, so
+// receiving, stock and cost averaging all work in pcs.
+
+/** True for aluminium circles: marked IB/non-IB, or a "272X2.4"-style size name. */
+export function isCircleMaterial(m: CircleCostable | null | undefined): boolean {
+  return !!m && (!!m.circle_type || sizeFromName(m.name) !== null)
+}
+
+/** Weight of one piece (kg) regardless of the stock unit: stored weight, else (non-IB) the size formula. */
+export function circleWeightFor(m: CircleCostable | null | undefined): number | null {
+  if (!m) return null
+  if (m.weight_kg && m.weight_kg > 0) return Number(m.weight_kg)
+  if (m.circle_type === "ib") return null
+  const dims =
+    m.diameter_mm && m.thickness_mm
+      ? { dia: Number(m.diameter_mm), thick: Number(m.thickness_mm) }
+      : sizeFromName(m.name)
+  return dims ? dims.dia * dims.dia * dims.thick * CIRCLE_WEIGHT_FACTOR : null
+}
+
+/** Pieces and price per piece for a circle PO line ordered by kg. */
+export function circleLineFromKg(kg: number, pricePerKg: number, weightPerPiece: number) {
+  return {
+    pieces: Math.round(kg / weightPerPiece),
+    unitPrice: Math.round(pricePerKg * weightPerPiece * 100) / 100,
+  }
+}

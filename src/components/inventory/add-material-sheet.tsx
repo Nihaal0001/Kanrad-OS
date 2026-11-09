@@ -67,7 +67,7 @@ export function AddMaterialSheet({ categories }: Props) {
   // Auto-set unit to kg when marked as a circle
   function handleCircleToggle(checked: boolean) {
     form.setValue("is_circle", checked)
-    if (checked) form.setValue("unit", "kg")
+    if (checked) form.setValue("unit", "pcs") // circles are stocked in pcs, ordered in kg on POs
   }
 
   function handleOpen() {

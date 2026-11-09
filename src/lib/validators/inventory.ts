@@ -55,6 +55,9 @@ export const purchaseOrderSchema = z.object({
         unit_price: z.number().min(0, "Price cannot be negative"),
         // Weight per piece (kg) — required for IB circles, checked server-side
         weight_kg: z.number().positive("Weight must be greater than 0").nullable().optional(),
+        // Circles are ordered in kg at a price per kg; quantity_ordered / unit_price then hold the pcs equivalent
+        quantity_kg: z.number().positive("Kg must be greater than 0").nullable().optional(),
+        price_per_kg: z.number().min(0, "Price cannot be negative").nullable().optional(),
       })
     )
     .min(1, "At least one item is required"),

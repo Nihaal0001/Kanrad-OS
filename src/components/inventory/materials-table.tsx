@@ -9,6 +9,7 @@ import type { MaterialWithCategory } from "@/lib/supabase/types"
 import { cn, friendlyError, formatCurrency } from "@/lib/utils"
 import { stockValue } from "@/lib/costing"
 import { calculateCircleWeight, kgToPieces } from "@/lib/circle-calc"
+import { circleWeightFor, isCircleMaterial } from "@/lib/costing"
 import { deleteMaterial } from "@/actions/inventory"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -234,7 +235,11 @@ export function MaterialsTable({ materials, categories, initialShowLowStock = fa
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredMaterials.map((material) => (
+              {filteredMaterials.map((material) => {
+                // Circles are stocked in pcs; the kg column shows pcs × weight per piece
+                const circleRow = isCircleMaterial(material) && material.unit === "pcs"
+                const circleW = circleRow ? circleWeightFor(material) : null
+                return (
                 <TableRow key={material.id} className="hover:bg-muted/40">
                   <TableCell className="font-mono text-xs">
                     <Link
@@ -261,14 +266,22 @@ export function MaterialsTable({ materials, categories, initialShowLowStock = fa
                     />
                   </TableCell>
                   <TableCell className="text-right tabular-nums font-semibold">
-                    {material.current_stock.toLocaleString("en-IN")}
-                    {material.circle_type === "non_ib" && material.diameter_mm && material.thickness_mm && (() => {
-                      const wpp = calculateCircleWeight(material.diameter_mm, material.thickness_mm, "non_ib")
-                      return wpp ? <span className="block text-xs font-normal text-muted-foreground">{wpp.toFixed(4)} kg/pc</span> : null
-                    })()}
+                    {circleRow ? (
+                      circleW ? (material.current_stock * circleW).toLocaleString("en-IN", { maximumFractionDigits: 2 }) : "—"
+                    ) : (
+                      <>
+                        {material.current_stock.toLocaleString("en-IN")}
+                        {material.circle_type === "non_ib" && material.diameter_mm && material.thickness_mm && (() => {
+                          const wpp = calculateCircleWeight(material.diameter_mm, material.thickness_mm, "non_ib")
+                          return wpp ? <span className="block text-xs font-normal text-muted-foreground">{wpp.toFixed(4)} kg/pc</span> : null
+                        })()}
+                      </>
+                    )}
                   </TableCell>
                   <TableCell className="text-right tabular-nums font-semibold">
-                    {material.circle_type === "non_ib" && material.diameter_mm && material.thickness_mm
+                    {circleRow
+                      ? material.current_stock.toLocaleString("en-IN")
+                      : material.circle_type === "non_ib" && material.diameter_mm && material.thickness_mm
                       ? (() => {
                           const pcs = kgToPieces(material.current_stock, material.diameter_mm, material.thickness_mm, "non_ib")
                           return pcs ? pcs.toLocaleString("en-IN") : "—"
@@ -333,7 +346,8 @@ export function MaterialsTable({ materials, categories, initialShowLowStock = fa
                     </DropdownMenu>
                   </TableCell>
                 </TableRow>
-              ))}
+                )
+              })}
             </TableBody>
             <TableFooter>
               <TableRow>

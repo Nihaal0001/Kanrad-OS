@@ -1,7 +1,7 @@
 "use server"
 
 import { billDueDateFromToday, todayIST } from "@/lib/payment-terms"
-import { bomQtyInStockUnit } from "@/lib/costing"
+import { bomQtyInStockUnit, circleLineFromKg, circleWeightFor, isCircleMaterial, type CircleCostable } from "@/lib/costing"
 import { revalidatePath, revalidateTag, unstable_cache } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -612,19 +612,28 @@ export async function createPurchaseOrder(formData: PurchaseOrderFormData) {
 
   if (supplierError || !supplier) return { error: "Selected supplier was not found" }
 
-  // IB aluminium circles must come with their weight per piece and a price
+  // Aluminium circles are ordered in kg (at a price per kg) but stocked and received in pcs;
+  // the PO line stores the pieces and the price per piece. IB circles also need their weight.
+  type CircleMat = CircleCostable & { id: string; name: string }
   const { data: matRows } = await supabase
     .from("materials")
-    .select("id, name, circle_type, weight_kg")
+    .select("id, name, unit, circle_type, weight_kg, diameter_mm, thickness_mm")
     .in("id", validated.items.map((i) => i.material_id))
-  const circleMats = new Map(
-    (matRows ?? [])
-      .filter((m) => m.circle_type)
-      .map((m) => [m.id, m as { id: string; name: string; circle_type: "ib" | "non_ib"; weight_kg: number | null }])
+  const circleMats = new Map<string, CircleMat>(
+    ((matRows ?? []) as CircleMat[]).filter((m) => isCircleMaterial(m)).map((m) => [m.id, m])
   )
-  for (const item of validated.items) {
+  const circleLines = new Map<number, { pieces: number; unitPrice: number; weight: number; kg: number; pricePerKg: number }>()
+  for (const [idx, item] of validated.items.entries()) {
     const mat = circleMats.get(item.material_id)
-    if (mat?.circle_type === "ib") {
+    if (!mat) continue
+    if (item.quantity_kg && item.quantity_kg > 0) {
+      const weight = mat.circle_type === "ib" ? item.weight_kg : circleWeightFor(mat) ?? item.weight_kg
+      if (!weight || weight <= 0) return { error: `Enter the weight (kg) of circle ${mat.name}` }
+      if (!item.price_per_kg || item.price_per_kg <= 0) return { error: `Enter the price per kg of circle ${mat.name}` }
+      const { pieces, unitPrice } = circleLineFromKg(item.quantity_kg, item.price_per_kg, weight)
+      if (pieces < 1) return { error: `${item.quantity_kg} kg is less than one piece of circle ${mat.name}` }
+      circleLines.set(idx, { pieces, unitPrice, weight, kg: item.quantity_kg, pricePerKg: item.price_per_kg })
+    } else if (mat.circle_type === "ib") {
       if (!item.weight_kg || item.weight_kg <= 0) return { error: `Enter the weight (kg) of IB circle ${mat.name}` }
       if (!item.unit_price || item.unit_price <= 0) return { error: `Enter the price of IB circle ${mat.name}` }
     }
@@ -648,10 +657,22 @@ export async function createPurchaseOrder(formData: PurchaseOrderFormData) {
 
   if (poError) return { error: poError.message }
 
-  const poItems = items.map((item) => {
+  const poItems = items.map((item, idx) => {
     const mat = circleMats.get(item.material_id)
+    const line = circleLines.get(idx)
+    if (line) {
+      return {
+        purchase_order_id: po.id,
+        material_id: item.material_id,
+        quantity_ordered: line.pieces,
+        unit_price: line.unitPrice,
+        weight_kg: line.weight,
+        quantity_kg: line.kg,
+        price_per_kg: line.pricePerKg,
+      }
+    }
     // IB circle: the weight typed on the PO. Non-IB circle: the auto-calculated weight.
-    const weight = mat?.circle_type === "ib" ? item.weight_kg : mat?.circle_type === "non_ib" ? mat.weight_kg : null
+    const weight = mat?.circle_type === "ib" ? item.weight_kg : mat ? circleWeightFor(mat) : null
     return {
       purchase_order_id: po.id,
       material_id: item.material_id,
@@ -680,9 +701,13 @@ export async function createPurchaseOrder(formData: PurchaseOrderFormData) {
   // received (see receivePurchaseOrderItem) — raising a PO must not overwrite it.
   // An IB circle's weight is whatever the latest PO says; non-IB weight stays formula-driven.
   await Promise.all(
-    items
-      .filter((item) => item.material_id && item.weight_kg && circleMats.get(item.material_id)?.circle_type === "ib")
-      .map((item) => supabase.from("materials").update({ weight_kg: item.weight_kg }).eq("id", item.material_id))
+    items.flatMap((item, idx) => {
+      const mat = circleMats.get(item.material_id)
+      const weight = circleLines.get(idx)?.weight ?? item.weight_kg
+      return mat?.circle_type === "ib" && weight
+        ? [supabase.from("materials").update({ weight_kg: weight }).eq("id", item.material_id)]
+        : []
+    })
   )
   revalidateTag("materials", {})
   revalidateTag("bom", {})

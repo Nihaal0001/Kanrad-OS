@@ -1,5 +1,6 @@
 "use client"
 
+import { circleLineFromKg, circleWeightFor, isCircleMaterial } from "@/lib/costing"
 import { useRef, useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useForm, useFieldArray } from "react-hook-form"
@@ -40,6 +41,8 @@ export interface POMaterialOption {
   category_name?: string | null
   circle_type?: "ib" | "non_ib" | null
   weight_kg?: number | null
+  diameter_mm?: number | null
+  thickness_mm?: number | null
 }
 
 export interface POSupplierOption {
@@ -171,12 +174,30 @@ export function PurchaseOrderForm({ materials, suppliers }: PurchaseOrderFormPro
       terms_of_delivery: "",
       mode_of_payment: "",
       order_ids: [],
-      items: [{ material_id: "", quantity_ordered: 0, unit_price: 0, weight_kg: null }],
+      items: [{ material_id: "", quantity_ordered: 0, unit_price: 0, weight_kg: null, quantity_kg: null, price_per_kg: null }],
     },
   })
 
   const { fields, append, remove } = useFieldArray({ control: form.control, name: "items" })
   const watchedItems = form.watch("items")
+
+  // Circles are ordered in kg at a price per kg; the line's pieces and price per piece follow from the weight
+  function recomputeCircle(index: number) {
+    const it = form.getValues(`items.${index}`)
+    const m = materialsMap[it.material_id]
+    if (!m || !isCircleMaterial(m)) return
+    const weight = m.circle_type === "ib" ? it.weight_kg : circleWeightFor(m) ?? it.weight_kg
+    const kg = Number(it.quantity_kg) || 0
+    const perKg = Number(it.price_per_kg) || 0
+    if (weight && weight > 0 && kg > 0) {
+      const { pieces, unitPrice } = circleLineFromKg(kg, perKg, weight)
+      form.setValue(`items.${index}.quantity_ordered`, pieces, { shouldValidate: true })
+      form.setValue(`items.${index}.unit_price`, unitPrice, { shouldValidate: true })
+    } else {
+      form.setValue(`items.${index}.quantity_ordered`, 0)
+      form.setValue(`items.${index}.unit_price`, 0)
+    }
+  }
 
   const totalAmount = watchedItems.reduce((sum, item) => sum + (item.quantity_ordered || 0) * (item.unit_price || 0), 0)
 
@@ -333,6 +354,8 @@ export function PurchaseOrderForm({ materials, suppliers }: PurchaseOrderFormPro
           {fields.map((field, index) => {
             const item = watchedItems[index]
             const mat = item ? materialsMap[item.material_id] : null
+            const circle = !!mat && isCircleMaterial(mat)
+            const circleWeight = mat && circle ? (mat.circle_type === "ib" ? item?.weight_kg : circleWeightFor(mat) ?? item?.weight_kg) : null
             const amount = (item?.quantity_ordered || 0) * (item?.unit_price || 0)
 
             return (
@@ -350,6 +373,17 @@ export function PurchaseOrderForm({ materials, suppliers }: PurchaseOrderFormPro
                       form.setValue(`items.${index}.material_id`, id, { shouldValidate: true })
                       if (m) form.setValue(`items.${index}.unit_price`, m.cost_per_unit)
                       form.setValue(`items.${index}.weight_kg`, m?.circle_type === "ib" ? m.weight_kg ?? null : null)
+                      if (m && isCircleMaterial(m)) {
+                        // Circle: order in kg. Prefill the price per kg from the last average price per piece.
+                        const w = m.circle_type === "ib" ? m.weight_kg : circleWeightFor(m)
+                        form.setValue(`items.${index}.quantity_kg`, null)
+                        form.setValue(`items.${index}.price_per_kg`, w && m.cost_per_unit > 0 ? Math.round((m.cost_per_unit / w) * 100) / 100 : 0)
+                        form.setValue(`items.${index}.quantity_ordered`, 0)
+                        form.setValue(`items.${index}.unit_price`, 0)
+                      } else {
+                        form.setValue(`items.${index}.quantity_kg`, null)
+                        form.setValue(`items.${index}.price_per_kg`, null)
+                      }
                     }}
                   />
                   {mat?.circle_type === "ib" && (
@@ -363,14 +397,20 @@ export function PurchaseOrderForm({ materials, suppliers }: PurchaseOrderFormPro
                         placeholder="e.g. 0.537"
                         {...form.register(`items.${index}.weight_kg`, {
                           setValueAs: (v) => (v === "" || v == null ? null : Number(v)),
+                          onChange: () => recomputeCircle(index),
                         })}
                       />
-                      <p className="text-xs text-muted-foreground">Enter this circle&apos;s weight and its price per unit.</p>
+                      <p className="text-xs text-muted-foreground">Enter this circle&apos;s weight, then the kg and price per kg.</p>
                     </div>
                   )}
-                  {mat?.circle_type === "non_ib" && mat.weight_kg != null && (
-                    <p className="text-xs text-muted-foreground">Weight: {mat.weight_kg} kg/pc (auto from size)</p>
-                  )}
+                  {circle && mat.circle_type !== "ib" && circleWeight ? (
+                    <p className="text-xs text-muted-foreground">Weight: {Number(circleWeight).toFixed(4)} kg/pc (auto from size)</p>
+                  ) : null}
+                  {circle && circleWeight && (item?.quantity_kg ?? 0) > 0 ? (
+                    <p className="text-xs font-medium text-emerald-600">
+                      = {(item?.quantity_ordered ?? 0).toLocaleString("en-IN")} pcs @ ₹{(item?.unit_price ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}/pc — received in pcs
+                    </p>
+                  ) : null}
                   {mat?.category_name && (
                     <p className="text-xs text-muted-foreground">Category: {mat.category_name}</p>
                   )}
@@ -380,27 +420,57 @@ export function PurchaseOrderForm({ materials, suppliers }: PurchaseOrderFormPro
                 </div>
 
                 <div className="space-y-1">
-                  <Label className="sm:hidden text-xs">Quantity {mat ? `(${mat.unit})` : ""}</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    className="h-9"
-                    placeholder="0"
-                    {...form.register(`items.${index}.quantity_ordered`, { valueAsNumber: true })}
-                  />
+                  <Label className="sm:hidden text-xs">Quantity {circle ? "(kg)" : mat ? `(${mat.unit})` : ""}</Label>
+                  {circle ? (
+                    <Input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      className="h-9"
+                      placeholder="kg"
+                      {...form.register(`items.${index}.quantity_kg`, {
+                        setValueAs: (v) => (v === "" || v == null ? null : Number(v)),
+                        onChange: () => recomputeCircle(index),
+                      })}
+                    />
+                  ) : (
+                    <Input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      className="h-9"
+                      placeholder="0"
+                      {...form.register(`items.${index}.quantity_ordered`, { valueAsNumber: true })}
+                    />
+                  )}
+                  {circle && <p className="text-xs text-muted-foreground">ordered in kg</p>}
                 </div>
 
                 <div className="space-y-1">
-                  <Label className="sm:hidden text-xs">Price / Unit</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    className="h-9"
-                    placeholder="0.00"
-                    {...form.register(`items.${index}.unit_price`, { valueAsNumber: true })}
-                  />
+                  <Label className="sm:hidden text-xs">{circle ? "Price / kg" : "Price / Unit"}</Label>
+                  {circle ? (
+                    <Input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      className="h-9"
+                      placeholder="₹ per kg"
+                      {...form.register(`items.${index}.price_per_kg`, {
+                        setValueAs: (v) => (v === "" || v == null ? null : Number(v)),
+                        onChange: () => recomputeCircle(index),
+                      })}
+                    />
+                  ) : (
+                    <Input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      className="h-9"
+                      placeholder="0.00"
+                      {...form.register(`items.${index}.unit_price`, { valueAsNumber: true })}
+                    />
+                  )}
+                  {circle && <p className="text-xs text-muted-foreground">per kg</p>}
                 </div>
 
                 <div className="flex items-center justify-end h-9 text-sm font-medium tabular-nums">
@@ -430,7 +500,7 @@ export function PurchaseOrderForm({ materials, suppliers }: PurchaseOrderFormPro
             type="button"
             variant="outline"
             size="sm"
-            onClick={() => append({ material_id: "", quantity_ordered: 0, unit_price: 0, weight_kg: null })}
+            onClick={() => append({ material_id: "", quantity_ordered: 0, unit_price: 0, weight_kg: null, quantity_kg: null, price_per_kg: null })}
           >
             <Plus className="h-4 w-4" />
             Add Material

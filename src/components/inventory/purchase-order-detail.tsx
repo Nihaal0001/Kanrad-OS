@@ -58,6 +58,8 @@ interface POItem {
   quantity_received: number
   unit_price: number
   weight_kg?: number | null
+  quantity_kg?: number | null
+  price_per_kg?: number | null
   material: {
     id: string
     name: string
@@ -296,6 +298,11 @@ export function PurchaseOrderDetail({ po: initialPo, isAdmin }: PurchaseOrderDet
                     <div>
                       <p className="font-medium">{item.material?.name ?? "Unknown"}</p>
                       <p className="text-xs text-muted-foreground font-mono">{item.material?.sku} · {formatCurrency(item.unit_price)}/{item.material?.unit ?? "unit"}{item.weight_kg != null ? ` · ${Number(item.weight_kg).toFixed(4)} kg/pc` : ""}</p>
+                      {item.quantity_kg != null && (
+                        <p className="text-xs text-emerald-600">
+                          Ordered {Number(item.quantity_kg).toLocaleString("en-IN")} kg @ ₹{Number(item.price_per_kg ?? 0).toLocaleString("en-IN")}/kg = {item.quantity_ordered.toLocaleString("en-IN")} pcs · received in pcs
+                        </p>
+                      )}
                     </div>
                     {fullyReceived && (
                       <span className="flex items-center gap-1 text-xs text-emerald-600 font-medium shrink-0">
