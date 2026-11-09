@@ -173,7 +173,7 @@ function CalendarView({ items, today }: { items: UpcomingPayment[]; today: strin
             </Button>
           </div>
           <p className="text-xs text-muted-foreground">
-            This month:{" "}
+            {monthTitle(month)}:{" "}
             <span className="font-medium text-orange-600">Pay {formatCurrency(monthTotals.out)}</span>
             {" · "}
             <span className="font-medium text-emerald-600">Receive {formatCurrency(monthTotals.inc)}</span>
