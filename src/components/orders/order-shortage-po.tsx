@@ -6,7 +6,7 @@ import { AlertTriangle, Lock } from "lucide-react"
 import { toast } from "sonner"
 
 import { createPurchaseOrder } from "@/actions/inventory"
-import { circleWeightFor, ibCircleUnitPrice } from "@/lib/costing"
+import { circleLineFromKg, circleWeightFor } from "@/lib/costing"
 import { formatCurrency, friendlyError } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -77,14 +77,20 @@ interface RowState {
 }
 
 function initialRow(s: ShortageMaterial): RowState {
+  const circleWeight = circleWeightFor(s)
+  const isCircle = s.circle_type === "ib" || s.circle_type === "non_ib"
   return {
     supplierId: "",
     orderDate: new Date().toISOString().slice(0, 10),
     expectedDate: "",
     price: s.cost_per_unit,
-    aluminiumPricePerKg: 0,
+    aluminiumPricePerKg: isCircle && s.circle_type !== "ib" && circleWeight && s.cost_per_unit > 0
+      ? Math.round((s.cost_per_unit / circleWeight) * 100) / 100
+      : 0,
     ibPlatePrice: 0,
-    quantity: s.shortage,
+    quantity: isCircle && circleWeight
+      ? Math.round(s.shortage * circleWeight * 100) / 100
+      : s.shortage,
     taxRate: "",
     referenceNo: "",
     dispatchedThrough: "",
@@ -120,13 +126,15 @@ export function OrderShortagePO({ orderId, shortages, suppliers }: OrderShortage
       return
     }
     const calculatedWeight = circleWeightFor(s)
-    if (s.circle_type === "ib" && (!calculatedWeight || row.aluminiumPricePerKg <= 0 || row.ibPlatePrice <= 0)) {
-      toast.error(!calculatedWeight ? "Set the circle diameter and thickness so utensil weight can be calculated" : "Enter the aluminium price per kg and IB plate price")
+    const isCircle = s.circle_type === "ib" || s.circle_type === "non_ib"
+    if (isCircle && (!calculatedWeight || row.aluminiumPricePerKg <= 0 || (s.circle_type === "ib" && row.ibPlatePrice <= 0))) {
+      toast.error(!calculatedWeight ? "Set the circle diameter and thickness so utensil weight can be calculated" : s.circle_type === "ib" ? "Enter the aluminium price per kg and IB plate price" : "Enter the price per kg")
       return
     }
-    const unitPrice = s.circle_type === "ib"
-      ? ibCircleUnitPrice(calculatedWeight!, row.aluminiumPricePerKg, row.ibPlatePrice)
-      : row.price
+    const circleLine = isCircle
+      ? circleLineFromKg(row.quantity, row.aluminiumPricePerKg, calculatedWeight!, s.circle_type === "ib" ? row.ibPlatePrice : 0)
+      : null
+    const unitPrice = circleLine?.unitPrice ?? row.price
     updateRow(s.id, { submitting: true })
     const result = await createPurchaseOrder({
       supplier_id: row.supplierId,
@@ -144,11 +152,12 @@ export function OrderShortagePO({ orderId, shortages, suppliers }: OrderShortage
       items: [
         {
           material_id: s.id,
-          quantity_ordered: row.quantity,
+          quantity_ordered: circleLine?.pieces ?? row.quantity,
           unit_price: unitPrice,
-          order_unit: "pcs",
+          order_unit: isCircle ? "kg" : "pcs",
           weight_kg: null,
-          price_per_kg: s.circle_type === "ib" ? row.aluminiumPricePerKg : null,
+          quantity_kg: isCircle ? row.quantity : null,
+          price_per_kg: isCircle ? row.aluminiumPricePerKg : null,
           ib_plate_price: s.circle_type === "ib" ? row.ibPlatePrice : null,
         },
       ],
@@ -181,14 +190,17 @@ export function OrderShortagePO({ orderId, shortages, suppliers }: OrderShortage
       <CardContent className="space-y-5">
         {shortages.map((s) => {
           const row = rows[s.id]
-          const maxQty = Math.round(s.shortage * (1 + MAX_OVER_ORDER_PCT / 100) * 1000) / 1000
-          const qtyInvalid = row.quantity <= 0 || row.quantity > maxQty
           const calculatedWeight = circleWeightFor(s)
-          const effectivePrice = s.circle_type === "ib" && calculatedWeight
-            ? ibCircleUnitPrice(calculatedWeight, row.aluminiumPricePerKg, row.ibPlatePrice)
-            : row.price
-          const amount = effectivePrice * row.quantity
-          const ibFieldsInvalid = s.circle_type === "ib" && (!calculatedWeight || row.aluminiumPricePerKg <= 0 || row.ibPlatePrice <= 0)
+          const isCircle = s.circle_type === "ib" || s.circle_type === "non_ib"
+          const shortageInOrderUnit = isCircle && calculatedWeight ? s.shortage * calculatedWeight : s.shortage
+          const maxQty = Math.round(shortageInOrderUnit * (1 + MAX_OVER_ORDER_PCT / 100) * 100) / 100
+          const qtyInvalid = row.quantity <= 0 || row.quantity > maxQty
+          const circleLine = isCircle && calculatedWeight
+            ? circleLineFromKg(row.quantity, row.aluminiumPricePerKg, calculatedWeight, s.circle_type === "ib" ? row.ibPlatePrice : 0)
+            : null
+          const effectivePrice = circleLine?.unitPrice ?? row.price
+          const amount = circleLine ? circleLine.pieces * circleLine.unitPrice : effectivePrice * row.quantity
+          const circleFieldsInvalid = isCircle && (!calculatedWeight || row.aluminiumPricePerKg <= 0 || (s.circle_type === "ib" && row.ibPlatePrice <= 0))
 
           return (
             <div
@@ -258,7 +270,7 @@ export function OrderShortagePO({ orderId, shortages, suppliers }: OrderShortage
 
                   <div className="grid gap-4 sm:grid-cols-3">
                     <div className="space-y-1.5">
-                      <Label>Qty to Order ({s.unit})</Label>
+                      <Label>Quantity to Order ({isCircle ? "kg" : s.unit})</Label>
                       <Input
                         type="number"
                         min={0}
@@ -269,18 +281,19 @@ export function OrderShortagePO({ orderId, shortages, suppliers }: OrderShortage
                         className={qtyInvalid ? "border-destructive" : undefined}
                       />
                       <p className="text-[11px] text-muted-foreground">
-                        Up to {maxQty} {s.unit} allowed ({MAX_OVER_ORDER_PCT}% over shortfall)
+                        Up to {maxQty} {isCircle ? "kg" : s.unit} allowed ({MAX_OVER_ORDER_PCT}% over shortfall)
+                        {isCircle && circleLine ? ` · receives as ${circleLine.pieces} pieces` : ""}
                       </p>
                     </div>
                     <div className="space-y-1.5">
-                      <Label>{s.circle_type === "ib" ? "Calculated price / piece" : "Price / Unit"}</Label>
+                      <Label>{isCircle ? "Calculated price / piece" : "Price / Unit"}</Label>
                       <Input
                         type="number"
                         min={0}
                         step="0.01"
                         value={row.price}
                         onChange={(e) => updateRow(s.id, { price: Number(e.target.value) || 0 })}
-                        disabled={s.circle_type === "ib"}
+                        disabled={isCircle}
                       />
                     </div>
                     <div className="space-y-1.5">
@@ -297,18 +310,20 @@ export function OrderShortagePO({ orderId, shortages, suppliers }: OrderShortage
                     </div>
                   </div>
 
-                  {s.circle_type === "ib" && (
+                  {isCircle && (
                     <div className="grid gap-4 rounded-md border border-violet-200 p-3 sm:grid-cols-2">
                       <div className="space-y-1.5">
-                        <Label>Aluminium price / kg *</Label>
+                        <Label>{s.circle_type === "ib" ? "Aluminium price / kg *" : "Price / kg *"}</Label>
                         <Input type="number" min={0.01} step="0.01" value={row.aluminiumPricePerKg || ""} onChange={(e) => updateRow(s.id, { aluminiumPricePerKg: Number(e.target.value) || 0 })} />
                       </div>
-                      <div className="space-y-1.5">
-                        <Label>IB plate price / piece *</Label>
-                        <Input type="number" min={0.01} step="0.01" value={row.ibPlatePrice || ""} onChange={(e) => updateRow(s.id, { ibPlatePrice: Number(e.target.value) || 0 })} />
-                      </div>
+                      {s.circle_type === "ib" && (
+                        <div className="space-y-1.5">
+                          <Label>IB plate price / piece *</Label>
+                          <Input type="number" min={0.01} step="0.01" value={row.ibPlatePrice || ""} onChange={(e) => updateRow(s.id, { ibPlatePrice: Number(e.target.value) || 0 })} />
+                        </div>
+                      )}
                       <p className="text-xs text-muted-foreground sm:col-span-2">
-                        Calculated utensil weight: {calculatedWeight ? `${calculatedWeight.toFixed(4)} kg/piece` : "diameter/thickness missing"}. Price/piece = {calculatedWeight?.toFixed(4) ?? 0} kg × ₹{row.aluminiumPricePerKg || 0}/kg + ₹{row.ibPlatePrice || 0} plate = {formatCurrency(effectivePrice)}
+                        Calculated utensil weight: {calculatedWeight ? `${calculatedWeight.toFixed(4)} kg/piece` : "diameter/thickness missing"}. {circleLine ? `${row.quantity || 0} kg = ${circleLine.pieces} pieces. ` : ""}Price/piece = {formatCurrency(effectivePrice)}
                       </p>
                     </div>
                   )}
@@ -370,7 +385,7 @@ export function OrderShortagePO({ orderId, shortages, suppliers }: OrderShortage
                     <Button
                       size="sm"
                       onClick={() => handleOrder(s)}
-                      disabled={row.submitting || qtyInvalid || ibFieldsInvalid || row.taxRate.trim() === "" || !row.supplierId}
+                      disabled={row.submitting || qtyInvalid || circleFieldsInvalid || row.taxRate.trim() === "" || !row.supplierId}
                     >
                       <Lock className="h-3.5 w-3.5" />
                       {row.submitting ? "Raising…" : "Order This Item"}

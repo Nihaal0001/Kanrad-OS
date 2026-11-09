@@ -1,7 +1,7 @@
 "use server"
 
 import { billDueDateFromToday, todayIST } from "@/lib/payment-terms"
-import { bomQtyInStockUnit, circleLineFromKg, circleWeightFor, ibCircleUnitPrice, isCircleMaterial, type CircleCostable } from "@/lib/costing"
+import { bomQtyInStockUnit, circleLineFromKg, circleWeightFor, isCircleMaterial, type CircleCostable } from "@/lib/costing"
 import { revalidatePath, revalidateTag, unstable_cache } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -612,8 +612,8 @@ export async function createPurchaseOrder(formData: PurchaseOrderFormData) {
 
   if (supplierError || !supplier) return { error: "Selected supplier was not found" }
 
-  // Circles may be ordered in kg or pieces, but the stored ordered quantity, receiving and stock
-  // are always pieces. IB pricing is always weight x aluminium price/kg + IB plate price.
+  // Circles are ordered only in kg. Their stored quantity, receiving and stock are always
+  // whole pieces. IB pricing is weight x aluminium price/kg + IB plate price.
   type CircleMat = CircleCostable & { id: string; name: string }
   const { data: matRows } = await supabase
     .from("materials")
@@ -626,7 +626,6 @@ export async function createPurchaseOrder(formData: PurchaseOrderFormData) {
   for (const [idx, item] of validated.items.entries()) {
     const mat = circleMats.get(item.material_id)
     if (!mat) continue
-    const orderUnit = item.order_unit ?? (item.quantity_kg ? "kg" : "pcs")
     const weight = circleWeightFor(mat)
 
     if (mat.circle_type === "ib") {
@@ -635,29 +634,13 @@ export async function createPurchaseOrder(formData: PurchaseOrderFormData) {
       if (!item.ib_plate_price || item.ib_plate_price <= 0) return { error: `Enter the IB plate price for ${mat.name}` }
     }
 
-    if (orderUnit === "kg") {
-      if (!item.quantity_kg || item.quantity_kg <= 0) return { error: `Enter the kg quantity for circle ${mat.name}` }
-      if (!weight || weight <= 0) return { error: `The weight of circle ${mat.name} could not be worked out from its size` }
-      if (!item.price_per_kg || item.price_per_kg <= 0) return { error: `Enter the price per kg of circle ${mat.name}` }
-      const plate = mat.circle_type === "ib" ? item.ib_plate_price! : 0
-      const { pieces, unitPrice } = circleLineFromKg(item.quantity_kg, item.price_per_kg, weight, plate)
-      if (pieces < 1) return { error: `${item.quantity_kg} kg is less than one piece of circle ${mat.name}` }
-      circleLines.set(idx, { pieces, unitPrice, weight, kg: item.quantity_kg, pricePerKg: item.price_per_kg, plate: mat.circle_type === "ib" ? plate : null })
-    } else {
-      if (!Number.isInteger(item.quantity_ordered)) return { error: `Enter a whole number of pieces for circle ${mat.name}` }
-      const unitPrice = mat.circle_type === "ib"
-        ? ibCircleUnitPrice(weight!, item.price_per_kg!, item.ib_plate_price!)
-        : item.unit_price
-      if (unitPrice <= 0) return { error: `Enter the price per piece for circle ${mat.name}` }
-      circleLines.set(idx, {
-        pieces: item.quantity_ordered,
-        unitPrice,
-        weight: weight ?? 0,
-        kg: null,
-        pricePerKg: mat.circle_type === "ib" ? item.price_per_kg! : null,
-        plate: mat.circle_type === "ib" ? item.ib_plate_price! : null,
-      })
-    }
+    if (!item.quantity_kg || item.quantity_kg <= 0) return { error: `Enter the kg quantity for circle ${mat.name}` }
+    if (!weight || weight <= 0) return { error: `The weight of circle ${mat.name} could not be worked out from its size` }
+    if (!item.price_per_kg || item.price_per_kg <= 0) return { error: `Enter the price per kg of circle ${mat.name}` }
+    const plate = mat.circle_type === "ib" ? item.ib_plate_price! : 0
+    const { pieces, unitPrice } = circleLineFromKg(item.quantity_kg, item.price_per_kg, weight, plate)
+    if (pieces < 1) return { error: `${item.quantity_kg} kg is less than one piece of circle ${mat.name}` }
+    circleLines.set(idx, { pieces, unitPrice, weight, kg: item.quantity_kg, pricePerKg: item.price_per_kg, plate: mat.circle_type === "ib" ? plate : null })
   }
 
   const { items, order_ids, ...poData } = validated
