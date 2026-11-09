@@ -1,6 +1,8 @@
 -- Aluminium circles are STOCKED and RECEIVED in pcs, but ORDERED in kg on purchase orders.
 --   * purchase_order_items keeps the kg order (quantity_kg, price_per_kg); quantity_ordered / unit_price
 --     hold the pieces and the price per piece, so receiving, stock and cost averaging are all in pcs.
+--   * IB circles are ordered the same way; the IB plate price (per piece) is entered separately and
+--     added to the piece price:  price per piece = weight x price per kg + IB plate price.
 --   * Existing kg-unit circles are converted to pcs here (stock, minimum, cost, batches, history,
 --     BOM lines, PO lines) using the weight per piece:
 --        stored weight_kg, else (non-IB / unmarked) diameter x diameter x thickness x 0.000002127.
@@ -9,7 +11,9 @@
 
 ALTER TABLE purchase_order_items
   ADD COLUMN IF NOT EXISTS quantity_kg  NUMERIC(12,3) DEFAULT NULL,
-  ADD COLUMN IF NOT EXISTS price_per_kg NUMERIC(10,2) DEFAULT NULL;
+  ADD COLUMN IF NOT EXISTS price_per_kg NUMERIC(10,2) DEFAULT NULL,
+  -- IB circles: price of the induction-base plate per piece, added on top of weight x price per kg
+  ADD COLUMN IF NOT EXISTS ib_plate_price NUMERIC(10,2) DEFAULT NULL;
 
 DO $$
 DECLARE

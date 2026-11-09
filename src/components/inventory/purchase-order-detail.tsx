@@ -60,6 +60,7 @@ interface POItem {
   weight_kg?: number | null
   quantity_kg?: number | null
   price_per_kg?: number | null
+  ib_plate_price?: number | null
   material: {
     id: string
     name: string
@@ -300,7 +301,7 @@ export function PurchaseOrderDetail({ po: initialPo, isAdmin }: PurchaseOrderDet
                       <p className="text-xs text-muted-foreground font-mono">{item.material?.sku} · {formatCurrency(item.unit_price)}/{item.material?.unit ?? "unit"}{item.weight_kg != null ? ` · ${Number(item.weight_kg).toFixed(4)} kg/pc` : ""}</p>
                       {item.quantity_kg != null && (
                         <p className="text-xs text-emerald-600">
-                          Ordered {Number(item.quantity_kg).toLocaleString("en-IN")} kg @ ₹{Number(item.price_per_kg ?? 0).toLocaleString("en-IN")}/kg = {item.quantity_ordered.toLocaleString("en-IN")} pcs · received in pcs
+                          Ordered {Number(item.quantity_kg).toLocaleString("en-IN")} kg @ ₹{Number(item.price_per_kg ?? 0).toLocaleString("en-IN")}/kg = {item.quantity_ordered.toLocaleString("en-IN")} pcs{item.ib_plate_price ? ` · incl. ₹${item.ib_plate_price} IB plate/pc` : ""} · received in pcs
                         </p>
                       )}
                     </div>

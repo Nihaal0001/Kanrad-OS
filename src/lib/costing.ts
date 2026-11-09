@@ -103,10 +103,11 @@ export function circleWeightFor(m: CircleCostable | null | undefined): number | 
   return dims ? dims.dia * dims.dia * dims.thick * CIRCLE_WEIGHT_FACTOR : null
 }
 
-/** Pieces and price per piece for a circle PO line ordered by kg. */
-export function circleLineFromKg(kg: number, pricePerKg: number, weightPerPiece: number) {
+/** Pieces and price per piece for a circle PO line ordered by kg (IB plate price is per piece, added on top). */
+export function circleLineFromKg(kg: number, pricePerKg: number, weightPerPiece: number, ibPlatePrice = 0) {
   return {
     pieces: Math.round(kg / weightPerPiece),
-    unitPrice: Math.round(pricePerKg * weightPerPiece * 100) / 100,
+    // aluminium (weight × price per kg) plus, for IB circles, the separate IB plate price per piece
+    unitPrice: Math.round((pricePerKg * weightPerPiece + ibPlatePrice) * 100) / 100,
   }
 }

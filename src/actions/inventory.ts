@@ -622,7 +622,7 @@ export async function createPurchaseOrder(formData: PurchaseOrderFormData) {
   const circleMats = new Map<string, CircleMat>(
     ((matRows ?? []) as CircleMat[]).filter((m) => isCircleMaterial(m)).map((m) => [m.id, m])
   )
-  const circleLines = new Map<number, { pieces: number; unitPrice: number; weight: number; kg: number; pricePerKg: number }>()
+  const circleLines = new Map<number, { pieces: number; unitPrice: number; weight: number; kg: number; pricePerKg: number; plate: number | null }>()
   for (const [idx, item] of validated.items.entries()) {
     const mat = circleMats.get(item.material_id)
     if (!mat) continue
@@ -630,9 +630,10 @@ export async function createPurchaseOrder(formData: PurchaseOrderFormData) {
       const weight = mat.circle_type === "ib" ? item.weight_kg : circleWeightFor(mat) ?? item.weight_kg
       if (!weight || weight <= 0) return { error: `Enter the weight (kg) of circle ${mat.name}` }
       if (!item.price_per_kg || item.price_per_kg <= 0) return { error: `Enter the price per kg of circle ${mat.name}` }
-      const { pieces, unitPrice } = circleLineFromKg(item.quantity_kg, item.price_per_kg, weight)
+      const plate = mat.circle_type === "ib" ? item.ib_plate_price ?? 0 : 0
+      const { pieces, unitPrice } = circleLineFromKg(item.quantity_kg, item.price_per_kg, weight, plate)
       if (pieces < 1) return { error: `${item.quantity_kg} kg is less than one piece of circle ${mat.name}` }
-      circleLines.set(idx, { pieces, unitPrice, weight, kg: item.quantity_kg, pricePerKg: item.price_per_kg })
+      circleLines.set(idx, { pieces, unitPrice, weight, kg: item.quantity_kg, pricePerKg: item.price_per_kg, plate: mat.circle_type === "ib" ? plate : null })
     } else if (mat.circle_type === "ib") {
       if (!item.weight_kg || item.weight_kg <= 0) return { error: `Enter the weight (kg) of IB circle ${mat.name}` }
       if (!item.unit_price || item.unit_price <= 0) return { error: `Enter the price of IB circle ${mat.name}` }
@@ -669,6 +670,7 @@ export async function createPurchaseOrder(formData: PurchaseOrderFormData) {
         weight_kg: line.weight,
         quantity_kg: line.kg,
         price_per_kg: line.pricePerKg,
+        ib_plate_price: line.plate,
       }
     }
     // IB circle: the weight typed on the PO. Non-IB circle: the auto-calculated weight.
