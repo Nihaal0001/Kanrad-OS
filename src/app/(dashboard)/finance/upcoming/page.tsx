@@ -14,15 +14,15 @@ export default async function UpcomingPaymentsPage() {
   return (
     <>
       <PageHeader
-        title="Upcoming Payments"
+        title="Payment Calendar"
         description="Money coming in from customers and going out to suppliers, by due date"
-        breadcrumbs={[{ label: "Finance", href: "/finance" }, { label: "Upcoming Payments" }]}
+        breadcrumbs={[{ label: "Finance", href: "/finance" }, { label: "Payment Calendar" }]}
       />
 
       {payments.length === 0 ? (
         <EmptyState
           icon={CalendarClock}
-          title="No upcoming payments"
+          title="No payments scheduled"
           description="Open customer invoices and supplier bills appear here with their due dates."
         />
       ) : (
