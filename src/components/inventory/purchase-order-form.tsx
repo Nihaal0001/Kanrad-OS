@@ -387,7 +387,7 @@ export function PurchaseOrderForm({ materials, suppliers }: PurchaseOrderFormPro
                 </div>
 
                 <div className="flex items-center justify-end h-9 text-sm font-medium tabular-nums">
-                  ₹{formatCurrency(amount)}
+                  {formatCurrency(amount)}
                 </div>
 
                 <div className="flex items-center justify-center h-9">
@@ -424,7 +424,7 @@ export function PurchaseOrderForm({ materials, suppliers }: PurchaseOrderFormPro
           <div className="flex items-center justify-between">
             <div className="space-y-1">
               <p className="text-sm text-muted-foreground">Total (before tax)</p>
-              <p className="text-2xl font-bold tabular-nums">₹{formatCurrency(totalAmount)}</p>
+              <p className="text-2xl font-bold tabular-nums">{formatCurrency(totalAmount)}</p>
             </div>
           </div>
         </CardContent>

@@ -294,7 +294,7 @@ export function PurchaseOrderDetail({ po: initialPo, isAdmin }: PurchaseOrderDet
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="font-medium">{item.material?.name ?? "Unknown"}</p>
-                      <p className="text-xs text-muted-foreground font-mono">{item.material?.sku} · ₹{formatCurrency(item.unit_price)}/{item.material?.unit ?? "unit"}{item.weight_kg != null ? ` · ${Number(item.weight_kg).toFixed(4)} kg/pc` : ""}</p>
+                      <p className="text-xs text-muted-foreground font-mono">{item.material?.sku} · {formatCurrency(item.unit_price)}/{item.material?.unit ?? "unit"}{item.weight_kg != null ? ` · ${Number(item.weight_kg).toFixed(4)} kg/pc` : ""}</p>
                     </div>
                     {fullyReceived && (
                       <span className="flex items-center gap-1 text-xs text-emerald-600 font-medium shrink-0">
