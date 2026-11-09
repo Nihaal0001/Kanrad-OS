@@ -183,7 +183,7 @@ export default async function PurchaseInvoiceDetailPage({ params }: Props) {
             </div>
             <div className="divide-y divide-border/50">
               {invoice.purchase_invoice_items.map((item: {
-                id: string; description: string; quantity: number; unit_price: number; amount: number; hsn_code?: string
+                id: string; description: string; quantity: number; unit_price: number; amount: number; hsn_code?: string; is_ib_circle?: boolean; ib_plate_price?: number | null
               }) => (
                 <div
                   key={item.id}
@@ -193,6 +193,9 @@ export default async function PurchaseInvoiceDetailPage({ params }: Props) {
                     <span>{item.description}</span>
                     {item.hsn_code && (
                       <span className="ml-2 text-xs text-muted-foreground">HSN: {item.hsn_code}</span>
+                    )}
+                    {item.is_ib_circle && item.ib_plate_price != null && (
+                      <span className="block text-xs text-violet-600">IB plate: ₹{formatCurrency(item.ib_plate_price)}/piece</span>
                     )}
                   </div>
                   <span className="text-right text-muted-foreground">{item.quantity}</span>

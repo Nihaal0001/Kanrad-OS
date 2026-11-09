@@ -53,11 +53,14 @@ export const purchaseOrderSchema = z.object({
         material_id: z.string().min(1, "Material is required"),
         quantity_ordered: z.number().min(0.01, "Quantity must be greater than 0"),
         unit_price: z.number().min(0, "Price cannot be negative"),
-        // Weight per piece (kg) — required for IB circles, checked server-side
+        order_unit: z.enum(["kg", "pcs"]).optional(),
+        // Calculated weight per piece (kg), submitted only for compatibility with older clients.
         weight_kg: z.number().positive("Weight must be greater than 0").nullable().optional(),
         // Circles are ordered in kg at a price per kg; quantity_ordered / unit_price then hold the pcs equivalent
         quantity_kg: z.number().positive("Kg must be greater than 0").nullable().optional(),
         price_per_kg: z.number().min(0, "Price cannot be negative").nullable().optional(),
+        // Required on every IB-circle PO line and added to weight x aluminium price/kg.
+        ib_plate_price: z.number().min(0, "Price cannot be negative").nullable().optional(),
       })
     )
     .min(1, "At least one item is required"),

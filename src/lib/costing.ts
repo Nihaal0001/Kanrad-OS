@@ -44,19 +44,17 @@ function sizeFromName(name: string | null | undefined): { dia: number; thick: nu
 }
 
 /**
- * Weight of one piece (kg) for a kg-priced aluminium circle, or null when it isn't one or
- * the weight isn't known. IB circles use the weight entered on their PO; others use the
- * stored weight, else the size formula.
+ * Weight of one piece (kg) for an aluminium circle. Both IB and non-IB circles use the
+ * same diameter x diameter x thickness formula when a stored calculated weight is absent.
  */
 export function circlePieceWeightKg(m: CircleCostable | null | undefined): number | null {
   if (!m || (m.unit ?? "") !== "kg") return null
-  if (m.weight_kg && m.weight_kg > 0) return Number(m.weight_kg)
-  if (m.circle_type === "ib") return null
   const dims =
     m.diameter_mm && m.thickness_mm
       ? { dia: Number(m.diameter_mm), thick: Number(m.thickness_mm) }
       : sizeFromName(m.name)
-  return dims ? dims.dia * dims.dia * dims.thick * CIRCLE_WEIGHT_FACTOR : null
+  if (dims) return dims.dia * dims.dia * dims.thick * CIRCLE_WEIGHT_FACTOR
+  return m.weight_kg && m.weight_kg > 0 ? Number(m.weight_kg) : null
 }
 
 /** Price for ONE unit of a BOM line: per piece for a kg-circle counted in pcs, else the stored cost. */
@@ -91,22 +89,26 @@ export function isCircleMaterial(m: CircleCostable | null | undefined): boolean 
   return !!m && (!!m.circle_type || sizeFromName(m.name) !== null)
 }
 
-/** Weight of one piece (kg) regardless of the stock unit: stored weight, else (non-IB) the size formula. */
+/** Weight of one piece (kg): stored calculated weight, else the size formula for any circle type. */
 export function circleWeightFor(m: CircleCostable | null | undefined): number | null {
   if (!m) return null
-  if (m.weight_kg && m.weight_kg > 0) return Number(m.weight_kg)
-  if (m.circle_type === "ib") return null
   const dims =
     m.diameter_mm && m.thickness_mm
       ? { dia: Number(m.diameter_mm), thick: Number(m.thickness_mm) }
       : sizeFromName(m.name)
-  return dims ? dims.dia * dims.dia * dims.thick * CIRCLE_WEIGHT_FACTOR : null
+  if (dims) return dims.dia * dims.dia * dims.thick * CIRCLE_WEIGHT_FACTOR
+  return m.weight_kg && m.weight_kg > 0 ? Number(m.weight_kg) : null
 }
 
-/** Pieces and price per piece for a non-IB circle PO line ordered by kg. */
-export function circleLineFromKg(kg: number, pricePerKg: number, weightPerPiece: number) {
+/** Pieces and price per piece for a circle PO line ordered by kg. */
+export function circleLineFromKg(kg: number, pricePerKg: number, weightPerPiece: number, ibPlatePrice = 0) {
   return {
     pieces: Math.round(kg / weightPerPiece),
-    unitPrice: Math.round(pricePerKg * weightPerPiece * 100) / 100,
+    unitPrice: Math.round((pricePerKg * weightPerPiece + ibPlatePrice) * 100) / 100,
   }
+}
+
+/** IB circle price per piece = utensil weight x aluminium price per kg + IB plate price. */
+export function ibCircleUnitPrice(weightKg: number, pricePerKg: number, ibPlatePrice: number) {
+  return Math.round((weightKg * pricePerKg + ibPlatePrice) * 100) / 100
 }

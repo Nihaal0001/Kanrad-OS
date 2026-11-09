@@ -59,6 +59,12 @@ interface PurchaseOrderOption {
   po_number: string
   supplier_name: string
   total_amount: number
+  items?: Array<{
+    quantity_ordered: number
+    unit_price: number
+    ib_plate_price: number | null
+    material: { name: string; circle_type: string | null } | Array<{ name: string; circle_type: string | null }> | null
+  }>
 }
 
 interface PurchaseInvoiceFormProps {
@@ -93,11 +99,11 @@ export function PurchaseInvoiceForm({ purchaseOrders, orgGstin }: PurchaseInvoic
       invoice_date: today,
       due_date: "",
       notes: "",
-      items: [{ description: "", quantity: 1, unit_price: 0, hsn_code: "" }],
+      items: [{ description: "", quantity: 1, unit_price: 0, hsn_code: "", is_ib_circle: false, ib_plate_price: null }],
     },
   })
 
-  const { fields, append, remove } = useFieldArray({ control, name: "items" })
+  const { fields, append, remove, replace } = useFieldArray({ control, name: "items" })
 
   const items = watch("items")
   const taxRate = watch("tax_rate")
@@ -130,6 +136,21 @@ export function PurchaseInvoiceForm({ purchaseOrders, orgGstin }: PurchaseInvoic
       const po = purchaseOrders.find((p) => p.id === id)
       if (po) {
         setValue("supplier_name", po.supplier_name)
+        if (po.items?.length) {
+          replace(po.items.map((item) => {
+            const material = Array.isArray(item.material) ? item.material[0] : item.material
+            const isIb = material?.circle_type === "ib"
+            return {
+              description: material?.name ?? "Material",
+              quantity: item.quantity_ordered,
+              unit_price: item.unit_price,
+              hsn_code: "",
+              is_ib_circle: isIb,
+              // Carry the plate component from the approved PO; no duplicate entry is required.
+              ib_plate_price: isIb ? item.ib_plate_price : null,
+            }
+          }))
+        }
       }
     }
   }
@@ -290,15 +311,18 @@ export function PurchaseInvoiceForm({ purchaseOrders, orgGstin }: PurchaseInvoic
             type="button"
             variant="outline"
             size="sm"
-            onClick={() => append({ description: "", quantity: 1, unit_price: 0, hsn_code: "" })}
+            onClick={() => append({ description: "", quantity: 1, unit_price: 0, hsn_code: "", is_ib_circle: false, ib_plate_price: null })}
           >
             <Plus className="h-4 w-4" />
             Add Item
           </Button>
         </CardHeader>
         <CardContent className="space-y-3">
-          {fields.map((field, index) => (
-            <div key={field.id} className="grid grid-cols-[1fr_80px_100px_100px_32px] items-start gap-2">
+          {fields.map((field, index) => {
+            const isIb = !!items[index]?.is_ib_circle
+            return (
+            <div key={field.id} className="rounded-md border p-2 space-y-2">
+              <div className="grid grid-cols-[1fr_80px_100px_100px_32px] items-start gap-2">
               <div>
                 <Input
                   {...register(`items.${index}.description`)}
@@ -336,8 +360,14 @@ export function PurchaseInvoiceForm({ purchaseOrders, orgGstin }: PurchaseInvoic
               >
                 <X className="h-4 w-4" />
               </Button>
+              </div>
+              {isIb && (
+                <p className="text-xs text-violet-600">
+                  IB plate price carried from PO: ₹{Number(items[index]?.ib_plate_price ?? 0).toLocaleString("en-IN")}/piece
+                </p>
+              )}
             </div>
-          ))}
+          )})}
 
           {/* Totals */}
           <div className="border-t pt-3 space-y-1 text-sm text-right">

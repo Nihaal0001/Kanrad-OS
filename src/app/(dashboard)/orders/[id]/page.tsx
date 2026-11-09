@@ -66,6 +66,10 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
       unit: m.unit,
       shortage: m.shortage,
       cost_per_unit: m.cost_per_unit,
+      circle_type: m.circle_type,
+      weight_kg: m.weight_kg,
+      diameter_mm: m.diameter_mm,
+      thickness_mm: m.thickness_mm,
       category_name: m.category_name,
       openPO: openPOsByMaterial[m.id] ?? null,
     }))

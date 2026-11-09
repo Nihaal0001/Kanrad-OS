@@ -1,7 +1,7 @@
 "use server"
 
 import { billDueDateFromToday, todayIST } from "@/lib/payment-terms"
-import { bomQtyInStockUnit, circleLineFromKg, circleWeightFor, isCircleMaterial, type CircleCostable } from "@/lib/costing"
+import { bomQtyInStockUnit, circleLineFromKg, circleWeightFor, ibCircleUnitPrice, isCircleMaterial, type CircleCostable } from "@/lib/costing"
 import { revalidatePath, revalidateTag, unstable_cache } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
@@ -612,8 +612,8 @@ export async function createPurchaseOrder(formData: PurchaseOrderFormData) {
 
   if (supplierError || !supplier) return { error: "Selected supplier was not found" }
 
-  // Aluminium circles are ordered in kg (at a price per kg) but stocked and received in pcs;
-  // the PO line stores the pieces and the price per piece. IB circles also need their weight.
+  // Circles may be ordered in kg or pieces, but the stored ordered quantity, receiving and stock
+  // are always pieces. IB pricing is always weight x aluminium price/kg + IB plate price.
   type CircleMat = CircleCostable & { id: string; name: string }
   const { data: matRows } = await supabase
     .from("materials")
@@ -622,22 +622,41 @@ export async function createPurchaseOrder(formData: PurchaseOrderFormData) {
   const circleMats = new Map<string, CircleMat>(
     ((matRows ?? []) as CircleMat[]).filter((m) => isCircleMaterial(m)).map((m) => [m.id, m])
   )
-  const circleLines = new Map<number, { pieces: number; unitPrice: number; weight: number; kg: number; pricePerKg: number }>()
+  const circleLines = new Map<number, { pieces: number; unitPrice: number; weight: number; kg: number | null; pricePerKg: number | null; plate: number | null }>()
   for (const [idx, item] of validated.items.entries()) {
     const mat = circleMats.get(item.material_id)
     if (!mat) continue
+    const orderUnit = item.order_unit ?? (item.quantity_kg ? "kg" : "pcs")
+    const weight = circleWeightFor(mat)
+
     if (mat.circle_type === "ib") {
-      // IB circles carry no weight: ordered in pcs at a price per piece
-      if (!item.unit_price || item.unit_price <= 0) return { error: `Enter the price of IB circle ${mat.name}` }
-      continue
+      if (!weight || weight <= 0) return { error: `Set the diameter and thickness for IB circle ${mat.name} so its utensil weight can be calculated` }
+      if (!item.price_per_kg || item.price_per_kg <= 0) return { error: `Enter the aluminium price per kg for IB circle ${mat.name}` }
+      if (!item.ib_plate_price || item.ib_plate_price <= 0) return { error: `Enter the IB plate price for ${mat.name}` }
     }
-    if (item.quantity_kg && item.quantity_kg > 0) {
-      const weight = circleWeightFor(mat)
+
+    if (orderUnit === "kg") {
+      if (!item.quantity_kg || item.quantity_kg <= 0) return { error: `Enter the kg quantity for circle ${mat.name}` }
       if (!weight || weight <= 0) return { error: `The weight of circle ${mat.name} could not be worked out from its size` }
       if (!item.price_per_kg || item.price_per_kg <= 0) return { error: `Enter the price per kg of circle ${mat.name}` }
-      const { pieces, unitPrice } = circleLineFromKg(item.quantity_kg, item.price_per_kg, weight)
+      const plate = mat.circle_type === "ib" ? item.ib_plate_price! : 0
+      const { pieces, unitPrice } = circleLineFromKg(item.quantity_kg, item.price_per_kg, weight, plate)
       if (pieces < 1) return { error: `${item.quantity_kg} kg is less than one piece of circle ${mat.name}` }
-      circleLines.set(idx, { pieces, unitPrice, weight, kg: item.quantity_kg, pricePerKg: item.price_per_kg })
+      circleLines.set(idx, { pieces, unitPrice, weight, kg: item.quantity_kg, pricePerKg: item.price_per_kg, plate: mat.circle_type === "ib" ? plate : null })
+    } else {
+      if (!Number.isInteger(item.quantity_ordered)) return { error: `Enter a whole number of pieces for circle ${mat.name}` }
+      const unitPrice = mat.circle_type === "ib"
+        ? ibCircleUnitPrice(weight!, item.price_per_kg!, item.ib_plate_price!)
+        : item.unit_price
+      if (unitPrice <= 0) return { error: `Enter the price per piece for circle ${mat.name}` }
+      circleLines.set(idx, {
+        pieces: item.quantity_ordered,
+        unitPrice,
+        weight: weight ?? 0,
+        kg: null,
+        pricePerKg: mat.circle_type === "ib" ? item.price_per_kg! : null,
+        plate: mat.circle_type === "ib" ? item.ib_plate_price! : null,
+      })
     }
   }
 
@@ -671,10 +690,10 @@ export async function createPurchaseOrder(formData: PurchaseOrderFormData) {
         weight_kg: line.weight,
         quantity_kg: line.kg,
         price_per_kg: line.pricePerKg,
+        ib_plate_price: line.plate,
       }
     }
-    // Non-IB circle: the auto-calculated weight. IB circles have no weight.
-    const weight = mat && mat.circle_type !== "ib" ? circleWeightFor(mat) : null
+    const weight = mat ? circleWeightFor(mat) : null
     return {
       purchase_order_id: po.id,
       material_id: item.material_id,
@@ -786,7 +805,7 @@ export async function receivePurchaseOrderItem(
   // Never trust the browser's running total (stale tab / double click): re-read from the database.
   const { data: current, error: currentError } = await supabase
     .from("purchase_order_items")
-    .select("quantity_ordered, quantity_received, purchase_order_id")
+    .select("quantity_ordered, quantity_received, purchase_order_id, ib_plate_price, material:materials(circle_type)")
     .eq("id", itemId)
     .single()
   if (currentError || !current) return { error: currentError?.message ?? "Purchase order item not found." }
@@ -816,7 +835,7 @@ export async function receivePurchaseOrderItem(
     .from("purchase_order_items")
     .update({ quantity_received: quantityReceived })
     .eq("id", itemId)
-    .select("*, material:materials(id, name, current_stock, cost_per_unit)")
+    .select("*, material:materials(id, name, current_stock, cost_per_unit, circle_type)")
     .single()
 
   if (itemError) return { error: itemError.message }
@@ -844,9 +863,9 @@ export async function receivePurchaseOrderItem(
   }
 
   if (receivedNow > 0) {
-    const unitPrice: number = item.unit_price ?? 0
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const mat = Array.isArray(item.material) ? item.material[0] : item.material as any
+    const unitPrice: number = item.unit_price ?? 0
     const existingStock: number = mat?.current_stock ?? 0
     const existingCost: number = mat?.cost_per_unit ?? 0
 
@@ -935,6 +954,8 @@ export async function receivePurchaseOrderItem(
       description: mat?.name ?? "Material",
       quantity: receivedNow,
       unit_price: unitPrice,
+      is_ib_circle: mat?.circle_type === "ib",
+      ib_plate_price: mat?.circle_type === "ib" ? item.ib_plate_price : null,
     })
   }
 

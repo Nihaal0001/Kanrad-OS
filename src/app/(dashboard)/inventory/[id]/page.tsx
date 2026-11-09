@@ -5,7 +5,7 @@ import { ArrowLeft, Pencil, ArrowUpDown } from "lucide-react"
 import { createClient } from "@/lib/supabase/server"
 import { getMaterial, getStockTransactions } from "@/actions/inventory"
 import { formatCurrency, formatDate } from "@/lib/utils"
-import { calculateCircleWeight, kgToPieces } from "@/lib/circle-calc"
+import { circleWeightFor } from "@/lib/costing"
 import { PageHeader } from "@/components/shared/page-header"
 import { Button } from "@/components/ui/button"
 import {
@@ -135,10 +135,9 @@ export default async function MaterialDetailPage({ params }: MaterialDetailPageP
                   </dd>
                 </div>
               </dl>
-              {/* Circle info — only for non-IB aluminium circles */}
-              {material.circle_type === "non_ib" && material.diameter_mm && material.thickness_mm && (() => {
-                const weightPerPiece = calculateCircleWeight(material.diameter_mm, material.thickness_mm, "non_ib")
-                const pcsInStock = kgToPieces(material.current_stock, material.diameter_mm, material.thickness_mm, "non_ib")
+              {/* Circle dimensions and directly calculated weight */}
+              {material.circle_type && material.diameter_mm && material.thickness_mm && (() => {
+                const weightPerPiece = circleWeightFor(material)
                 return (
                   <div className="mt-4 pt-4 border-t grid gap-4 sm:grid-cols-3">
                     <div>
@@ -154,12 +153,12 @@ export default async function MaterialDetailPage({ params }: MaterialDetailPageP
                       <dd className="mt-1 font-medium">{weightPerPiece ? weightPerPiece.toFixed(4) + " kg" : "--"}</dd>
                     </div>
                     <div>
-                      <dt className="text-sm text-muted-foreground">Stock (kg)</dt>
-                      <dd className="mt-1 font-medium">{material.current_stock} kg</dd>
+                      <dt className="text-sm text-muted-foreground">Stock (pieces)</dt>
+                      <dd className="mt-1 text-lg font-bold">{material.current_stock.toLocaleString()} pcs</dd>
                     </div>
                     <div>
-                      <dt className="text-sm text-muted-foreground">Stock (pieces)</dt>
-                      <dd className="mt-1 text-lg font-bold">{pcsInStock ? pcsInStock.toLocaleString() + " pcs" : "--"}</dd>
+                      <dt className="text-sm text-muted-foreground">Calculated stock weight</dt>
+                      <dd className="mt-1 font-medium">{weightPerPiece ? (material.current_stock * weightPerPiece).toFixed(2) + " kg" : "--"}</dd>
                     </div>
                   </div>
                 )

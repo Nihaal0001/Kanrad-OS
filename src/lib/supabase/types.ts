@@ -135,7 +135,7 @@ export type Material = {
   diameter_mm: number | null
   thickness_mm: number | null
   circle_type: "ib" | "non_ib" | null
-  /** Weight per piece in kg — auto for non-IB circles, entered on the PO for IB circles */
+  /** Weight per piece in kg — calculated from diameter and thickness for every circle */
   weight_kg: number | null
   created_at: string
   updated_at: string
@@ -190,6 +190,11 @@ export type PurchaseOrderItem = {
   unit_price: number
   /** Weight per piece (kg) — recorded for aluminium circles */
   weight_kg: number | null
+  /** Original PO quantity/rate when the circle was ordered in kg. */
+  quantity_kg: number | null
+  price_per_kg: number | null
+  /** IB plate component per piece. */
+  ib_plate_price: number | null
   created_at: string
 }
 

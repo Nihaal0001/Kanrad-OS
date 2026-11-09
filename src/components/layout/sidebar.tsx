@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { usePathname } from "next/navigation"
 import { ChevronDown, PanelLeftClose, PanelLeftOpen } from "lucide-react"
 
@@ -179,9 +179,15 @@ export function Sidebar({
 }: SidebarProps) {
   const pathname = usePathname()
 
-  const filteredNavigation: NavSection[] = filterNavigationByPermissions(allowedPermissions)
+  const filteredNavigation: NavSection[] = useMemo(
+    () => filterNavigationByPermissions(allowedPermissions),
+    [allowedPermissions]
+  )
 
-  const activeSectionIds = getActiveSectionIds(pathname, filteredNavigation)
+  const activeSectionIds = useMemo(
+    () => getActiveSectionIds(pathname, filteredNavigation),
+    [pathname, filteredNavigation]
+  )
   const defaultOpenSectionId = activeSectionIds[0] ?? null
   const [navState, setNavState] = useState<{
     pathname: string

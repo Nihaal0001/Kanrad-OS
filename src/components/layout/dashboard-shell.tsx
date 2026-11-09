@@ -1,14 +1,23 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import dynamic from "next/dynamic"
 import { usePathname } from "next/navigation"
 import { Sidebar } from "@/components/layout/sidebar"
 import { Topbar } from "@/components/layout/topbar"
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav"
-import { CommandPalette } from "@/components/command-palette"
-import { AIChatWidget } from "@/components/shared/ai-chat-widget"
 import { KeepAlive } from "@/components/shared/keep-alive"
 import { cn } from "@/lib/utils"
+
+const CommandPalette = dynamic(
+  () => import("@/components/command-palette").then((module) => module.CommandPalette),
+  { ssr: false }
+)
+
+const AIChatWidget = dynamic(
+  () => import("@/components/shared/ai-chat-widget").then((module) => module.AIChatWidget),
+  { ssr: false }
+)
 
 interface UserProfile {
   id: string
@@ -28,6 +37,7 @@ export function DashboardShell({ children, unreadCount, userProfile, allowedPerm
   const pathname = usePathname()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [paletteOpen, setPaletteOpen] = useState(false)
+  const [extrasReady, setExtrasReady] = useState(false)
 
   // ⌘K / Ctrl+K shortcut
   useEffect(() => {
@@ -39,6 +49,18 @@ export function DashboardShell({ children, unreadCount, userProfile, allowedPerm
     }
     document.addEventListener("keydown", handleKeyDown)
     return () => document.removeEventListener("keydown", handleKeyDown)
+  }, [])
+
+  // Keep voice/AI code off the critical hydration path. It becomes available
+  // as soon as the browser has finished the initial page work.
+  useEffect(() => {
+    if ("requestIdleCallback" in window) {
+      const id = window.requestIdleCallback(() => setExtrasReady(true), { timeout: 1500 })
+      return () => window.cancelIdleCallback(id)
+    }
+
+    const id = globalThis.setTimeout(() => setExtrasReady(true), 500)
+    return () => globalThis.clearTimeout(id)
   }, [])
 
   return (
@@ -68,8 +90,8 @@ export function DashboardShell({ children, unreadCount, userProfile, allowedPerm
         </main>
       </div>
       <MobileBottomNav />
-      <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
-      <AIChatWidget />
+      {paletteOpen && <CommandPalette open onOpenChange={setPaletteOpen} />}
+      {extrasReady && <AIChatWidget />}
       <KeepAlive />
     </div>
   )

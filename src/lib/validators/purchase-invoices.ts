@@ -5,6 +5,8 @@ export const purchaseInvoiceItemSchema = z.object({
   quantity: z.number().positive("Must be > 0"),
   unit_price: z.number().min(0),
   hsn_code: z.string().optional().or(z.literal("")),
+  is_ib_circle: z.boolean().optional(),
+  ib_plate_price: z.number().min(0, "IB plate price cannot be negative").nullable().optional(),
 })
 
 export const purchaseInvoiceSchema = z.object({

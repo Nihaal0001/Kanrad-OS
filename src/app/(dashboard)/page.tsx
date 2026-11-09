@@ -16,7 +16,7 @@ import Link from "next/link"
 
 import { getDashboardStats } from "@/actions/notifications"
 import { getRolePermissions } from "@/actions/users"
-import { createClient } from "@/lib/supabase/server"
+import { getCurrentProfile } from "@/lib/auth-context"
 import { redirect } from "next/navigation"
 import { StatCard } from "@/components/shared/stat-card"
 import { StatusBadge } from "@/components/shared/status-badge"
@@ -62,11 +62,10 @@ const PERMISSION_FIRST_PAGE: Record<string, string> = {
 }
 
 export default async function DashboardPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  const { data: profile } = user
-    ? await supabase.from("profiles").select("full_name, role, department").eq("auth_id", user.id).maybeSingle()
-    : { data: null }
+  const [{ profile }, stats] = await Promise.all([
+    getCurrentProfile(),
+    getDashboardStats(),
+  ])
 
   // Redirect non-dashboard users to their first permitted page. Mirrors the
   // layout's permission resolution: a per-user `department` override (set via
@@ -85,7 +84,6 @@ export default async function DashboardPage() {
   }
 
   const firstName = profile?.full_name?.split(" ")[0] ?? "there"
-  const stats = await getDashboardStats()
 
   return (
     <div className="space-y-8">

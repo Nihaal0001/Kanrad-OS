@@ -169,10 +169,22 @@ export async function createPurchaseInvoice(formData: PurchaseInvoiceFormData) {
   if (!user) return { error: "Not authenticated" }
 
   let paymentTerms: number | null = null
+  let linkedPoItems: Array<{ ib_plate_price: number | null; circle_type: string | null }> = []
   if (validated.purchase_order_id) {
     const poCheck = await validateLinkedPurchaseOrder(supabase, validated.purchase_order_id)
     if ("error" in poCheck && poCheck.error) return { error: poCheck.error }
     if ("data" in poCheck && poCheck.data) paymentTerms = poCheck.data.payment_terms
+
+    const { data: poItems, error: poItemsError } = await supabase
+      .from("purchase_order_items")
+      .select("ib_plate_price, material:materials(circle_type)")
+      .eq("purchase_order_id", validated.purchase_order_id)
+      .order("created_at", { ascending: true })
+    if (poItemsError) return { error: poItemsError.message }
+    linkedPoItems = (poItems ?? []).map((row) => {
+      const material = Array.isArray(row.material) ? row.material[0] : row.material
+      return { ib_plate_price: row.ib_plate_price, circle_type: material?.circle_type ?? null }
+    })
   }
 
   // Due on the day the bill is entered here + the PO's payment terms (45 with no PO).
@@ -198,13 +210,19 @@ export async function createPurchaseInvoice(formData: PurchaseInvoiceFormData) {
 
   if (invErr) return { error: invErr.message }
 
-  const items = validated.items.map((item) => ({
-    purchase_invoice_id: invoice.id,
-    description: item.description,
-    quantity: item.quantity,
-    unit_price: item.unit_price,
-    hsn_code: item.hsn_code || null,
-  }))
+  const items = validated.items.map((item, index) => {
+    const linkedPoItem = linkedPoItems[index]
+    const isIbCircle = linkedPoItem ? linkedPoItem.circle_type === "ib" : item.is_ib_circle ?? false
+    return {
+      purchase_invoice_id: invoice.id,
+      description: item.description,
+      quantity: item.quantity,
+      unit_price: item.unit_price,
+      hsn_code: item.hsn_code || null,
+      is_ib_circle: isIbCircle,
+      ib_plate_price: isIbCircle ? linkedPoItem?.ib_plate_price ?? item.ib_plate_price ?? null : null,
+    }
+  })
 
   const { error: itemsErr } = await supabase
     .from("purchase_invoice_items")
@@ -570,7 +588,13 @@ export async function getPurchaseOrdersForInvoice() {
   const supabase = await createClient()
   const { data } = await supabase
     .from("purchase_orders")
-    .select("id, po_number, supplier_name, total_amount")
+    .select(`
+      id, po_number, supplier_name, total_amount,
+      items:purchase_order_items(
+        quantity_ordered, unit_price, ib_plate_price,
+        material:materials(name, circle_type)
+      )
+    `)
     .in("status", ["received", "partial", "sent"])
     .eq("approval_status", "approved")
     .order("created_at", { ascending: false })

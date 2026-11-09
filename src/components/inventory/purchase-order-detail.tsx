@@ -35,7 +35,6 @@ import {
 import { StatusBadge } from "@/components/shared/status-badge"
 import { POApprovalButtons } from "@/components/inventory/po-approval-buttons"
 import { CheckCircle2, Package, Clock, TruckIcon, ClipboardList } from "lucide-react"
-import { kgToPieces } from "@/lib/circle-calc"
 
 interface LinkedOrder {
   id: string
@@ -60,6 +59,7 @@ interface POItem {
   weight_kg?: number | null
   quantity_kg?: number | null
   price_per_kg?: number | null
+  ib_plate_price?: number | null
   material: {
     id: string
     name: string
@@ -171,7 +171,6 @@ export function PurchaseOrderDetail({ po: initialPo, isAdmin }: PurchaseOrderDet
         toast.error("Enter the supplier's bill number")
         return
       }
-
       const orderId = receiveForOrder[itemId] || null
 
       setReceivingItemId(itemId)
@@ -197,7 +196,8 @@ export function PurchaseOrderDetail({ po: initialPo, isAdmin }: PurchaseOrderDet
       setReceiveQuantities((prev) => ({ ...prev, [itemId]: "" }))
       setReceiveBillNos((prev) => ({ ...prev, [itemId]: "" }))
       const orderLabel = linkedOrders.find((o) => o.id === orderId)?.order_number
-      toast.success(`Received ${qty} ${item.material?.unit ?? "units"}${orderLabel ? ` for ${orderLabel}` : ""}`)
+      const receiptUnit = item.material?.circle_type ? "pieces" : item.material?.unit ?? "units"
+      toast.success(`Received ${qty} ${receiptUnit}${orderLabel ? ` for ${orderLabel}` : ""}`)
       setReceivingItemId(null)
       router.refresh()
     },
@@ -303,6 +303,11 @@ export function PurchaseOrderDetail({ po: initialPo, isAdmin }: PurchaseOrderDet
                           Ordered {Number(item.quantity_kg).toLocaleString("en-IN")} kg @ ₹{Number(item.price_per_kg ?? 0).toLocaleString("en-IN")}/kg = {item.quantity_ordered.toLocaleString("en-IN")} pcs · received in pcs
                         </p>
                       )}
+                      {item.material?.circle_type === "ib" && item.ib_plate_price != null && (
+                        <p className="text-xs text-violet-600">
+                          IB price: {Number(item.weight_kg ?? 0).toFixed(4)} kg × ₹{Number(item.price_per_kg ?? 0).toLocaleString("en-IN")}/kg + ₹{Number(item.ib_plate_price).toLocaleString("en-IN")}/plate = {formatCurrency(item.unit_price)}/pc
+                        </p>
+                      )}
                     </div>
                     {fullyReceived && (
                       <span className="flex items-center gap-1 text-xs text-emerald-600 font-medium shrink-0">
@@ -313,20 +318,6 @@ export function PurchaseOrderDetail({ po: initialPo, isAdmin }: PurchaseOrderDet
                   </div>
 
                   <ReceiptProgressBar received={item.quantity_received} ordered={item.quantity_ordered} />
-                  {item.material?.circle_type === "non_ib" &&
-                    item.material.diameter_mm != null &&
-                    item.material.thickness_mm != null &&
-                    item.quantity_received > 0 && (() => {
-                      const pcs = kgToPieces(item.quantity_received, item.material.diameter_mm!, item.material.thickness_mm!, "non_ib")
-                      return pcs ? (
-                        <p className="text-xs text-muted-foreground">
-                          Received: <span className="font-semibold text-foreground">{pcs.toLocaleString("en-IN")} pcs</span>
-                          {" "}from {item.quantity_received} kg
-                        </p>
-                      ) : null
-                    })()
-                  }
-
                   {/* Per-order receipt breakdown */}
                   {(item.receipts?.length ?? 0) > 0 && (
                     <div className="flex flex-wrap gap-1.5 text-xs text-muted-foreground">
@@ -345,15 +336,7 @@ export function PurchaseOrderDetail({ po: initialPo, isAdmin }: PurchaseOrderDet
 
                   {canReceive && !fullyReceived && (() => {
                     const mat = item.material
-                    const isNonIbCircle =
-                      mat?.circle_type === "non_ib" &&
-                      mat.diameter_mm != null &&
-                      mat.thickness_mm != null
-                    const enteredKg = Number(receiveQuantities[item.id] ?? "")
-                    const pcsPreview =
-                      isNonIbCircle && enteredKg > 0 && mat?.diameter_mm && mat?.thickness_mm
-                        ? kgToPieces(enteredKg, mat.diameter_mm, mat.thickness_mm, "non_ib")
-                        : null
+                    const isCircle = !!mat?.circle_type
 
                     return (
                       <div className="space-y-2 pt-1">
@@ -394,13 +377,13 @@ export function PurchaseOrderDetail({ po: initialPo, isAdmin }: PurchaseOrderDet
                         <div className="flex items-end gap-2">
                           <div className="flex-1 space-y-1">
                             <Label className="text-xs text-muted-foreground">
-                              Receiving today ({item.material?.unit ?? "units"})
+                              Receiving today ({isCircle ? "pieces" : item.material?.unit ?? "units"})
                             </Label>
                             <Input
                               type="number"
-                              min={0.01}
+                              min={isCircle ? 1 : 0.01}
                               max={pending}
-                              step="0.01"
+                              step={isCircle ? "1" : "0.01"}
                               placeholder={`Max ${pending}`}
                               value={receiveQuantities[item.id] ?? ""}
                               onChange={(e) =>
@@ -408,11 +391,6 @@ export function PurchaseOrderDetail({ po: initialPo, isAdmin }: PurchaseOrderDet
                               }
                               className="h-9"
                             />
-                            {pcsPreview != null && (
-                              <p className="text-xs font-semibold text-primary">
-                                ≈ {pcsPreview.toLocaleString("en-IN")} pcs
-                              </p>
-                            )}
                           </div>
                           <Button
                             size="sm"

@@ -66,27 +66,39 @@ const _getDashboardStats = unstable_cache(
     const supabase = createAdminClient()
 
     const [
-      { data: activeOrders },
-      { data: dueThisWeek },
-      { data: lowStockItems },
+      { count: activeOrdersCount },
+      { count: confirmedCount },
+      { count: inProductionCount },
+      { count: dueThisWeekCount },
+      { count: lowStockCount },
       { data: recentOrders },
       { data: recentNotifications },
     ] = await Promise.all([
       supabase
         .from("orders")
-        .select("id, status")
+        .select("id", { count: "exact", head: true })
         .in("status", ["confirmed", "in_production"]),
 
       supabase
         .from("orders")
-        .select("id")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "confirmed"),
+
+      supabase
+        .from("orders")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "in_production"),
+
+      supabase
+        .from("orders")
+        .select("id", { count: "exact", head: true })
         .in("status", ["confirmed", "in_production"])
         .lte("deadline", new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0])
         .gte("deadline", new Date().toISOString().split("T")[0]),
 
       supabase
         .from("materials")
-        .select("id, current_stock, min_stock_level")
+        .select("id", { count: "exact", head: true })
         .eq("is_active", true)
         .filter("current_stock", "lte", "min_stock_level"),
 
@@ -101,7 +113,7 @@ const _getDashboardStats = unstable_cache(
 
       supabase
         .from("notifications")
-        .select("*")
+        .select("id, type, message, created_at")
         .order("created_at", { ascending: false })
         .limit(8),
     ])
@@ -113,11 +125,11 @@ const _getDashboardStats = unstable_cache(
     }))
 
     return {
-      activeOrdersCount: activeOrders?.length ?? 0,
-      confirmedCount: activeOrders?.filter((o) => o.status === "confirmed").length ?? 0,
-      inProductionCount: activeOrders?.filter((o) => o.status === "in_production").length ?? 0,
-      dueThisWeekCount: dueThisWeek?.length ?? 0,
-      lowStockCount: lowStockItems?.length ?? 0,
+      activeOrdersCount: activeOrdersCount ?? 0,
+      confirmedCount: confirmedCount ?? 0,
+      inProductionCount: inProductionCount ?? 0,
+      dueThisWeekCount: dueThisWeekCount ?? 0,
+      lowStockCount: lowStockCount ?? 0,
       recentOrders: normalizedOrders,
       recentNotifications: recentNotifications ?? [],
     }

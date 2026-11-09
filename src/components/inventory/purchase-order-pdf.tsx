@@ -122,6 +122,9 @@ export interface PurchaseOrderPDFData {
     material: { name: string; sku: string; unit: string } | null
     quantity_ordered: number
     unit_price: number
+    quantity_kg?: number | null
+    price_per_kg?: number | null
+    ib_plate_price?: number | null
   }>
 }
 
@@ -178,14 +181,21 @@ export function PurchaseOrderPDFDocument({ po, org }: Props) {
     return orgCode !== supCode
   })()
 
-  const subtotal = po.items.reduce((sum, item) => sum + item.quantity_ordered * item.unit_price, 0)
+  // The stored per-piece price is the accounting price. For IB circles it includes the plate.
+  const lineAmount = (item: PurchaseOrderPDFData["items"][number]) => item.quantity_ordered * item.unit_price
+  const displayQty = (item: PurchaseOrderPDFData["items"][number]) => item.quantity_kg ?? item.quantity_ordered
+  const displayRate = (item: PurchaseOrderPDFData["items"][number]) => item.price_per_kg ?? item.unit_price
+  const displayUnit = (item: PurchaseOrderPDFData["items"][number]) => item.quantity_kg != null ? "kg" : item.material?.unit ?? ""
+
+  const subtotal = po.items.reduce((sum, item) => sum + lineAmount(item), 0)
   const taxAmount = subtotal * (po.tax_rate / 100)
   const grandTotal = subtotal + taxAmount
   const halfRate = po.tax_rate / 2
   const halfTax = taxAmount / 2
 
-  const totalQty = po.items.reduce((sum, item) => sum + item.quantity_ordered, 0)
-  const firstUnit = po.items[0]?.material?.unit ?? ""
+  const units = [...new Set(po.items.map(displayUnit))]
+  const totalQty = po.items.reduce((sum, item) => sum + displayQty(item), 0)
+  const firstUnit = units.length === 1 ? units[0] : ""
 
   return (
     <Document>
@@ -279,12 +289,15 @@ export function PurchaseOrderPDFDocument({ po, org }: Props) {
           {po.items.map((item, idx) => (
             <View key={idx} style={s.tRow}>
               <View style={s.colSi}><Text style={s.tdText}>{idx + 1}</Text></View>
-              <View style={s.colDesc}><Text style={s.tdText}>{item.material?.name ?? "—"}</Text></View>
+              <View style={s.colDesc}>
+                <Text style={s.tdText}>{item.material?.name ?? "—"}</Text>
+                {item.ib_plate_price != null ? <Text style={s.tdText}>Includes IB plate @ Rs. {fmt(item.ib_plate_price)}/pc</Text> : null}
+              </View>
               <View style={s.colPart}><Text style={s.tdText}>{item.material?.sku ?? ""}</Text></View>
-              <View style={s.colQty}><Text style={s.tdText}>{fmt(item.quantity_ordered, 3)} {item.material?.unit ?? ""}</Text></View>
-              <View style={s.colRate}><Text style={s.tdText}>{fmt(item.unit_price)}</Text></View>
-              <View style={s.colPer}><Text style={s.tdText}>{item.material?.unit ?? ""}</Text></View>
-              <View style={s.colAmount}><Text style={s.tdText}>{fmt(item.quantity_ordered * item.unit_price)}</Text></View>
+              <View style={s.colQty}><Text style={s.tdText}>{fmt(displayQty(item), 3)} {displayUnit(item)}</Text></View>
+              <View style={s.colRate}><Text style={s.tdText}>{fmt(displayRate(item))}</Text></View>
+              <View style={s.colPer}><Text style={s.tdText}>{displayUnit(item)}</Text></View>
+              <View style={s.colAmount}><Text style={s.tdText}>{fmt(lineAmount(item))}</Text></View>
             </View>
           ))}
 
