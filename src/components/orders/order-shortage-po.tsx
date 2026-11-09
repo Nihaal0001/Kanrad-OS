@@ -313,7 +313,7 @@ export function OrderShortagePO({ orderId, shortages, suppliers }: OrderShortage
                   {isCircle && (
                     <div className="grid gap-4 rounded-md border border-violet-200 p-3 sm:grid-cols-2">
                       <div className="space-y-1.5">
-                        <Label>{s.circle_type === "ib" ? "Aluminium price / kg *" : "Price / kg *"}</Label>
+                        <Label>Aluminium price / kg *</Label>
                         <Input type="number" min={0.01} step="0.01" value={row.aluminiumPricePerKg || ""} onChange={(e) => updateRow(s.id, { aluminiumPricePerKg: Number(e.target.value) || 0 })} />
                       </div>
                       {s.circle_type === "ib" && (

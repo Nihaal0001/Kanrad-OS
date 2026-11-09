@@ -159,6 +159,8 @@ export function PurchaseOrderForm({ materials, suppliers }: PurchaseOrderFormPro
   // Keep the text the user is actively typing separate from the derived pieces
   // fields, so recalculation can never overwrite the kg input mid-keystroke.
   const [circleKgInputs, setCircleKgInputs] = useState<Record<string, string>>({})
+  const [circlePriceInputs, setCirclePriceInputs] = useState<Record<string, string>>({})
+  const [circlePlateInputs, setCirclePlateInputs] = useState<Record<string, string>>({})
   const materialsMap = Object.fromEntries(materials.map((m) => [m.id, m]))
 
   const form = useForm<PurchaseOrderFormData>({
@@ -351,7 +353,7 @@ export function PurchaseOrderForm({ materials, suppliers }: PurchaseOrderFormPro
           <div className="hidden sm:grid grid-cols-[2fr_1fr_1fr_1fr_40px] gap-3 text-xs font-medium text-muted-foreground uppercase tracking-wide px-1">
             <span>Material</span>
             <span>Quantity</span>
-            <span>Price / Unit</span>
+            <span>Purchase Price</span>
             <span className="text-right">Amount</span>
             <span />
           </div>
@@ -379,11 +381,16 @@ export function PurchaseOrderForm({ materials, suppliers }: PurchaseOrderFormPro
                       if (m) form.setValue(`items.${index}.unit_price`, m.cost_per_unit)
                       form.setValue(`items.${index}.weight_kg`, null)
                       setCircleKgInputs((current) => ({ ...current, [field.id]: "" }))
+                      setCirclePlateInputs((current) => ({ ...current, [field.id]: "" }))
                       if (m && isCircleMaterial(m)) {
                         const w = circleWeightFor(m)
+                        const suggestedPrice = m.circle_type !== "ib" && w && m.cost_per_unit > 0
+                          ? Math.round((m.cost_per_unit / w) * 100) / 100
+                          : null
                         form.setValue(`items.${index}.order_unit`, "kg")
                         form.setValue(`items.${index}.quantity_kg`, null)
-                        form.setValue(`items.${index}.price_per_kg`, m.circle_type !== "ib" && w && m.cost_per_unit > 0 ? Math.round((m.cost_per_unit / w) * 100) / 100 : 0)
+                        form.setValue(`items.${index}.price_per_kg`, suggestedPrice)
+                        setCirclePriceInputs((current) => ({ ...current, [field.id]: suggestedPrice == null ? "" : String(suggestedPrice) }))
                         form.setValue(`items.${index}.ib_plate_price`, null)
                         form.setValue(`items.${index}.quantity_ordered`, 0)
                         form.setValue(`items.${index}.unit_price`, 0)
@@ -391,6 +398,7 @@ export function PurchaseOrderForm({ materials, suppliers }: PurchaseOrderFormPro
                         form.setValue(`items.${index}.order_unit`, "pcs")
                         form.setValue(`items.${index}.quantity_kg`, null)
                         form.setValue(`items.${index}.price_per_kg`, null)
+                        setCirclePriceInputs((current) => ({ ...current, [field.id]: "" }))
                         form.setValue(`items.${index}.ib_plate_price`, null)
                       }
                     }}
@@ -400,29 +408,31 @@ export function PurchaseOrderForm({ materials, suppliers }: PurchaseOrderFormPro
                       <p className="text-xs font-medium text-violet-600">
                         Calculated utensil weight: {circleWeight ? `${Number(circleWeight).toFixed(4)} kg/piece` : "Set diameter and thickness in the material master"}
                       </p>
-                      <Label className="text-xs block pt-1">Aluminium price / kg *</Label>
-                      <Input
-                        type="number"
-                        min={0}
-                        step="0.01"
-                        className="h-9"
-                        placeholder="₹ per kg"
-                        {...form.register(`items.${index}.price_per_kg`, {
-                          setValueAs: (v) => (v === "" || v == null ? null : Number(v)),
-                          onChange: (e) => recomputeCircle(index, { price_per_kg: Number(e.target.value) || 0 }),
-                        })}
-                      />
                       <Label className="text-xs block pt-1">IB plate price / piece *</Label>
-                      <Input
-                        type="number"
-                        min={0}
-                        step="0.01"
-                        className="h-9"
-                        placeholder="₹ per plate"
-                        {...form.register(`items.${index}.ib_plate_price`, {
-                          setValueAs: (v) => (v === "" || v == null ? null : Number(v)),
-                          onChange: (e) => recomputeCircle(index, { ib_plate_price: Number(e.target.value) || 0 }),
-                        })}
+                      <Controller
+                        control={form.control}
+                        name={`items.${index}.ib_plate_price`}
+                        render={({ field: plateField }) => (
+                          <Input
+                            ref={plateField.ref}
+                            name={plateField.name}
+                            type="number"
+                            inputMode="decimal"
+                            min={0}
+                            step="0.01"
+                            className="h-9"
+                            placeholder="₹ per plate"
+                            value={circlePlateInputs[field.id] ?? (plateField.value == null ? "" : String(plateField.value))}
+                            onBlur={plateField.onBlur}
+                            onChange={(event) => {
+                              const raw = event.target.value
+                              setCirclePlateInputs((current) => ({ ...current, [field.id]: raw }))
+                              const platePrice = raw === "" ? null : Number(raw)
+                              plateField.onChange(platePrice)
+                              recomputeCircle(index, { ib_plate_price: platePrice })
+                            }}
+                          />
+                        )}
                       />
                       <p className="text-xs text-muted-foreground">Price/piece = utensil weight × aluminium price/kg + IB plate price.</p>
                     </div>
@@ -431,10 +441,15 @@ export function PurchaseOrderForm({ materials, suppliers }: PurchaseOrderFormPro
                     <p className="text-xs text-muted-foreground">Calculated weight: {Number(circleWeight).toFixed(4)} kg/pc</p>
                   ) : null}
                   {circle && (item?.quantity_ordered ?? 0) > 0 && (item?.unit_price ?? 0) > 0 ? (
-                    <p className="text-xs font-medium text-emerald-600">
-                      = {(item?.quantity_ordered ?? 0).toLocaleString("en-IN")} pcs @ ₹{(item?.unit_price ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}/pc
-                      {mat?.circle_type === "ib" ? ` (includes ₹${item?.ib_plate_price ?? 0} IB plate)` : ""} — received in pieces
-                    </p>
+                    <div className="rounded-md bg-emerald-500/10 px-2.5 py-2 text-xs text-emerald-700 dark:text-emerald-400">
+                      <p className="font-medium">
+                        Calculated inventory cost: ₹{(item?.unit_price ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}/piece
+                      </p>
+                      <p className="mt-0.5">
+                        {(item?.quantity_kg ?? 0).toLocaleString("en-IN")} kg = {(item?.quantity_ordered ?? 0).toLocaleString("en-IN")} pieces
+                        {mat?.circle_type === "ib" ? ` · includes ₹${item?.ib_plate_price ?? 0} IB plate/piece` : ""}. This cost updates inventory when received.
+                      </p>
+                    </div>
                   ) : null}
                   {mat?.category_name && (
                     <p className="text-xs text-muted-foreground">Category: {mat.category_name}</p>
@@ -489,18 +504,35 @@ export function PurchaseOrderForm({ materials, suppliers }: PurchaseOrderFormPro
                 </div>
 
                 <div className="space-y-1">
-                  <Label className="sm:hidden text-xs">{circle ? "Price / kg" : "Price / Unit"}</Label>
-                  {circle && mat?.circle_type !== "ib" ? (
-                    <Input
-                      type="number"
-                      min={0}
-                      step="0.01"
-                      className="h-9"
-                      placeholder="₹ per kg"
-                      {...form.register(`items.${index}.price_per_kg`, {
-                        setValueAs: (v) => (v === "" || v == null ? null : Number(v)),
-                        onChange: (e) => recomputeCircle(index, { price_per_kg: Number(e.target.value) || 0 }),
-                      })}
+                  <Label className={circle ? "text-xs" : "sm:hidden text-xs"}>{circle ? "Aluminium price / kg *" : "Price / Unit"}</Label>
+                  {circle ? (
+                    <Controller
+                      control={form.control}
+                      name={`items.${index}.price_per_kg`}
+                      render={({ field: priceField }) => (
+                        <div className="relative">
+                          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">₹</span>
+                          <Input
+                            ref={priceField.ref}
+                            name={priceField.name}
+                            type="number"
+                            inputMode="decimal"
+                            min={0}
+                            step="0.01"
+                            className="h-11 pl-7 text-base"
+                            placeholder="Price per kg"
+                            value={circlePriceInputs[field.id] ?? (priceField.value == null ? "" : String(priceField.value))}
+                            onBlur={priceField.onBlur}
+                            onChange={(event) => {
+                              const raw = event.target.value
+                              setCirclePriceInputs((current) => ({ ...current, [field.id]: raw }))
+                              const aluminiumPrice = raw === "" ? null : Number(raw)
+                              priceField.onChange(aluminiumPrice)
+                              recomputeCircle(index, { price_per_kg: aluminiumPrice })
+                            }}
+                          />
+                        </div>
+                      )}
                     />
                   ) : (
                     <Input
@@ -513,7 +545,7 @@ export function PurchaseOrderForm({ materials, suppliers }: PurchaseOrderFormPro
                       {...form.register(`items.${index}.unit_price`, { valueAsNumber: true })}
                     />
                   )}
-                  {circle && <p className="text-xs text-muted-foreground">{mat?.circle_type === "ib" ? "calculated from aluminium + IB plate" : "per kg"}</p>}
+                  {circle && <p className="text-xs text-muted-foreground">Used to calculate inventory cost per piece</p>}
                 </div>
 
                 <div className="flex items-center justify-end h-9 text-sm font-medium tabular-nums">
