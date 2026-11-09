@@ -3,7 +3,7 @@
 import { circleLineFromKg, circleWeightFor, isCircleMaterial } from "@/lib/costing"
 import { useRef, useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { useForm, useFieldArray } from "react-hook-form"
+import { Controller, useForm, useFieldArray } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Plus, Trash2, Loader2, Check, ShoppingCart } from "lucide-react"
 import { toast } from "sonner"
@@ -156,6 +156,9 @@ function MaterialCombobox({ materials, value, onChange }: MaterialComboboxProps)
 export function PurchaseOrderForm({ materials, suppliers }: PurchaseOrderFormProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
+  // Keep the text the user is actively typing separate from the derived pieces
+  // fields, so recalculation can never overwrite the kg input mid-keystroke.
+  const [circleKgInputs, setCircleKgInputs] = useState<Record<string, string>>({})
   const materialsMap = Object.fromEntries(materials.map((m) => [m.id, m]))
 
   const form = useForm<PurchaseOrderFormData>({
@@ -375,6 +378,7 @@ export function PurchaseOrderForm({ materials, suppliers }: PurchaseOrderFormPro
                       form.setValue(`items.${index}.material_id`, id, { shouldValidate: true })
                       if (m) form.setValue(`items.${index}.unit_price`, m.cost_per_unit)
                       form.setValue(`items.${index}.weight_kg`, null)
+                      setCircleKgInputs((current) => ({ ...current, [field.id]: "" }))
                       if (m && isCircleMaterial(m)) {
                         const w = circleWeightFor(m)
                         form.setValue(`items.${index}.order_unit`, "kg")
@@ -443,16 +447,30 @@ export function PurchaseOrderForm({ materials, suppliers }: PurchaseOrderFormPro
                 <div className="space-y-1">
                   <Label className="sm:hidden text-xs">Quantity {circle ? "(kg)" : mat ? `(${mat.unit})` : ""}</Label>
                   {circle ? (
-                    <Input
-                      type="number"
-                      min={0}
-                      step="0.01"
-                      className="h-11 text-base"
-                      placeholder="Quantity in kg"
-                      {...form.register(`items.${index}.quantity_kg`, {
-                        setValueAs: (v) => (v === "" || v == null ? null : Number(v)),
-                        onChange: (e) => recomputeCircle(index, { quantity_kg: Number(e.target.value) || 0 }),
-                      })}
+                    <Controller
+                      control={form.control}
+                      name={`items.${index}.quantity_kg`}
+                      render={({ field: kgField }) => (
+                        <Input
+                          ref={kgField.ref}
+                          name={kgField.name}
+                          type="number"
+                          inputMode="decimal"
+                          min={0}
+                          step="0.01"
+                          className="h-11 text-base"
+                          placeholder="Quantity in kg"
+                          value={circleKgInputs[field.id] ?? (kgField.value == null ? "" : String(kgField.value))}
+                          onBlur={kgField.onBlur}
+                          onChange={(event) => {
+                            const raw = event.target.value
+                            setCircleKgInputs((current) => ({ ...current, [field.id]: raw }))
+                            const quantityKg = raw === "" ? null : Number(raw)
+                            kgField.onChange(quantityKg)
+                            recomputeCircle(index, { quantity_kg: quantityKg })
+                          }}
+                        />
+                      )}
                     />
                   ) : (
                     <Input
