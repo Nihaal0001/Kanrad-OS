@@ -81,6 +81,7 @@ interface PurchaseOrderDetailProps {
     approval_notes: string | null
     order_date: string
     expected_date: string | null
+    payment_terms?: number
     total_amount: number
     tax_rate: number
     notes: string | null
@@ -474,6 +475,10 @@ export function PurchaseOrderDetail({ po: initialPo, isAdmin }: PurchaseOrderDet
             <div>
               <p className="text-sm text-muted-foreground">Order Date</p>
               <p className="font-medium">{formatDate(po.order_date)}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Payment Terms</p>
+              <p className="font-medium">{po.payment_terms ?? 45} days</p>
             </div>
             {po.expected_date && (
               <div>

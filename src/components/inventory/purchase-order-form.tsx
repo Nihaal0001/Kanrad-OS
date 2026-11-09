@@ -162,6 +162,7 @@ export function PurchaseOrderForm({ materials, suppliers }: PurchaseOrderFormPro
       order_date: new Date().toISOString().slice(0, 10),
       expected_date: "",
       tax_rate: 0,
+      payment_terms: 45,
       notes: "Stock-up purchase order — not tied to a specific customer order",
       reference_no: "",
       other_references: "",
@@ -246,7 +247,7 @@ export function PurchaseOrderForm({ materials, suppliers }: PurchaseOrderFormPro
             </div>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-4">
             <div className="space-y-1.5">
               <Label>Tax % *</Label>
               <Input
@@ -259,6 +260,22 @@ export function PurchaseOrderForm({ materials, suppliers }: PurchaseOrderFormPro
               />
               {form.formState.errors.tax_rate && (
                 <p className="text-xs text-destructive">{form.formState.errors.tax_rate.message}</p>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <Label>Payment Terms (days) *</Label>
+              <Input
+                type="number"
+                min={0}
+                max={365}
+                step="1"
+                placeholder="e.g. 45"
+                {...form.register("payment_terms", { valueAsNumber: true })}
+              />
+              {form.formState.errors.payment_terms ? (
+                <p className="text-xs text-destructive">{form.formState.errors.payment_terms.message}</p>
+              ) : (
+                <p className="text-xs text-muted-foreground">Bills are due this many days after entry</p>
               )}
             </div>
             <div className="space-y-1.5">

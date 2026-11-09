@@ -34,7 +34,7 @@ interface BomProduct {
 }
 
 interface Props {
-  customers: Array<{ id: string; name: string; company: string | null }>
+  customers: Array<{ id: string; name: string; company: string | null; payment_terms?: number | null }>
   products?: BomProduct[]
 }
 
@@ -55,6 +55,7 @@ export function CreateOrderSheet({ customers, products = [] }: Props) {
       deadline: "",
       priority: "normal",
       gst_rate: 18,
+      payment_terms: 30,
       notes: "",
       items: [{ product_variant: "", size: "", color: "", quantity: 1, unit_price: 0, hsn_code: "", thickness_mm: null }],
     },
@@ -83,6 +84,7 @@ export function CreateOrderSheet({ customers, products = [] }: Props) {
       deadline: "",
       priority: "normal",
       gst_rate: 18,
+      payment_terms: 30,
       notes: "",
       items: [{ product_variant: "", size: "", color: "", quantity: 1, unit_price: 0, hsn_code: "", thickness_mm: null }],
     })
@@ -123,13 +125,36 @@ export function CreateOrderSheet({ customers, products = [] }: Props) {
                 <Label>Customer *</Label>
                 <CustomerSelect
                   value={form.watch("customer_id")}
-                  onChange={(v) => form.setValue("customer_id", v, { shouldValidate: true })}
+                  onChange={(v) => {
+                    form.setValue("customer_id", v, { shouldValidate: true })
+                    const c = customers.find((x) => x.id === v)
+                    form.setValue("payment_terms", c?.payment_terms ?? 30, { shouldValidate: true })
+                  }}
                   customers={customers}
                   placeholder="Select a customer"
                   addLabel="Add New Customer"
                 />
                 {form.formState.errors.customer_id && (
                   <p className="text-xs text-destructive">{form.formState.errors.customer_id.message}</p>
+                )}
+              </div>
+
+
+              {/* Payment terms */}
+              <div className="space-y-1.5">
+                <Label>Payment Terms (days) *</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={365}
+                  step="1"
+                  placeholder="e.g. 30"
+                  {...form.register("payment_terms", { valueAsNumber: true })}
+                />
+                {form.formState.errors.payment_terms ? (
+                  <p className="text-xs text-destructive">{form.formState.errors.payment_terms.message}</p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">Filled from the customer&apos;s terms — change it for this order if needed. The invoice falls due this many days after it is raised.</p>
                 )}
               </div>
 

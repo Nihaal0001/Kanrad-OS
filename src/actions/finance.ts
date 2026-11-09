@@ -3,6 +3,7 @@
 import { revalidatePath, revalidateTag, unstable_cache } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { addDaysISO } from "@/lib/payment-terms"
 import {
   invoiceSchema,
   paymentSchema,
@@ -97,6 +98,17 @@ export async function createInvoice(formData: InvoiceFormData) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: "Not authenticated" }
 
+  // No due date typed → issue date + the order's payment terms
+  let dueDate = validated.due_date || null
+  if (!dueDate && validated.order_id) {
+    const { data: ord } = await supabase
+      .from("orders")
+      .select("payment_terms")
+      .eq("id", validated.order_id)
+      .maybeSingle()
+    if (ord?.payment_terms != null) dueDate = addDaysISO(validated.issue_date, ord.payment_terms)
+  }
+
   // Insert invoice
   const { data: invoice, error: invErr } = await supabase
     .from("invoices")
@@ -111,7 +123,7 @@ export async function createInvoice(formData: InvoiceFormData) {
       reverse_charge: validated.reverse_charge ?? false,
       is_igst: validated.is_igst ?? false,
       issue_date: validated.issue_date,
-      due_date: validated.due_date || null,
+      due_date: dueDate,
       notes: validated.notes || null,
     })
     .select()

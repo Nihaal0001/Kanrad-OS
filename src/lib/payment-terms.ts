@@ -1,4 +1,4 @@
-/** Supplier bills fall due this many days after the day they are entered in the ERP. */
+/** Default payment terms: supplier bills fall due this many days after the day they are entered. */
 export const BILL_PAYMENT_DAYS = 45
 
 /** Today's date (YYYY-MM-DD) in India, regardless of the server's timezone. */
@@ -12,7 +12,10 @@ export function addDaysISO(dateStr: string, days: number): string {
   return d.toISOString().slice(0, 10)
 }
 
-/** Due date for a bill entered today: entry date + 45 days (not the supplier's invoice date). */
-export function billDueDateFromToday(): string {
-  return addDaysISO(todayIST(), BILL_PAYMENT_DAYS)
+/**
+ * Due date for a bill entered today: entry date + the PO's payment terms
+ * (45 days when the bill has no PO) — not the supplier's invoice date.
+ */
+export function billDueDateFromToday(paymentTerms: number | null | undefined = BILL_PAYMENT_DAYS): string {
+  return addDaysISO(todayIST(), paymentTerms ?? BILL_PAYMENT_DAYS)
 }

@@ -233,7 +233,7 @@ export function PurchaseInvoiceForm({ purchaseOrders, orgGstin }: PurchaseInvoic
           <div className="space-y-1.5">
             <Label>Payment Due</Label>
             <p className="flex h-9 items-center rounded-md border border-border bg-muted/40 px-3 text-sm text-muted-foreground">
-              Auto-set to 45 days from today (entry date)
+              Auto-set: today + the PO's payment terms (45 days if no PO)
             </p>
           </div>
 

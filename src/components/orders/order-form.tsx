@@ -34,7 +34,7 @@ interface BomProduct {
 
 interface OrderFormProps {
   order?: OrderDetail
-  customers: Array<{ id: string; name: string; company: string | null }>
+  customers: Array<{ id: string; name: string; company: string | null; payment_terms?: number | null }>
   products?: BomProduct[]
 }
 
@@ -67,6 +67,7 @@ export function OrderForm({ order, customers, products = [] }: OrderFormProps) {
       deadline: order?.deadline ?? "",
       priority: "normal",
       gst_rate: 18,
+      payment_terms: order?.payment_terms ?? 30,
       notes: "",
       items: existingItems?.length
         ? existingItems
@@ -135,7 +136,11 @@ export function OrderForm({ order, customers, products = [] }: OrderFormProps) {
             <Label>Customer</Label>
             <CustomerSelect
               value={form.watch("customer_id")}
-              onChange={(value) => form.setValue("customer_id", value, { shouldValidate: true })}
+              onChange={(value) => {
+                form.setValue("customer_id", value, { shouldValidate: true })
+                const c = customers.find((x) => x.id === value)
+                form.setValue("payment_terms", c?.payment_terms ?? 30, { shouldValidate: true })
+              }}
               customers={customers}
               placeholder="Select a customer"
               addLabel="Manage Customers"
@@ -143,6 +148,25 @@ export function OrderForm({ order, customers, products = [] }: OrderFormProps) {
             />
             {form.formState.errors.customer_id && (
               <p className="text-sm text-destructive">{form.formState.errors.customer_id.message}</p>
+            )}
+          </div>
+
+
+          {/* Payment terms */}
+          <div className="space-y-2">
+            <Label>Payment Terms (days)</Label>
+            <Input
+              type="number"
+              min={0}
+              max={365}
+              step="1"
+              placeholder="e.g. 30"
+              {...form.register("payment_terms", { valueAsNumber: true })}
+            />
+            {form.formState.errors.payment_terms ? (
+              <p className="text-sm text-destructive">{form.formState.errors.payment_terms.message}</p>
+            ) : (
+              <p className="text-xs text-muted-foreground">Filled from the customer&apos;s terms — change it for this order if needed. The invoice falls due this many days after it is raised.</p>
             )}
           </div>
 

@@ -31,6 +31,8 @@ export type Order = {
   customer_id: string | null
   source_photo_path?: string | null
   source_photo_hash?: string | null
+  /** Credit days for this order's invoice */
+  payment_terms?: number
   created_at: string
   updated_at: string
 }
@@ -172,6 +174,8 @@ export type PurchaseOrder = {
   order_date: string
   expected_date: string | null
   total_amount: number
+  /** Credit days — a bill against this PO is due entry date + this many days */
+  payment_terms?: number
   notes: string | null
   created_at: string
   updated_at: string

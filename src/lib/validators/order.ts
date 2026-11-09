@@ -18,6 +18,8 @@ export const orderSchema = z.object({
   priority: z.enum(["low", "normal", "high", "urgent"]),
   status: z.enum(["draft", "confirmed", "in_production", "completed", "dispatched", "cancelled"]).optional(),
   gst_rate: z.number().min(0).max(28),
+  // Credit days for this order's invoice; defaults to the customer's terms (or 30) when omitted
+  payment_terms: z.number().int("Whole days only").min(0, "Cannot be negative").max(365, "Max 365 days").optional(),
   notes: z.string().max(1000).optional().or(z.literal("")),
   items: z.array(orderItemSchema).min(1, "At least one item is required"),
 })

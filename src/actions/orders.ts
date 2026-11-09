@@ -70,6 +70,17 @@ export async function createOrder(formData: OrderFormData) {
   const { items, ...orderData } = validated
   const styleSummary = getOrderStyleSummary(items)
 
+  // Payment terms: what was typed on the order, else the customer's terms, else 30 days
+  let paymentTerms = validated.payment_terms
+  if (paymentTerms == null) {
+    const { data: customer } = await supabase
+      .from("customers")
+      .select("payment_terms")
+      .eq("id", validated.customer_id)
+      .maybeSingle()
+    paymentTerms = customer?.payment_terms ?? 30
+  }
+
   // Clean empty strings to null
   const cleaned = Object.fromEntries(
     Object.entries(orderData).map(([k, v]) => [k, v === "" ? null : v])
@@ -80,6 +91,7 @@ export async function createOrder(formData: OrderFormData) {
     .from("orders")
     .insert({
       ...cleaned,
+      payment_terms: paymentTerms,
       style_name: styleSummary,
       product_variant: styleSummary,
       order_number: "", // trigger will set this
@@ -270,6 +282,7 @@ export async function duplicateOrder(id: string) {
       priority: original.priority,
       notes: original.notes,
       customer_id: original.customer_id,
+      payment_terms: original.payment_terms ?? 30,
       status: "draft",
       order_number: "", // trigger sets this
     })

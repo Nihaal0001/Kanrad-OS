@@ -36,6 +36,8 @@ export const purchaseOrderSchema = z.object({
   order_date: z.string().min(1, "Order date is required"),
   expected_date: z.string().optional().or(z.literal("")),
   tax_rate: z.number().min(0, "Cannot be negative").max(100, "Cannot exceed 100%"),
+  // Credit days — a bill against this PO is due entry date + this many days
+  payment_terms: z.number().int("Whole days only").min(0, "Cannot be negative").max(365, "Max 365 days").optional(),
   notes: z.string().max(1000).optional().or(z.literal("")),
   reference_no: z.string().max(200).optional().or(z.literal("")),
   other_references: z.string().max(200).optional().or(z.literal("")),

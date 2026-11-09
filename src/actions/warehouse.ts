@@ -264,7 +264,7 @@ export async function dispatchWarehouseSku(formData: WarehouseSkuDispatchFormDat
     if (!billNo) continue
     const { data: order } = await admin
       .from("orders")
-      .select("id, order_number, customer_id, gst_rate")
+      .select("id, order_number, customer_id, gst_rate, payment_terms")
       .eq("id", orderId)
       .single()
     if (!order?.customer_id) continue
@@ -304,7 +304,7 @@ export async function dispatchWarehouseSku(formData: WarehouseSkuDispatchFormDat
           customer_gst: customer.gstin || null,
           tax_rate: order.gst_rate ?? 18,
           issue_date: today,
-          due_date: addDays(today, customer.payment_terms ?? 30),
+          due_date: addDays(today, order.payment_terms ?? customer.payment_terms ?? 30),
           status: "sent",
           bill_no: billNo,
           notes: `Dispatch bill ${billNo} — order ${order.order_number}`,

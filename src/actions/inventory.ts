@@ -878,7 +878,7 @@ export async function receivePurchaseOrderItem(
     const trimmedBillNo = billNo!.trim()
     const { data: poRow } = await admin
       .from("purchase_orders")
-      .select("supplier_name, supplier_id, tax_rate")
+      .select("supplier_name, supplier_id, tax_rate, payment_terms")
       .eq("id", poId)
       .single()
     const supplierName = poRow?.supplier_name ?? "Unknown Supplier"
@@ -902,7 +902,7 @@ export async function receivePurchaseOrderItem(
           invoice_number: trimmedBillNo,
           tax_rate: poRow?.tax_rate ?? 0,
           invoice_date: invoiceDate,
-          due_date: billDueDateFromToday(),
+          due_date: billDueDateFromToday(poRow?.payment_terms),
           status: "received",
         })
         .select("id")

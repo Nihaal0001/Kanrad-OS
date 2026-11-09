@@ -187,6 +187,10 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
                   <p className="text-sm text-muted-foreground">Deadline</p>
                   <p className="font-medium">{formatDate(order.deadline)}</p>
                 </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Payment Terms</p>
+                  <p className="font-medium">{order.payment_terms ?? 30} days</p>
+                </div>
               </div>
 
               {order.notes && (

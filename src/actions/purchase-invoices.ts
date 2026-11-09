@@ -21,7 +21,7 @@ async function validateLinkedPurchaseOrder(
 ) {
   const { data: purchaseOrder, error } = await supabase
     .from("purchase_orders")
-    .select("id, approval_status, supplier_id")
+    .select("id, approval_status, supplier_id, payment_terms")
     .eq("id", purchaseOrderId)
     .maybeSingle()
 
@@ -168,13 +168,16 @@ export async function createPurchaseInvoice(formData: PurchaseInvoiceFormData) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: "Not authenticated" }
 
+  let paymentTerms: number | null = null
   if (validated.purchase_order_id) {
     const poCheck = await validateLinkedPurchaseOrder(supabase, validated.purchase_order_id)
     if ("error" in poCheck && poCheck.error) return { error: poCheck.error }
+    if ("data" in poCheck && poCheck.data) paymentTerms = poCheck.data.payment_terms
   }
 
-  // Due 45 days after the day the bill is entered here (also enforced by a DB trigger).
-  const dueDate = billDueDateFromToday()
+  // Due on the day the bill is entered here + the PO's payment terms (45 with no PO).
+  // Also enforced by a DB trigger.
+  const dueDate = billDueDateFromToday(paymentTerms)
 
   const { data: invoice, error: invErr } = await supabase
     .from("purchase_invoices")
@@ -240,9 +243,11 @@ export async function createImportedPurchaseInvoice(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: "Not authenticated" }
 
+  let paymentTerms: number | null = null
   if (validated.purchase_order_id) {
     const poCheck = await validateLinkedPurchaseOrder(supabase, validated.purchase_order_id)
     if ("error" in poCheck && poCheck.error) return { error: poCheck.error }
+    if ("data" in poCheck && poCheck.data) paymentTerms = poCheck.data.payment_terms
   }
 
   const { data: invoice, error: invErr } = await supabase
@@ -256,7 +261,7 @@ export async function createImportedPurchaseInvoice(
       place_of_supply: validated.place_of_supply || null,
       is_igst: validated.is_igst ?? false,
       invoice_date: validated.invoice_date,
-      due_date: billDueDateFromToday(),
+      due_date: billDueDateFromToday(paymentTerms),
       notes: validated.notes || null,
       document_path: formData.document_path || null,
       document_url: formData.document_url || null,
