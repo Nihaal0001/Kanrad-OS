@@ -793,6 +793,12 @@ export async function receivePurchaseOrderItem(
     .single()
   if (currentError || !current) return { error: currentError?.message ?? "Purchase order item not found." }
   if (current.purchase_order_id !== poId) return { error: "This item does not belong to that purchase order." }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const currentMaterial = (Array.isArray(current.material) ? current.material[0] : current.material) as any
+  const isCircleReceipt = !!currentMaterial?.circle_type
+  if (isCircleReceipt && !Number.isInteger(receivedNow)) {
+    return { error: "Circle receipts must be entered as whole pieces." }
+  }
 
   if (receivedNow > 0) {
     const { data: poState } = await supabase
@@ -805,7 +811,7 @@ export async function receivePurchaseOrderItem(
       return { error: "This purchase order has not been approved yet." }
     }
     const pending = Number(current.quantity_ordered) - Number(current.quantity_received)
-    if (receivedNow > pending + 1e-9) {
+    if (!isCircleReceipt && receivedNow > pending + 1e-9) {
       return { error: `Only ${pending} is still pending on this item — refresh the page and try again.` }
     }
     quantityReceived = Number(current.quantity_received) + receivedNow

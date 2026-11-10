@@ -95,6 +95,7 @@ interface PurchaseOrderDetailProps {
 
 function ReceiptProgressBar({ received, ordered }: { received: number; ordered: number }) {
   const pct = ordered > 0 ? Math.min(100, Math.round((received / ordered) * 100)) : 0
+  const pending = Math.max(0, ordered - received)
   return (
     <div className="w-full">
       <div className="flex justify-between text-xs mb-1">
@@ -102,7 +103,7 @@ function ReceiptProgressBar({ received, ordered }: { received: number; ordered: 
           {received} received
         </span>
         <span className={pct < 100 ? "text-amber-600 font-medium" : "text-muted-foreground"}>
-          {ordered - received} pending
+          {pending} pending
         </span>
       </div>
       <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
@@ -162,7 +163,12 @@ export function PurchaseOrderDetail({ po: initialPo, isAdmin }: PurchaseOrderDet
         return
       }
       const maxQty = item.quantity_ordered - item.quantity_received
-      if (qty > maxQty) {
+      const isCircle = !!item.material?.circle_type
+      if (isCircle && !Number.isInteger(qty)) {
+        toast.error("Circle receipts must be entered as whole pieces")
+        return
+      }
+      if (!isCircle && qty > maxQty) {
         toast.error(`Cannot receive more than ${maxQty} (pending quantity)`)
         return
       }
@@ -291,6 +297,12 @@ export function PurchaseOrderDetail({ po: initialPo, isAdmin }: PurchaseOrderDet
           {(po.items ?? []).map((item) => {
             const pending = item.quantity_ordered - item.quantity_received
             const fullyReceived = pending <= 0
+            const isCircle = !!item.material?.circle_type
+            const estimatedAmount = item.quantity_ordered * item.unit_price
+            const enteredReceiptQty = Number(receiveQuantities[item.id]) || 0
+            const projectedActualPieces = item.quantity_received + enteredReceiptQty
+            const projectedActualAmount = projectedActualPieces * item.unit_price
+            const amountVariance = projectedActualAmount - estimatedAmount
             return (
               <Card key={item.id} className={fullyReceived ? "border-emerald-200 bg-emerald-50/30 dark:bg-emerald-950/10" : ""}>
                 <CardContent className="pt-4 pb-4 space-y-3">
@@ -318,6 +330,24 @@ export function PurchaseOrderDetail({ po: initialPo, isAdmin }: PurchaseOrderDet
                   </div>
 
                   <ReceiptProgressBar received={item.quantity_received} ordered={item.quantity_ordered} />
+                  {isCircle && (item.quantity_received > 0 || enteredReceiptQty > 0) && (
+                    <div className="grid gap-2 rounded-lg border bg-muted/30 p-3 text-xs sm:grid-cols-3">
+                      <div>
+                        <p className="text-muted-foreground">Estimated from PO</p>
+                        <p className="mt-0.5 font-semibold">{item.quantity_ordered.toLocaleString("en-IN")} pcs · {formatCurrency(estimatedAmount)}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">{enteredReceiptQty > 0 ? "Actual after this receipt" : "Actual received"}</p>
+                        <p className="mt-0.5 font-semibold text-emerald-600">{projectedActualPieces.toLocaleString("en-IN")} pcs · {formatCurrency(projectedActualAmount)}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Difference</p>
+                        <p className={`mt-0.5 font-semibold ${amountVariance === 0 ? "text-muted-foreground" : amountVariance > 0 ? "text-amber-600" : "text-blue-600"}`}>
+                          {projectedActualPieces - item.quantity_ordered > 0 ? "+" : ""}{(projectedActualPieces - item.quantity_ordered).toLocaleString("en-IN")} pcs · {amountVariance > 0 ? "+" : ""}{formatCurrency(amountVariance)}
+                        </p>
+                      </div>
+                    </div>
+                  )}
                   {/* Per-order receipt breakdown */}
                   {(item.receipts?.length ?? 0) > 0 && (
                     <div className="flex flex-wrap gap-1.5 text-xs text-muted-foreground">
@@ -336,7 +366,7 @@ export function PurchaseOrderDetail({ po: initialPo, isAdmin }: PurchaseOrderDet
 
                   {canReceive && !fullyReceived && (() => {
                     const mat = item.material
-                    const isCircle = !!mat?.circle_type
+                    const isCircleReceipt = !!mat?.circle_type
 
                     return (
                       <div className="space-y-2 pt-1">
@@ -377,14 +407,14 @@ export function PurchaseOrderDetail({ po: initialPo, isAdmin }: PurchaseOrderDet
                         <div className="flex items-end gap-2">
                           <div className="flex-1 space-y-1">
                             <Label className="text-xs text-muted-foreground">
-                              Receiving today ({isCircle ? "pieces" : item.material?.unit ?? "units"})
+                              Receiving today ({isCircleReceipt ? "actual pieces" : item.material?.unit ?? "units"})
                             </Label>
                             <Input
                               type="number"
-                              min={isCircle ? 1 : 0.01}
-                              max={pending}
-                              step={isCircle ? "1" : "0.01"}
-                              placeholder={`Max ${pending}`}
+                              min={isCircleReceipt ? 1 : 0.01}
+                              max={isCircleReceipt ? undefined : pending}
+                              step={isCircleReceipt ? "1" : "0.01"}
+                              placeholder={isCircleReceipt ? `Estimated remaining ${Math.max(0, pending)} pcs` : `Max ${pending}`}
                               value={receiveQuantities[item.id] ?? ""}
                               onChange={(e) =>
                                 setReceiveQuantities((prev) => ({ ...prev, [item.id]: e.target.value }))
@@ -401,6 +431,11 @@ export function PurchaseOrderDetail({ po: initialPo, isAdmin }: PurchaseOrderDet
                             {receivingItemId === item.id ? "Saving…" : "Receive"}
                           </Button>
                         </div>
+                        {isCircleReceipt && (
+                          <p className="text-xs text-muted-foreground">
+                            The PO piece count is estimated from kg. Enter the supplier&apos;s actual whole-piece count; the invoice and inventory value use this actual receipt.
+                          </p>
+                        )}
                       </div>
                     )
                   })()}
