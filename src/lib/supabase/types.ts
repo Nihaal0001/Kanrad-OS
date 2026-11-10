@@ -187,6 +187,7 @@ export type PurchaseOrderItem = {
   material_id: string
   quantity_ordered: number
   quantity_received: number
+  receipt_completed: boolean
   unit_price: number
   /** Weight per piece (kg) — recorded for aluminium circles */
   weight_kg: number | null

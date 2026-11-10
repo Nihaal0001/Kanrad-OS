@@ -597,7 +597,8 @@ export async function getPurchaseOrder(id: string) {
           items:purchase_order_items(
             *,
             material:materials(id, name, sku, unit, diameter_mm, thickness_mm, circle_type),
-            receipts:purchase_order_receipts(id, order_id, quantity, received_at, bill_no)
+            receipts:purchase_order_receipts(id, order_id, quantity, received_at, bill_no),
+            variance_approvals:purchase_order_receipt_approvals(id, requested_quantity, current_received, expected_quantity, bill_no, status, created_at)
           ),
           linked_orders:purchase_order_orders(order:orders(id, order_number, product_variant))
         `)
@@ -801,7 +802,8 @@ export async function receivePurchaseOrderItem(
   poId: string,
   receivedNow: number,
   orderId?: string | null,
-  billNo?: string
+  billNo?: string,
+  varianceApprovalId?: string
 ) {
   const supabase = await createClient()
   const admin = createAdminClient()
@@ -820,7 +822,7 @@ export async function receivePurchaseOrderItem(
   // Never trust the browser's running total (stale tab / double click): re-read from the database.
   const { data: current, error: currentError } = await supabase
     .from("purchase_order_items")
-    .select("quantity_ordered, quantity_received, purchase_order_id, ib_plate_price, material:materials(circle_type)")
+    .select("quantity_ordered, quantity_received, purchase_order_id, ib_plate_price, receipt_completed, material:materials(circle_type)")
     .eq("id", itemId)
     .single()
   if (currentError || !current) return { error: currentError?.message ?? "Purchase order item not found." }
@@ -847,6 +849,67 @@ export async function receivePurchaseOrderItem(
       return { error: `Only ${pending} is still pending on this item — refresh the page and try again.` }
     }
     quantityReceived = Number(current.quantity_received) + receivedNow
+
+    // A circle's PO piece count is only an estimate derived from kg. The actual
+    // count may be higher or lower, but any difference must be approved before
+    // stock, invoice and costing records are changed.
+    const hasVariance = isCircleReceipt && Math.abs(quantityReceived - Number(current.quantity_ordered)) > 1e-9
+    if (hasVariance && !varianceApprovalId) {
+      const { data: existing } = await admin
+        .from("purchase_order_receipt_approvals")
+        .select("id")
+        .eq("purchase_order_item_id", itemId)
+        .eq("status", "pending")
+        .maybeSingle()
+      if (existing) {
+        return { error: "A quantity-change approval is already pending for this item." }
+      }
+
+      const { error: requestError } = await admin
+        .from("purchase_order_receipt_approvals")
+        .insert({
+          purchase_order_id: poId,
+          purchase_order_item_id: itemId,
+          order_id: orderId || null,
+          requested_quantity: receivedNow,
+          current_received: Number(current.quantity_received),
+          expected_quantity: Number(current.quantity_ordered),
+          bill_no: billNo!.trim(),
+          requested_by: user.id,
+        })
+      if (requestError) return { error: requestError.message }
+
+      revalidateTag("purchase_orders", {})
+      revalidatePath("/inventory/approvals")
+      revalidatePath(`/inventory/purchase-orders/${poId}`)
+      return { success: true, approval_required: true }
+    }
+
+    if (varianceApprovalId) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("auth_id", user.id)
+        .maybeSingle()
+      if (profile?.role !== "admin") return { error: "Only an admin can approve a changed receipt quantity." }
+
+      const { data: approval, error: approvalError } = await admin
+        .from("purchase_order_receipt_approvals")
+        .select("id, purchase_order_id, purchase_order_item_id, requested_quantity, current_received, bill_no, status")
+        .eq("id", varianceApprovalId)
+        .single()
+      if (approvalError || !approval) return { error: "Quantity-change approval was not found." }
+      if (
+        approval.status !== "pending" ||
+        approval.purchase_order_id !== poId ||
+        approval.purchase_order_item_id !== itemId ||
+        Number(approval.requested_quantity) !== receivedNow ||
+        Number(approval.current_received) !== Number(current.quantity_received) ||
+        approval.bill_no !== billNo!.trim()
+      ) {
+        return { error: "This quantity-change approval is no longer valid. Please request it again." }
+      }
+    }
   } else {
     quantityReceived = Number(current.quantity_received)
   }
@@ -854,7 +917,12 @@ export async function receivePurchaseOrderItem(
   // Update the received quantity
   const { data: item, error: itemError } = await supabase
     .from("purchase_order_items")
-    .update({ quantity_received: quantityReceived })
+    .update({
+      quantity_received: quantityReceived,
+      receipt_completed: isCircleReceipt
+        ? Boolean(varianceApprovalId) || Math.abs(quantityReceived - Number(current.quantity_ordered)) <= 1e-9
+        : current.receipt_completed,
+    })
     .eq("id", itemId)
     .select("*, material:materials(id, name, current_stock, cost_per_unit, circle_type)")
     .single()
@@ -865,7 +933,7 @@ export async function receivePurchaseOrderItem(
   const undoReceived = async () => {
     await admin
       .from("purchase_order_items")
-      .update({ quantity_received: current.quantity_received })
+      .update({ quantity_received: current.quantity_received, receipt_completed: current.receipt_completed })
       .eq("id", itemId)
     await syncExactPurchaseOrderTotal(poId)
   }
@@ -990,12 +1058,12 @@ export async function receivePurchaseOrderItem(
   // Check if all items are fully received
   const { data: allItems } = await supabase
     .from("purchase_order_items")
-    .select("quantity_ordered, quantity_received")
+    .select("quantity_ordered, quantity_received, receipt_completed")
     .eq("purchase_order_id", poId)
 
   if (allItems) {
     const allReceived = allItems.every(
-      (i) => i.quantity_received >= i.quantity_ordered
+      (i) => i.receipt_completed || i.quantity_received >= i.quantity_ordered
     )
     const someReceived = allItems.some((i) => i.quantity_received > 0)
 
@@ -1031,6 +1099,109 @@ export async function receivePurchaseOrderItem(
     })
   }
 
+  return { success: true }
+}
+
+// ==================== Receipt quantity-change approval ====================
+
+export async function getReceiptVarianceApprovals(status: "pending" | "approved" | "rejected" = "pending") {
+  const auth = await requireAdmin()
+  if ("error" in auth) return { data: [], error: auth.error }
+
+  const admin = createAdminClient()
+  const { data, error } = await admin
+    .from("purchase_order_receipt_approvals")
+    .select(`
+      *,
+      purchase_order:purchase_orders(id, po_number, supplier_name),
+      item:purchase_order_items(id, quantity_ordered, quantity_received, material:materials(name, sku))
+    `)
+    .eq("status", status)
+    .order("created_at", { ascending: false })
+
+  return { data: data ?? [], error: error?.message }
+}
+
+export async function approveReceiptVariance(id: string, notes?: string) {
+  const auth = await requireAdmin()
+  if ("error" in auth) return { error: auth.error }
+
+  const admin = createAdminClient()
+  const { data: request, error } = await admin
+    .from("purchase_order_receipt_approvals")
+    .select("*")
+    .eq("id", id)
+    .single()
+  if (error || !request) return { error: error?.message ?? "Approval request not found." }
+  if (request.status !== "pending") return { error: "This approval request has already been handled." }
+
+  const result = await receivePurchaseOrderItem(
+    request.purchase_order_item_id,
+    Number(request.current_received) + Number(request.requested_quantity),
+    request.purchase_order_id,
+    Number(request.requested_quantity),
+    request.order_id,
+    request.bill_no,
+    request.id
+  )
+  if ("error" in result && result.error) return result
+
+  const { error: updateError } = await admin
+    .from("purchase_order_receipt_approvals")
+    .update({
+      status: "approved",
+      reviewed_by: auth.userId,
+      reviewed_at: new Date().toISOString(),
+      review_notes: notes || null,
+    })
+    .eq("id", id)
+    .eq("status", "pending")
+  if (updateError) return { error: updateError.message }
+
+  revalidatePath("/inventory/approvals")
+  await logAudit({
+    entityType: "purchase_order",
+    entityId: request.purchase_order_id,
+    action: "approved",
+    newValues: { receipt_variance_approval_id: id, actual_received: request.requested_quantity, notes },
+  })
+  return { success: true }
+}
+
+export async function rejectReceiptVariance(id: string, notes?: string) {
+  const auth = await requireAdmin()
+  if ("error" in auth) return { error: auth.error }
+
+  const admin = createAdminClient()
+  const { data: request, error: requestError } = await admin
+    .from("purchase_order_receipt_approvals")
+    .select("purchase_order_id, status")
+    .eq("id", id)
+    .single()
+  if (requestError || !request) return { error: requestError?.message ?? "Approval request not found." }
+  if (request.status !== "pending") return { error: "This approval request has already been handled." }
+
+  const { error } = await admin
+    .from("purchase_order_receipt_approvals")
+    .update({
+      status: "rejected",
+      reviewed_by: auth.userId,
+      reviewed_at: new Date().toISOString(),
+      review_notes: notes || null,
+    })
+    .eq("id", id)
+    .eq("status", "pending")
+  if (error) return { error: error.message }
+
+  revalidateTag("purchase_orders", {})
+  revalidatePath("/inventory/approvals")
+  revalidatePath(`/inventory/purchase-orders/${request.purchase_order_id}`)
+  await logAudit({
+    entityType: "purchase_order",
+    entityId: request.purchase_order_id,
+    action: "rejected",
+    newValues: { receipt_variance_approval_id: id, notes },
+  })
   return { success: true }
 }
 

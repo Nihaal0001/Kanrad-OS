@@ -60,6 +60,7 @@ interface POItem {
   quantity_kg?: number | null
   price_per_kg?: number | null
   ib_plate_price?: number | null
+  receipt_completed?: boolean
   material: {
     id: string
     name: string
@@ -70,6 +71,15 @@ interface POItem {
     circle_type: string | null
   } | null
   receipts?: POReceipt[]
+  variance_approvals?: Array<{
+    id: string
+    requested_quantity: number
+    current_received: number
+    expected_quantity: number
+    bill_no: string
+    status: "pending" | "approved" | "rejected"
+    created_at: string
+  }>
 }
 
 interface PurchaseOrderDetailProps {
@@ -133,7 +143,8 @@ export function PurchaseOrderDetail({ po: initialPo, isAdmin }: PurchaseOrderDet
     () => Object.fromEntries((initialPo.items ?? []).map((item) => [item.id, linkedOrders.length === 1 ? linkedOrders[0].id : ""]))
   )
 
-  const canReceive = po.status === "sent" || po.status === "partial"
+  const receiveStatusOpen = po.status === "sent" || po.status === "partial"
+  const canReceive = receiveStatusOpen && po.approval_status === "approved"
 
   const totalOrdered = (po.items ?? []).reduce((s, i) => s + i.quantity_ordered, 0)
   const totalReceived = (po.items ?? []).reduce((s, i) => s + i.quantity_received, 0)
@@ -184,6 +195,14 @@ export function PurchaseOrderDetail({ po: initialPo, isAdmin }: PurchaseOrderDet
       if ("error" in result && result.error) {
         toast.error(friendlyError(result.error))
         setReceivingItemId(null)
+        return
+      }
+      if ("approval_required" in result && result.approval_required) {
+        toast.success("Quantity differs from the estimate. Approval request sent.")
+        setReceiveQuantities((prev) => ({ ...prev, [itemId]: "" }))
+        setReceiveBillNos((prev) => ({ ...prev, [itemId]: "" }))
+        setReceivingItemId(null)
+        router.refresh()
         return
       }
 
@@ -296,8 +315,9 @@ export function PurchaseOrderDetail({ po: initialPo, isAdmin }: PurchaseOrderDet
           <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Line Items</h3>
           {(po.items ?? []).map((item) => {
             const pending = item.quantity_ordered - item.quantity_received
-            const fullyReceived = pending <= 0
+            const fullyReceived = Boolean(item.receipt_completed) || pending <= 0
             const isCircle = !!item.material?.circle_type
+            const pendingVariance = item.variance_approvals?.find((request) => request.status === "pending")
             const estimatedAmount = item.quantity_kg != null && item.price_per_kg != null
               ? Number(item.quantity_kg) * Number(item.price_per_kg) + item.quantity_ordered * Number(item.ib_plate_price ?? 0)
               : item.quantity_ordered * item.unit_price
@@ -332,6 +352,14 @@ export function PurchaseOrderDetail({ po: initialPo, isAdmin }: PurchaseOrderDet
                   </div>
 
                   <ReceiptProgressBar received={item.quantity_received} ordered={item.quantity_ordered} />
+                  {pendingVariance && (
+                    <div className="rounded-lg border border-amber-300 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
+                      Approval pending: receive {Number(pendingVariance.requested_quantity).toLocaleString("en-IN")} pieces
+                      {Number(pendingVariance.current_received) + Number(pendingVariance.requested_quantity) !== Number(pendingVariance.expected_quantity)
+                        ? ` (final total ${Number(pendingVariance.current_received) + Number(pendingVariance.requested_quantity)} vs estimated ${Number(pendingVariance.expected_quantity)})`
+                        : ""}.
+                    </div>
+                  )}
                   {isCircle && (item.quantity_received > 0 || enteredReceiptQty > 0) && (
                     <div className="grid gap-2 rounded-lg border bg-muted/30 p-3 text-xs sm:grid-cols-3">
                       <div>
@@ -366,7 +394,7 @@ export function PurchaseOrderDetail({ po: initialPo, isAdmin }: PurchaseOrderDet
                     </div>
                   )}
 
-                  {canReceive && !fullyReceived && (() => {
+                  {canReceive && !fullyReceived && !pendingVariance && (() => {
                     const mat = item.material
                     const isCircleReceipt = !!mat?.circle_type
 
@@ -427,7 +455,7 @@ export function PurchaseOrderDetail({ po: initialPo, isAdmin }: PurchaseOrderDet
                           <Button
                             size="sm"
                             className="h-9"
-                            disabled={receivingItemId === item.id || !receiveQuantities[item.id] || !(receiveBillNos[item.id] ?? "").trim()}
+                            disabled={receivingItemId === item.id}
                             onClick={() => handleReceiveItem(item.id, item)}
                           >
                             {receivingItemId === item.id ? "Saving…" : "Receive"}
@@ -435,12 +463,17 @@ export function PurchaseOrderDetail({ po: initialPo, isAdmin }: PurchaseOrderDet
                         </div>
                         {isCircleReceipt && (
                           <p className="text-xs text-muted-foreground">
-                            The PO piece count is estimated from kg. Enter the supplier&apos;s actual whole-piece count; the invoice and inventory value use this actual receipt.
+                            No piece cap. Enter the supplier&apos;s actual whole-piece count. Any difference from the estimate is sent for approval before inventory is updated.
                           </p>
                         )}
                       </div>
                     )
                   })()}
+                  {receiveStatusOpen && po.approval_status !== "approved" && !fullyReceived && (
+                    <p className="rounded-lg border border-amber-300 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
+                      This PO must be approved before stock can be received.
+                    </p>
+                  )}
                 </CardContent>
               </Card>
             )
