@@ -195,6 +195,7 @@ export default async function MaterialDetailPage({ params }: MaterialDetailPageP
                         <TableHead>Date</TableHead>
                         <TableHead>Type</TableHead>
                         <TableHead className="text-right">Quantity</TableHead>
+                        {material.circle_type && <TableHead className="text-right">Recorded kg</TableHead>}
                         <TableHead>Notes</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -218,6 +219,11 @@ export default async function MaterialDetailPage({ params }: MaterialDetailPageP
                               {txn.quantity > 0 ? "+" : ""}
                               {txn.quantity}
                             </TableCell>
+                            {material.circle_type && (
+                              <TableCell className="text-right tabular-nums font-medium">
+                                {txn.quantity_kg == null ? "--" : `${txn.quantity_kg > 0 ? "+" : ""}${txn.quantity_kg} kg`}
+                              </TableCell>
+                            )}
                             <TableCell className="text-muted-foreground text-sm">
                               {txn.notes ?? "--"}
                             </TableCell>

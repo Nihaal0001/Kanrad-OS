@@ -510,11 +510,15 @@ export async function createStockTransaction(formData: StockAdjustmentFormData) 
 
   const isOutbound = validated.type === "production_out"
   const quantity = isOutbound ? -Math.abs(validated.quantity) : Math.abs(validated.quantity)
+  const quantityKg = validated.quantity_kg == null
+    ? null
+    : isOutbound ? -Math.abs(validated.quantity_kg) : Math.abs(validated.quantity_kg)
 
   const { error } = await supabase.from("stock_transactions").insert({
     material_id: validated.material_id,
     type: validated.type,
     quantity,
+    quantity_kg: quantityKg,
     reference_type: "manual",
     notes: validated.notes || null,
   })
@@ -552,7 +556,7 @@ export async function createStockTransaction(formData: StockAdjustmentFormData) 
     entityType: "stock_transaction",
     entityId: validated.material_id,
     action: "created",
-    newValues: { type: validated.type, quantity, notes: validated.notes || undefined },
+    newValues: { type: validated.type, quantity, quantity_kg: quantityKg, notes: validated.notes || undefined },
   })
 
   return { success: true }

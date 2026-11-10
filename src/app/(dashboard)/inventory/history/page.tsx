@@ -121,6 +121,7 @@ export default async function InventoryHistoryPage({ searchParams }: HistoryPage
                 <TableHead>SKU</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead className="text-right">Quantity</TableHead>
+                <TableHead className="text-right">Recorded kg</TableHead>
                 <TableHead>Notes</TableHead>
               </TableRow>
             </TableHeader>
@@ -158,6 +159,9 @@ export default async function InventoryHistoryPage({ searchParams }: HistoryPage
                     </TableCell>
                     <TableCell className={cn("text-right tabular-nums font-semibold", txn.quantity > 0 ? "text-emerald-600" : "text-red-500")}>
                       {txn.quantity > 0 ? "+" : ""}{txn.quantity} {txn.material?.unit ?? ""}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums text-sm">
+                      {txn.quantity_kg == null ? "--" : `${txn.quantity_kg > 0 ? "+" : ""}${txn.quantity_kg} kg`}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">
                       {txn.notes ?? "--"}

@@ -26,6 +26,9 @@ export const stockAdjustmentSchema = z.object({
   material_id: z.string().min(1, "Material is required"),
   type: z.enum(["purchase_in", "production_out", "adjustment", "return"]),
   quantity: z.number().min(0.01, "Quantity must be greater than 0"),
+  // Independently recorded physical weight. It intentionally does not need to
+  // equal pieces x calculated weight per piece.
+  quantity_kg: z.number().min(0, "Kilograms cannot be negative").optional(),
   notes: z.string().max(1000).optional().or(z.literal("")),
 })
 

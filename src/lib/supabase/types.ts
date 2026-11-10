@@ -150,6 +150,7 @@ export type StockTransaction = {
   material_id: string
   type: "purchase_in" | "production_out" | "adjustment" | "return"
   quantity: number
+  quantity_kg: number | null
   reference_type: string | null
   reference_id: string | null
   notes: string | null

@@ -53,6 +53,7 @@ export function StockAdjustmentForm({ material }: StockAdjustmentFormProps) {
       material_id: material.id,
       type: "purchase_in",
       quantity: 0,
+      quantity_kg: material.circle_type ? 0 : undefined,
       notes: "",
     },
   })
@@ -124,14 +125,14 @@ export function StockAdjustmentForm({ material }: StockAdjustmentFormProps) {
               </Select>
             </div>
 
-            {/* Quantity */}
+            {/* Quantity / pieces */}
             <div className="space-y-2">
-              <Label htmlFor="quantity">Quantity ({material.unit})</Label>
+              <Label htmlFor="quantity">{material.circle_type ? "Pieces" : `Quantity (${material.unit})`}</Label>
               <Input
                 id="quantity"
                 type="number"
                 min={0.01}
-                step="0.01"
+                step={material.circle_type ? "1" : "0.01"}
                 {...form.register("quantity", { setValueAs: (v) => (v === "" || v == null ? 0 : Number(v)) })}
               />
               {form.formState.errors.quantity && (
@@ -140,6 +141,25 @@ export function StockAdjustmentForm({ material }: StockAdjustmentFormProps) {
                 </p>
               )}
             </div>
+
+            {material.circle_type && (
+              <div className="space-y-2">
+                <Label htmlFor="quantity_kg">Actual weight (kg)</Label>
+                <Input
+                  id="quantity_kg"
+                  type="number"
+                  min={0}
+                  step="0.001"
+                  {...form.register("quantity_kg", { setValueAs: (v) => (v === "" || v == null ? 0 : Number(v)) })}
+                />
+                {form.formState.errors.quantity_kg && (
+                  <p className="text-sm text-destructive">{form.formState.errors.quantity_kg.message}</p>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Enter the measured kg independently. Pieces and kg do not need to match the calculated utensil weight.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Notes */}
