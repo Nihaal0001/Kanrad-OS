@@ -3,7 +3,7 @@
 import { circleLineFromKg, circleWeightFor, isCircleMaterial } from "@/lib/costing"
 import { useRef, useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Controller, useForm, useFieldArray } from "react-hook-form"
+import { Controller, useForm, useFieldArray, type FieldErrors } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Plus, Trash2, Loader2, Check, ShoppingCart } from "lucide-react"
 import { toast } from "sonner"
@@ -54,6 +54,16 @@ export interface POSupplierOption {
 interface PurchaseOrderFormProps {
   materials: POMaterialOption[]
   suppliers: POSupplierOption[]
+}
+
+function firstFormError(value: unknown): string | null {
+  if (!value || typeof value !== "object") return null
+  if ("message" in value && typeof value.message === "string") return value.message
+  for (const child of Object.values(value)) {
+    const message = firstFormError(child)
+    if (message) return message
+  }
+  return null
 }
 
 // ── Material combobox ───────────────────────────────────────────────────────
@@ -206,7 +216,16 @@ export function PurchaseOrderForm({ materials, suppliers }: PurchaseOrderFormPro
     }
   }
 
-  const totalAmount = watchedItems.reduce((sum, item) => sum + (item.quantity_ordered || 0) * (item.unit_price || 0), 0)
+  function purchaseLineAmount(item: PurchaseOrderFormData["items"][number] | undefined) {
+    if (!item) return 0
+    const material = materialsMap[item.material_id]
+    if (material && isCircleMaterial(material) && item.quantity_kg && item.price_per_kg) {
+      return Math.round((item.quantity_kg * item.price_per_kg + (item.quantity_ordered || 0) * (item.ib_plate_price || 0)) * 100) / 100
+    }
+    return (item.quantity_ordered || 0) * (item.unit_price || 0)
+  }
+
+  const totalAmount = watchedItems.reduce((sum, item) => sum + purchaseLineAmount(item), 0)
 
   async function onSubmit(data: PurchaseOrderFormData) {
     setLoading(true)
@@ -227,8 +246,13 @@ export function PurchaseOrderForm({ materials, suppliers }: PurchaseOrderFormPro
     }
   }
 
+  function onInvalid(errors: FieldErrors<PurchaseOrderFormData>) {
+    const message = firstFormError(errors) ?? "Please check the required fields and try again."
+    toast.error(`Purchase order not created: ${message}`)
+  }
+
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+    <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-6">
       <Card>
         <CardHeader>
           <CardTitle>Order Details</CardTitle>
@@ -362,8 +386,7 @@ export function PurchaseOrderForm({ materials, suppliers }: PurchaseOrderFormPro
             const item = watchedItems[index]
             const mat = item ? materialsMap[item.material_id] : null
             const circle = !!mat && isCircleMaterial(mat)
-            const circleWeight = mat && circle ? circleWeightFor(mat) : null
-            const amount = (item?.quantity_ordered || 0) * (item?.unit_price || 0)
+            const amount = purchaseLineAmount(item)
 
             return (
               <div
@@ -405,9 +428,6 @@ export function PurchaseOrderForm({ materials, suppliers }: PurchaseOrderFormPro
                   />
                   {mat?.circle_type === "ib" && (
                     <div className="space-y-1 pt-1">
-                      <p className="text-xs font-medium text-violet-600">
-                        Calculated utensil weight: {circleWeight ? `${Number(circleWeight).toFixed(4)} kg/piece` : "Set diameter and thickness in the material master"}
-                      </p>
                       <Label className="text-xs block pt-1">IB plate price / piece *</Label>
                       <Controller
                         control={form.control}
@@ -434,25 +454,7 @@ export function PurchaseOrderForm({ materials, suppliers }: PurchaseOrderFormPro
                           />
                         )}
                       />
-                      <p className="text-xs text-muted-foreground">Price/piece = utensil weight × aluminium price/kg + IB plate price.</p>
                     </div>
-                  )}
-                  {circle && mat?.circle_type !== "ib" && circleWeight ? (
-                    <p className="text-xs text-muted-foreground">Calculated weight: {Number(circleWeight).toFixed(4)} kg/pc</p>
-                  ) : null}
-                  {circle && (item?.quantity_ordered ?? 0) > 0 && (item?.unit_price ?? 0) > 0 ? (
-                    <div className="rounded-md bg-emerald-500/10 px-2.5 py-2 text-xs text-emerald-700 dark:text-emerald-400">
-                      <p className="font-medium">
-                        Calculated inventory cost: ₹{(item?.unit_price ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}/piece
-                      </p>
-                      <p className="mt-0.5">
-                        {(item?.quantity_kg ?? 0).toLocaleString("en-IN")} kg = {(item?.quantity_ordered ?? 0).toLocaleString("en-IN")} pieces
-                        {mat?.circle_type === "ib" ? ` · includes ₹${item?.ib_plate_price ?? 0} IB plate/piece` : ""}. This cost updates inventory when received.
-                      </p>
-                    </div>
-                  ) : null}
-                  {mat?.category_name && (
-                    <p className="text-xs text-muted-foreground">Category: {mat.category_name}</p>
                   )}
                   {form.formState.errors.items?.[index]?.material_id && (
                     <p className="text-xs text-destructive">{form.formState.errors.items[index].material_id?.message}</p>
@@ -500,7 +502,6 @@ export function PurchaseOrderForm({ materials, suppliers }: PurchaseOrderFormPro
                       })}
                     />
                   )}
-                  {circle && <p className="text-xs text-muted-foreground">Order in kg · receive in pieces</p>}
                 </div>
 
                 <div className="space-y-1">
@@ -545,11 +546,15 @@ export function PurchaseOrderForm({ materials, suppliers }: PurchaseOrderFormPro
                       {...form.register(`items.${index}.unit_price`, { valueAsNumber: true })}
                     />
                   )}
-                  {circle && <p className="text-xs text-muted-foreground">Used to calculate inventory cost per piece</p>}
                 </div>
 
-                <div className="flex items-center justify-end h-9 text-sm font-medium tabular-nums">
-                  {formatCurrency(amount)}
+                <div className="flex min-h-11 flex-col items-end justify-center text-sm font-medium tabular-nums">
+                  <span>{formatCurrency(amount)}</span>
+                  {circle && (item?.unit_price ?? 0) > 0 && (
+                    <span className="mt-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
+                      Inventory ₹{Number(item?.unit_price ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}/pc
+                    </span>
+                  )}
                 </div>
 
                 <div className="flex items-center justify-center h-9">

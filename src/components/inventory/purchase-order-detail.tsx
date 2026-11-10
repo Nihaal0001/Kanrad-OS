@@ -298,7 +298,9 @@ export function PurchaseOrderDetail({ po: initialPo, isAdmin }: PurchaseOrderDet
             const pending = item.quantity_ordered - item.quantity_received
             const fullyReceived = pending <= 0
             const isCircle = !!item.material?.circle_type
-            const estimatedAmount = item.quantity_ordered * item.unit_price
+            const estimatedAmount = item.quantity_kg != null && item.price_per_kg != null
+              ? Number(item.quantity_kg) * Number(item.price_per_kg) + item.quantity_ordered * Number(item.ib_plate_price ?? 0)
+              : item.quantity_ordered * item.unit_price
             const enteredReceiptQty = Number(receiveQuantities[item.id]) || 0
             const projectedActualPieces = item.quantity_received + enteredReceiptQty
             const projectedActualAmount = projectedActualPieces * item.unit_price

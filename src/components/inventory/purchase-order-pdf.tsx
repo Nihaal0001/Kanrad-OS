@@ -181,8 +181,12 @@ export function PurchaseOrderPDFDocument({ po, org }: Props) {
     return orgCode !== supCode
   })()
 
-  // The stored per-piece price is the accounting price. For IB circles it includes the plate.
-  const lineAmount = (item: PurchaseOrderPDFData["items"][number]) => item.quantity_ordered * item.unit_price
+  // Circle PO totals use exact kg × aluminium rate (plus IB plates), while unit_price
+  // remains the calculated per-piece inventory cost used at receiving.
+  const lineAmount = (item: PurchaseOrderPDFData["items"][number]) =>
+    item.quantity_kg != null && item.price_per_kg != null
+      ? item.quantity_kg * item.price_per_kg + item.quantity_ordered * (item.ib_plate_price ?? 0)
+      : item.quantity_ordered * item.unit_price
   const displayQty = (item: PurchaseOrderPDFData["items"][number]) => item.quantity_kg ?? item.quantity_ordered
   const displayRate = (item: PurchaseOrderPDFData["items"][number]) => item.price_per_kg ?? item.unit_price
   const displayUnit = (item: PurchaseOrderPDFData["items"][number]) => item.quantity_kg != null ? "kg" : item.material?.unit ?? ""

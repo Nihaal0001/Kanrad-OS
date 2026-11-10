@@ -102,9 +102,14 @@ export function circleWeightFor(m: CircleCostable | null | undefined): number | 
 
 /** Pieces and price per piece for a circle PO line ordered by kg. */
 export function circleLineFromKg(kg: number, pricePerKg: number, weightPerPiece: number, ibPlatePrice = 0) {
+  const pieces = Math.round(kg / weightPerPiece)
   return {
-    pieces: Math.round(kg / weightPerPiece),
+    pieces,
     unitPrice: Math.round((pricePerKg * weightPerPiece + ibPlatePrice) * 100) / 100,
+    // The supplier's PO amount is based on the exact kg purchase. The IB plate
+    // component is per estimated piece. Do not derive this from rounded pieces ×
+    // rounded unit cost, which creates visible mismatches on the PO.
+    lineAmount: Math.round((kg * pricePerKg + pieces * ibPlatePrice) * 100) / 100,
   }
 }
 

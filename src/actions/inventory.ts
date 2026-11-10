@@ -30,6 +30,31 @@ async function requireAdmin() {
   return { supabase, userId: user.id }
 }
 
+/** Keep the supplier-facing PO total exact for kg-priced circles. The database's
+ * legacy item trigger uses pieces x rounded unit cost, so call this after any PO
+ * item insert/update that could overwrite total_amount. */
+async function syncExactPurchaseOrderTotal(poId: string): Promise<string | null> {
+  const admin = createAdminClient()
+  const { data: lines, error: linesError } = await admin
+    .from("purchase_order_items")
+    .select("quantity_ordered, unit_price, quantity_kg, price_per_kg, ib_plate_price")
+    .eq("purchase_order_id", poId)
+  if (linesError) return linesError.message
+
+  const exactTotal = (lines ?? []).reduce((sum, line) => {
+    const amount = line.quantity_kg != null && line.price_per_kg != null
+      ? Number(line.quantity_kg) * Number(line.price_per_kg) + Number(line.quantity_ordered) * Number(line.ib_plate_price ?? 0)
+      : Number(line.quantity_ordered) * Number(line.unit_price)
+    return sum + amount
+  }, 0)
+
+  const { error } = await admin
+    .from("purchase_orders")
+    .update({ total_amount: Math.round(exactTotal * 100) / 100 })
+    .eq("id", poId)
+  return error?.message ?? null
+}
+
 // ==================== Categories ====================
 
 export const getCategories = unstable_cache(
@@ -622,7 +647,7 @@ export async function createPurchaseOrder(formData: PurchaseOrderFormData) {
   const circleMats = new Map<string, CircleMat>(
     ((matRows ?? []) as CircleMat[]).filter((m) => isCircleMaterial(m)).map((m) => [m.id, m])
   )
-  const circleLines = new Map<number, { pieces: number; unitPrice: number; weight: number; kg: number | null; pricePerKg: number | null; plate: number | null }>()
+  const circleLines = new Map<number, { pieces: number; unitPrice: number; lineAmount: number; weight: number; kg: number | null; pricePerKg: number | null; plate: number | null }>()
   for (const [idx, item] of validated.items.entries()) {
     const mat = circleMats.get(item.material_id)
     if (!mat) continue
@@ -638,9 +663,9 @@ export async function createPurchaseOrder(formData: PurchaseOrderFormData) {
     if (!weight || weight <= 0) return { error: `The weight of circle ${mat.name} could not be worked out from its size` }
     if (!item.price_per_kg || item.price_per_kg <= 0) return { error: `Enter the price per kg of circle ${mat.name}` }
     const plate = mat.circle_type === "ib" ? item.ib_plate_price! : 0
-    const { pieces, unitPrice } = circleLineFromKg(item.quantity_kg, item.price_per_kg, weight, plate)
+    const { pieces, unitPrice, lineAmount } = circleLineFromKg(item.quantity_kg, item.price_per_kg, weight, plate)
     if (pieces < 1) return { error: `${item.quantity_kg} kg is less than one piece of circle ${mat.name}` }
-    circleLines.set(idx, { pieces, unitPrice, weight, kg: item.quantity_kg, pricePerKg: item.price_per_kg, plate: mat.circle_type === "ib" ? plate : null })
+    circleLines.set(idx, { pieces, unitPrice, lineAmount, weight, kg: item.quantity_kg, pricePerKg: item.price_per_kg, plate: mat.circle_type === "ib" ? plate : null })
   }
 
   const { items, order_ids, ...poData } = validated
@@ -682,6 +707,7 @@ export async function createPurchaseOrder(formData: PurchaseOrderFormData) {
       material_id: item.material_id,
       quantity_ordered: item.quantity_ordered,
       unit_price: item.unit_price,
+      line_amount: Math.round(item.quantity_ordered * item.unit_price * 100) / 100,
       weight_kg: weight ?? null,
     }
   })
@@ -693,6 +719,12 @@ export async function createPurchaseOrder(formData: PurchaseOrderFormData) {
   if (itemsError) {
     await supabase.from("purchase_orders").delete().eq("id", po.id)
     return { error: itemsError.message }
+  }
+
+  const totalError = await syncExactPurchaseOrderTotal(po.id)
+  if (totalError) {
+    await supabase.from("purchase_orders").delete().eq("id", po.id)
+    return { error: `Could not calculate the purchase order total: ${totalError}` }
   }
 
   if (order_ids && order_ids.length > 0) {
@@ -835,6 +867,13 @@ export async function receivePurchaseOrderItem(
       .from("purchase_order_items")
       .update({ quantity_received: current.quantity_received })
       .eq("id", itemId)
+    await syncExactPurchaseOrderTotal(poId)
+  }
+
+  const totalError = await syncExactPurchaseOrderTotal(poId)
+  if (totalError) {
+    await undoReceived()
+    return { error: `Could not update the purchase order total: ${totalError}` }
   }
 
   // Attribute this receipt to a linked customer order, if the caller specified one.

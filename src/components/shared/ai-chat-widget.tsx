@@ -248,7 +248,7 @@ export function AIChatWidget() {
   }
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3 max-lg:bottom-[calc(env(safe-area-inset-bottom)+0.75rem)] max-lg:right-4">
+    <div className="fixed bottom-24 right-6 z-50 flex flex-col items-end gap-3 max-lg:bottom-[calc(env(safe-area-inset-bottom)+6rem)] max-lg:right-4">
       {/* Chat panel */}
       {open && (
         <div
