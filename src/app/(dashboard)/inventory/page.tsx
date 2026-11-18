@@ -1,7 +1,7 @@
 export const revalidate = 60
 
 import Link from "next/link"
-import { Package, History, IndianRupee } from "lucide-react"
+import { Package, History, IndianRupee, ScanLine } from "lucide-react"
 
 import { getMaterials, getCategories } from "@/actions/inventory"
 import { PageHeader } from "@/components/shared/page-header"
@@ -29,6 +29,12 @@ export default async function InventoryPage({ searchParams }: Props) {
         title="Inventory"
         description="Live stock levels, low-stock alerts, and stock adjustments."
       >
+        <Button asChild>
+          <Link href="/bill-scan">
+            <ScanLine className="h-4 w-4" />
+            Scan Bill
+          </Link>
+        </Button>
         <Button variant="outline" asChild>
           <Link href="/inventory/history">
             <History className="h-4 w-4" />

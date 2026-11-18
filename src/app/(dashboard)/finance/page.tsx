@@ -11,6 +11,7 @@ import {
   ArrowRight,
   ArrowUpRight,
   Scale,
+  ScanLine,
 } from "lucide-react"
 import Link from "next/link"
 
@@ -18,6 +19,7 @@ import { getFinanceDashboard } from "@/actions/finance-reports"
 import { getPOPipeline } from "@/actions/finance-reports"
 import { getFinanceOverview } from "@/actions/finance-overview"
 import { PageHeader } from "@/components/shared/page-header"
+import { Button } from "@/components/ui/button"
 import { StatCard } from "@/components/shared/stat-card"
 const CashFlowChart = nextDynamic(() => import("@/components/finance/cash-flow-chart").then((m) => m.CashFlowChart), {
   loading: () => <Skeleton className="h-72 w-full rounded-xl" />,
@@ -59,7 +61,14 @@ export default async function FinanceDashboardPage() {
         title="Finance Overview"
         description="Sales, purchases, receivables, payables and cash at a glance"
         breadcrumbs={[{ label: "Finance" }]}
-      />
+      >
+        <Button asChild>
+          <Link href="/bill-scan">
+            <ScanLine className="h-4 w-4" />
+            Scan Bill
+          </Link>
+        </Button>
+      </PageHeader>
 
       {/* Sales side: what we billed, what came in, what is still owed to us */}
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-3 mb-4">

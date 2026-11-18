@@ -11,6 +11,7 @@ import {
   Activity,
   Boxes,
   IndianRupee,
+  ScanLine,
 } from "lucide-react"
 import Link from "next/link"
 
@@ -32,6 +33,7 @@ const QUICK_ACTIONS = [
   { label: "Mark Attendance", href: "/hr/attendance", icon: ClipboardCheck },
   { label: "Purchase Orders", href: "/inventory/purchase-orders", icon: Package },
   { label: "New Invoice", href: "/finance/invoices/new", icon: FileText },
+  { label: "Scan Bill", href: "/bill-scan", icon: ScanLine },
 ]
 
 const NOTIFICATION_DOT: Record<string, string> = {
