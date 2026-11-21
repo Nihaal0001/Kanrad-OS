@@ -116,14 +116,6 @@ export async function confirmScannedBill(input: ScannedBillPayload) {
     if (dupe?.[0]) return { duplicate: `Bill ${invNo} from ${p.party_name} is already in Finance.` }
   }
 
-  // New SKUs must not collide with an existing material
-  const newSkus = p.lines.filter((l) => l.new_material).map((l) => l.new_material!.sku.trim())
-  if (new Set(newSkus.map((s) => s.toLowerCase())).size !== newSkus.length) return { error: "Two new materials share the same code." }
-  if (newSkus.length) {
-    const { data: clash } = await admin.from("materials").select("sku").in("sku", newSkus)
-    if (clash?.length) return { error: `Material code ${clash[0].sku} already exists — pick it from the list instead.` }
-  }
-
   const createdMaterialIds: string[] = []
   const done: Array<{ materialId: string; qty: number; prevCost: number; batchId: string | null; txnId: string | null }> = []
   let invoiceId: string | null = null
@@ -142,11 +134,19 @@ export async function confirmScannedBill(input: ScannedBillPayload) {
   }
 
   try {
-    // 1. Create any new materials the user approved
+    // 1. New materials the user approved. If the code or name is already in the item master — or two
+    //    lines use the same new one — reuse that material so its stock stays together, never duplicate it.
+    const { data: existing } = await admin.from("materials").select("id, sku, name")
+    const bySku = new Map((existing ?? []).map((m) => [String(m.sku).trim().toLowerCase(), m.id as string]))
+    const byName = new Map((existing ?? []).map((m) => [String(m.name).trim().toLowerCase(), m.id as string]))
     const resolved: string[] = []
     for (const l of p.lines) {
       if (l.material_id) { resolved.push(l.material_id); continue }
       const nm = l.new_material!
+      const skuKey = nm.sku.trim().toLowerCase()
+      const nameKey = nm.name.trim().toLowerCase()
+      const found = bySku.get(skuKey) ?? byName.get(nameKey)
+      if (found) { resolved.push(found); continue }
       const { data: created, error } = await admin
         .from("materials")
         .insert({
@@ -163,6 +163,8 @@ export async function confirmScannedBill(input: ScannedBillPayload) {
         .select("id").single()
       if (error || !created) throw new Error(error?.message ?? "Could not create material")
       createdMaterialIds.push(created.id)
+      bySku.set(skuKey, created.id)
+      byName.set(nameKey, created.id)
       resolved.push(created.id)
     }
 
@@ -236,4 +238,18 @@ export async function confirmScannedBill(input: ScannedBillPayload) {
     newValues: { source: "scan", supplier: p.party_name, lines: p.lines.length },
   })
   return { data: { kind: "purchase" as const, id: invoiceId!, label: invNo, stockLines: p.lines.length } }
+}
+
+/**
+ * Typed (not scanned) stock entry: one material, one supplier bill. Same booking as a scanned
+ * purchase bill — stock in, average cost, payable — but admin only.
+ */
+export async function addStockEntry(input: ScannedBillPayload) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+  const { data: profile } = await supabase.from("profiles").select("role").eq("auth_id", user.id).maybeSingle()
+  if (profile?.role !== "admin") return { error: "Forbidden: admin only" }
+  if (input.direction !== "purchase" || input.lines.length !== 1) return { error: "Add one material per entry." }
+  return confirmScannedBill(input)
 }

@@ -6,7 +6,7 @@ import { AlertTriangle, Camera, ImagePlus, Loader2, PackagePlus, Plus, Trash2 } 
 import { toast } from "sonner"
 
 import { confirmScannedBill } from "@/actions/bill-scan"
-import type { LineMatch } from "@/lib/order-photo-match"
+import { matchProduct, type LineMatch } from "@/lib/order-photo-match"
 import { circleWeightFor } from "@/lib/costing"
 import { formatCurrency } from "@/lib/utils"
 
@@ -96,6 +96,8 @@ interface Line {
   newLocation: string
   /** Circle type answered by the user — a bill cannot tell IB from non-IB */
   circleKind: "" | "ib" | "non_ib"
+  /** Set to the code|name the user declared "a new material" despite a similar existing one */
+  distinctKey: string
   matchStatus: LineMatch["status"]
   matchMethod: LineMatch["method"]
   candidates: LineMatch["candidates"]
@@ -236,7 +238,7 @@ export function ScanBillWorkspace({ customers }: Props) {
             quantity: p.quantity, rate: p.rate, converted: p.converted,
             materialLabel: m ? (dup ? `${m.name} (${m.sku})` : m.name) : "",
             createNew: false, newSku: l.code, newName: l.name, newUnit: l.unit && !isKg(l.unit) ? l.unit.toLowerCase() : "pcs",
-            newCategory: "", newMinStock: "", newLocation: "", circleKind: "",
+            newCategory: "", newMinStock: "", newLocation: "", circleKind: "", distinctKey: "",
             matchStatus: l.match.status, matchMethod: l.match.method, candidates: l.match.candidates,
             confidence: l.confidence, note: l.note,
             // Only an exact code hit is trusted without a tick; a name match is shown so it can be confirmed
@@ -265,7 +267,7 @@ export function ScanBillWorkspace({ customers }: Props) {
   function addLine() {
     setLines((prev) => [...prev, {
       key: `m${Date.now()}`, code: "", writtenName: "", hsn: "", billUnit: "", billQty: null, billRate: null, quantity: "", rate: "", converted: "",
-      materialLabel: "", createNew: false, newSku: "", newName: "", newUnit: "pcs", newCategory: "", newMinStock: "", newLocation: "", circleKind: "", matchStatus: "unmatched", matchMethod: null, candidates: [],
+      materialLabel: "", createNew: false, newSku: "", newName: "", newUnit: "pcs", newCategory: "", newMinStock: "", newLocation: "", circleKind: "", distinctKey: "", matchStatus: "unmatched", matchMethod: null, candidates: [],
       confidence: 1, note: "", confirmed: false,
     }])
   }
@@ -274,10 +276,23 @@ export function ScanBillWorkspace({ customers }: Props) {
     setResult(null); setLines([]); setPreviewUrl(null); setError(null); setDuplicateNote(null); setDirection("")
   }
 
+  const newKeyOf = (l: Line) => `${l.newSku.trim().toLowerCase()}|${l.newName.trim().toLowerCase()}`
+  /** Existing materials close to (not identical to) a new one being typed */
+  const similarFor = (l: Line) =>
+    !l.createNew || (!l.newSku.trim() && !l.newName.trim())
+      ? []
+      : materials.filter((m) => m.sku.toLowerCase() !== l.newSku.trim().toLowerCase() && m.name.toLowerCase() !== l.newName.trim().toLowerCase())
+          .map((m) => ({ m, score: matchProduct({ code: l.newSku, name: l.newName }, [{ id: m.id, name: m.name, sku: m.sku }]).candidates[0]?.score ?? 0 }))
+          .filter((x) => x.score >= 0.5 && x.score < 1)
+          .sort((a, b) => b.score - a.score)
+          .slice(0, 3)
+          .map((x) => x.m)
+
   const lineProblem = (l: Line) => {
     if (direction === "purchase") {
       if (l.createNew) {
         if (!l.newSku.trim() || !l.newName.trim()) return "Enter a code and name for the new material"
+        if (similarFor(l).length > 0 && l.distinctKey !== newKeyOf(l)) return "Answer the question about the similar material"
       } else if (!l.materialLabel || !byLabel.has(l.materialLabel)) return "Pick a material or create a new one"
       if (circleInfo(l).isCircle && !circleInfo(l).kind) return "Choose IB or non-IB for this circle"
     } else if (!l.writtenName.trim() && !l.newName.trim()) return "Add a description"
@@ -557,6 +572,18 @@ export function ScanBillWorkspace({ customers }: Props) {
                               </button>
                             )
                           })}
+                        </div>
+                      )}
+                      {direction === "purchase" && l.createNew && similarFor(l).length > 0 && l.distinctKey !== newKeyOf(l) && (
+                        <div className="space-y-2 rounded-md border border-amber-500/50 bg-amber-500/10 p-2 text-xs">
+                          <p className="font-medium">Similar material already exists — is it the same item?</p>
+                          {similarFor(l).map((m) => (
+                            <div key={m.id} className="flex flex-wrap items-center justify-between gap-2">
+                              <span><b>{m.name}</b> (<span className="font-mono">{m.sku}</span>) · in stock {m.currentStock} {m.unit}</span>
+                              <Button type="button" size="sm" onClick={() => pickMaterial(l, options.find((o) => o.id === m.id)?.name ?? m.name)}>Yes, same item</Button>
+                            </div>
+                          ))}
+                          <Button type="button" size="sm" variant="outline" onClick={() => patch(l.key, { distinctKey: newKeyOf(l), confirmed: false })}>No, this is a new material</Button>
                         </div>
                       )}
                       {direction === "purchase" && (() => {

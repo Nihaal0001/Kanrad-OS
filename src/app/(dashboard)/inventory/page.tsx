@@ -1,9 +1,10 @@
 export const revalidate = 60
 
 import Link from "next/link"
-import { Package, History, IndianRupee, ScanLine } from "lucide-react"
+import { Package, History, IndianRupee, ScanLine, PackagePlus } from "lucide-react"
 
 import { getMaterials, getCategories } from "@/actions/inventory"
+import { getCurrentProfile } from "@/lib/auth-context"
 import { PageHeader } from "@/components/shared/page-header"
 import { EmptyState } from "@/components/shared/empty-state"
 import { Button } from "@/components/ui/button"
@@ -18,9 +19,10 @@ interface Props {
 
 export default async function InventoryPage({ searchParams }: Props) {
   const { filter } = await searchParams
-  const [materials, categories] = await Promise.all([
+  const [materials, categories, { profile }] = await Promise.all([
     getMaterials(),
     getCategories(),
+    getCurrentProfile(),
   ])
 
   return (
@@ -29,7 +31,15 @@ export default async function InventoryPage({ searchParams }: Props) {
         title="Inventory"
         description="Live stock levels, low-stock alerts, and stock adjustments."
       >
-        <Button asChild>
+        {profile?.role === "admin" && (
+          <Button asChild>
+            <Link href="/inventory/add-stock">
+              <PackagePlus className="h-4 w-4" />
+              Add Stock
+            </Link>
+          </Button>
+        )}
+        <Button variant="outline" asChild>
           <Link href="/bill-scan">
             <ScanLine className="h-4 w-4" />
             Scan Bill
